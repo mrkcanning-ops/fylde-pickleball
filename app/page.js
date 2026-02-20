@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import HeaderStats from "../components/HeaderStats";
 import Tabs from "../components/Tabs";
 import { supabase } from "../lib/supabase"; // make sure this exists
-import PreviousMatchesClient from "./PreviousMatchesClient"; // exact file name
+import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient"; // exact file name
+import PlayersPage from "./players/page";
+import Admin from "./admin/page";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("Standings");
