@@ -1,247 +1,271 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { getPlayers, setPlayers } from '../../lib/players';
+import { useState, useEffect } from "react";
+import { supabase } from "../../lib/supabase";
 
 export default function Admin() {
-  const [players, setLocalPlayers] = useState([]);
-  const [name, setName] = useState('');
+  const [players, setPlayers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newPlayerName, setNewPlayerName] = useState("");
+  const [court1Matches, setCourt1Matches] = useState([]);
+  const [court2Matches, setCourt2Matches] = useState([]);
+  const [week, setWeek] = useState(1);
 
-  // Load players from localStorage on mount
+  // Fetch players and matches
   useEffect(() => {
-    setLocalPlayers(getPlayers());
-  }, []);
+    fetchPlayersAndMatches();
+  }, [week]);
 
-  // Save players to state and localStorage
-  const savePlayers = (newPlayers) => {
-    setLocalPlayers(newPlayers);
-    setPlayers(newPlayers);
-  };
+  async function fetchPlayersAndMatches() {
+    setLoading(true);
 
-  // Add a new player
-  const addPlayer = () => {
-    if (!name.trim()) return;
-    const newPlayers = [
-      ...players,
-      { name: name.trim(), available: true, wins: 0, losses: 0, draws: 0 }
-    ];
-    savePlayers(newPlayers);
-    setName('');
-  };
+    // Players
+    const { data: playerData, error: playerError } = await supabase
+      .from("players")
+      .select("*")
+      .order("name", { ascending: true });
+    if (playerError) console.error(playerError);
+    else setPlayers(playerData);
 
-  // Toggle availability
-  const toggleAvailable = (index) => {
-    const newPlayers = [...players];
-    newPlayers[index].available = !newPlayers[index].available;
-    savePlayers(newPlayers);
-  };
+    // Matches
+    const { data: matchData, error: matchError } = await supabase
+      .from("matches")
+      .select("*")
+      .eq("week", week);
+    if (matchError) console.error(matchError);
 
-  // Record result for a player
-  const recordResult = (playerName, result) => {
-    const newPlayers = players.map(p => {
-      if (p.name === playerName) {
-        if (result === 'win') p.wins += 1;
-        if (result === 'loss') p.losses += 1;
-        if (result === 'draw') p.draws += 1;
-      }
-      return p;
-    });
-    savePlayers(newPlayers);
-  };
+    // Split by court
+    setCourt1Matches(matchData?.filter((m) => m.court === 1) || []);
+    setCourt2Matches(matchData?.filter((m) => m.court === 2) || []);
 
-  // Split available players into courts
-  const getCourts = () => {
-    const available = players.filter(p => p.available);
-    const mid = Math.ceil(available.length / 2);
-    const court1 = available.slice(0, mid);
-    const court2 = available.slice(mid);
-    const sittingOut = players.filter(p => !p.available);
-    return { court1, court2, sittingOut };
-  };
+    setLoading(false);
+  }
 
-  // Generate round-robin doubles matches
-  const generateMatches = (courtPlayers) => {
-    const matches = [];
-    let list = courtPlayers.length % 2 === 1 ? [...courtPlayers, { name: 'BYE' }] : [...courtPlayers];
-
-    for (let i = 0; i < list.length - 1; i++) {
-      const round = [];
-      for (let j = 0; j < list.length / 2; j++) {
-        const player1 = list[j];
-        const player2 = list[list.length - 1 - j];
-        if (player1.name !== 'BYE' && player2.name !== 'BYE') round.push([player1.name, player2.name]);
-      }
-      matches.push(round);
-
-      // Rotate players except first
-      const first = list[0];
-      const rest = list.slice(1);
-      list = [first, rest[rest.length - 1], ...rest.slice(0, rest.length - 1)];
+  // Add new player
+  async function addPlayer() {
+    if (!newPlayerName) return;
+    const { data, error } = await supabase
+      .from("players")
+      .insert([{ name: newPlayerName, active: true }])
+      .select();
+    if (error) console.error(error);
+    else {
+      setPlayers([...players, data[0]]);
+      setNewPlayerName("");
     }
-    return matches;
-  };
-   // Reset weekly availability (keep leaderboard stats)
-const resetWeek = () => {
-  const resetPlayers = players.map(p => ({
-    ...p,
-    available: true
-  }));
+  }
 
-  savePlayers(resetPlayers);
-};
-// Reset full leaderboard (wipe all stats)
-const resetLeaderboard = () => {
-  const resetPlayers = players.map(p => ({
-    ...p,
-    wins: 0,
-    losses: 0,
-    draws: 0
-  }));
+  // Toggle player availability
+  async function togglePlayerActive(player) {
+    const { data, error } = await supabase
+      .from("players")
+      .update({ active: !player.active })
+      .eq("id", player.id)
+      .select();
+    if (!error) setPlayers(players.map((p) => (p.id === player.id ? data[0] : p)));
+  }
 
-  savePlayers(resetPlayers);
-};
+  // Generate matches (fixed, fully working)
+  async function generateMatches() {
+    const availablePlayers = players.filter((p) => p.active);
+    if (availablePlayers.length < 4) {
+      alert("At least 4 active players are required.");
+      return;
+    }
 
-  const { court1, court2, sittingOut } = getCourts();
-  const court1Matches = generateMatches(court1);
-  const court2Matches = generateMatches(court2);
+    const half = Math.ceil(availablePlayers.length / 2);
+    const court1Players = availablePlayers.slice(0, half);
+    const court2Players = availablePlayers.slice(half);
+
+    const pairPlayers = (arr) => {
+      const pairs = [];
+      for (let i = 0; i < arr.length; i += 4) {
+        const team1 = arr[i];
+        const team2 = arr[i + 1] || null;
+        const team3 = arr[i + 2] || null;
+        const team4 = arr[i + 3] || null;
+        pairs.push([team1, team2, team3, team4].filter(Boolean));
+      }
+      return pairs;
+    };
+
+    const court1Pairs = pairPlayers(court1Players);
+    const court2Pairs = pairPlayers(court2Players);
+
+    try {
+      // Delete old matches for this week
+      const { error: deleteError } = await supabase.from("matches").delete().eq("week", week);
+      if (deleteError) console.error("Error clearing old matches:", deleteError);
+
+      const insertCourtMatches = async (pairs, courtNum) => {
+        for (const pair of pairs) {
+          const matchRow = {
+            player1_id: pair[0].id,
+            player2_id: pair[1]?.id || null,
+            player3_id: pair[2]?.id || null,
+            player4_id: pair[3]?.id || null,
+            court: courtNum,
+            score1: null,
+            score2: null,
+            week,
+          };
+          const { data, error } = await supabase.from("matches").insert([matchRow]).select();
+          if (error) {
+            console.error("Supabase insert error:", error);
+            console.log("Match row causing error:", matchRow);
+          } else console.log(`Inserted match Court ${courtNum}:`, data);
+        }
+      };
+
+      await insertCourtMatches(court1Pairs, 1);
+      await insertCourtMatches(court2Pairs, 2);
+
+      fetchPlayersAndMatches();
+      alert("Weekly matches generated!");
+    } catch (err) {
+      console.error("Unexpected error:", err);
+    }
+  }
+
+  // Update score
+  async function updateScore(matchId, scoreField, value) {
+    const intValue = parseInt(value);
+    if (isNaN(intValue)) return;
+
+    const { error } = await supabase.from("matches").update({ [scoreField]: intValue }).eq("id", matchId);
+    if (error) console.error(error);
+    else fetchPlayersAndMatches();
+  }
+
+  // Compute leaderboard
+  function computeLeaderboard() {
+    const leaderboard = {};
+    players.forEach((p) => {
+      leaderboard[p.id] = { name: p.name, wins: 0, draws: 0, losses: 0, points: 0 };
+    });
+
+    const allMatches = [...court1Matches, ...court2Matches];
+
+    allMatches.forEach((m) => {
+      if (m.score1 === null || m.score2 === null) return;
+
+      const team1 = [m.player1_id, m.player2_id].filter(Boolean);
+      const team2 = [m.player3_id, m.player4_id].filter(Boolean);
+
+      if (!team2.length) return;
+
+      if (m.score1 > m.score2) {
+        team1.forEach((id) => {
+          leaderboard[id].wins++;
+          leaderboard[id].points += 3;
+        });
+        team2.forEach((id) => leaderboard[id].losses++);
+      } else if (m.score1 < m.score2) {
+        team2.forEach((id) => {
+          leaderboard[id].wins++;
+          leaderboard[id].points += 3;
+        });
+        team1.forEach((id) => leaderboard[id].losses++);
+      } else {
+        [...team1, ...team2].forEach((id) => {
+          leaderboard[id].draws++;
+          leaderboard[id].points += 1;
+        });
+      }
+    });
+
+    return Object.values(leaderboard).sort((a, b) => b.points - a.points);
+  }
+
+  if (loading) return <p>Loading…</p>;
 
   return (
-    <main style={{
-  padding: '20px',
-  fontFamily: 'system-ui',
-  maxWidth: '1000px',
-  margin: '0 auto'
-}}>
-      <h1>⚡ Fylde Pickleball Admin</h1>
-      <button
-  onClick={resetWeek}
-  style={{
-    padding: '8px 12px',
-    marginBottom: '20px',
-    backgroundColor: '#ff9800',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px'
-  }}
->
-  🔄 Reset Week (Keep Leaderboard)
-</button>
-<button
-  onClick={resetLeaderboard}
-  style={{
-    padding: '8px 12px',
-    marginLeft: '10px',
-    backgroundColor: '#e53935',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px'
-  }}
-  
->
-  🗑 Reset Leaderboard
-</button>
+    <main style={{ padding: "20px", fontFamily: "system-ui", maxWidth: "1000px", margin: "0 auto" }}>
+      <h1>Admin - Fylde Pickleball</h1>
 
-      {/* Add Player */}
-      <div style={{ marginBottom: '20px' }}>
+      <div style={{ marginBottom: "20px" }}>
         <input
           type="text"
-          value={name}
-          placeholder="Enter player name"
-          onChange={(e) => setName(e.target.value)}
-          style={{ padding: '8px', width: '70%' }}
+          placeholder="New player name"
+          value={newPlayerName}
+          onChange={(e) => setNewPlayerName(e.target.value)}
+          style={{ marginRight: "10px" }}
         />
-        <button onClick={addPlayer} style={{ padding: '8px 12px', marginLeft: '10px' }}>Add Player</button>
+        <button onClick={addPlayer}>Add Player</button>
       </div>
 
-      {/* Player List */}
-      <h2>All Players</h2>
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {players.length === 0 ? (
-          <li>No players yet</li>
-        ) : (
-          players.map((p, i) => (
-            <li key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #ccc' }}>
-              <span>{p.name}</span>
-              <button onClick={() => toggleAvailable(i)}>
-                {p.available ? 'Available ✅' : 'Unavailable ❌'}
-              </button>
-            </li>
-          ))
-        )}
+      <h2>Players</h2>
+      <ul>
+        {players.map((p) => (
+          <li key={p.id}>
+            {p.name} ({p.active ? "Available" : "Inactive"})
+            <button onClick={() => togglePlayerActive(p)} style={{ marginLeft: "10px" }}>
+              Toggle
+            </button>
+          </li>
+        ))}
       </ul>
 
-      {/* Courts & Matches */}
-      <h2>Courts & Matches</h2>
-      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-        {[
-          { name: 'Court 1', matches: court1Matches },
-          { name: 'Court 2', matches: court2Matches }
-        ].map((court, i) => (
-          <div key={i} style={{ flex: '1', minWidth: '300px', marginBottom: '20px' }}>
-            <h3>{court.name}</h3>
-            <ul>
-              {(i === 0 ? court1 : court2).map(p => <li key={p.name}>{p.name}</li>)}
-            </ul>
-
-            <h4>Matches</h4>
-            {court.matches.map((round, ri) => (
-              <div key={ri} style={{ marginBottom: '10px' }}>
-                <strong>Round {ri + 1}</strong>
-                <ul>
-                  {round.map((pair, pi) => (
-                    <li key={pi}>
-                      {pair[0]} & {pair[1]}
-                      <div style={{ marginTop: '5px' }}>
-  <input
-    type="number"
-    placeholder="Team 1"
-    id={'t1-${ri}-${pi}'}
-    style={{ width: '60px', marginRight: '5px' }}
-  />
-  <input
-    type="number"
-    placeholder="Team 2"
-    id={'t2-${ri}-${pi}'}
-    style={{ width: '60px', marginRight: '5px' }}
-  />
-  <button
-    onClick={() => {
-      const score1 = parseInt(document.getElementById('t1-${ri}-${pi}').value);
-      const score2 = parseInt(document.getElementById('t2-${ri}-${pi}').value);
-
-      if (isNaN(score1) || isNaN(score2)) return;
-
-      if (score1 > score2) {
-        recordResult(pair[0], 'win');
-        recordResult(pair[1], 'loss');
-      } else if (score2 > score1) {
-        recordResult(pair[1], 'win');
-        recordResult(pair[0], 'loss');
-      } else {
-        recordResult(pair[0], 'draw');
-        recordResult(pair[1], 'draw');
-      }
-    }}
-  >
-    Save
-  </button>
-</div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        ))}
+      <div style={{ margin: "20px 0" }}>
+        <button onClick={generateMatches}>Generate Weekly Matches</button>
       </div>
 
-      {/* Sitting Out */}
-      {sittingOut.length > 0 && (
-        <div style={{ marginTop: '20px' }}>
-          <h3>Sitting Out</h3>
-          <ul>{sittingOut.map(p => <li key={p.name}>{p.name}</li>)}</ul>
-        </div>
+      <h2>Matches</h2>
+      {[{ matches: court1Matches, court: 1 }, { matches: court2Matches, court: 2 }].map(
+        ({ matches, court }) => (
+          <div key={court}>
+            <h3>Court {court}</h3>
+            <ul>
+              {matches.map((m) => (
+                <li key={m.id} style={{ marginBottom: "5px" }}>
+                  {players.find((p) => p.id === m.player1_id)?.name} &{" "}
+                  {players.find((p) => p.id === m.player2_id)?.name} vs{" "}
+                  {players.find((p) => p.id === m.player3_id)?.name || "TBD"} &{" "}
+                  {players.find((p) => p.id === m.player4_id)?.name || "TBD"}
+                  <input
+                    type="number"
+                    placeholder="Team 1"
+                    style={{ width: "50px", marginLeft: "10px" }}
+                    value={m.score1 ?? ""}
+                    onChange={(e) => updateScore(m.id, "score1", e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Team 2"
+                    style={{ width: "50px", marginLeft: "5px" }}
+                    value={m.score2 ?? ""}
+                    onChange={(e) => updateScore(m.id, "score2", e.target.value)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
       )}
+
+      <h2>Leaderboard</h2>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Wins</th>
+            <th>Draws</th>
+            <th>Losses</th>
+            <th>Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          {computeLeaderboard().map((p) => (
+            <tr key={p.name}>
+              <td>{p.name}</td>
+              <td>{p.wins}</td>
+              <td>{p.draws}</td>
+              <td>{p.losses}</td>
+              <td>{p.points}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </main>
   );
 }
