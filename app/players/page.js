@@ -1,8 +1,7 @@
-"use client"; // ✅ Must be first line for client-side hooks & interactivity
+"use client";
 
 import { useState } from "react";
 
-// Example Players page
 export default function PlayersPage() {
   const [players, setPlayers] = useState([
     { name: "Maddie" },
@@ -12,9 +11,7 @@ export default function PlayersPage() {
 
   const addPlayer = () => {
     const name = prompt("Enter new player name:");
-    if (name) {
-      setPlayers([...players, { name }]);
-    }
+    if (name) setPlayers([...players, { name }]);
   };
 
   return (
@@ -36,7 +33,6 @@ export default function PlayersPage() {
               <th className="p-3 text-left">Player</th>
             </tr>
           </thead>
-
           <tbody>
             {players.map((player, index) => (
               <tr

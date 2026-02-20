@@ -1,33 +1,84 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import HeaderStats from "../components/HeaderStats";
+import Tabs from "../components/Tabs";
+import { supabase } from "../lib/supabase"; // make sure this exists
 
-export default function Home() {
+export default function HomePage() {
   const [activeTab, setActiveTab] = useState("Standings");
+  const [players, setPlayers] = useState([]);
 
-  // Sample players data
-  const players = [
-    { name: "Maddie", wins: 5, draws: 1, losses: 2, points: 16 },
-    { name: "Nathan", wins: 3, draws: 2, losses: 3, points: 11 },
-    { name: "Helen", wins: 4, draws: 1, losses: 3, points: 13 },
-    { name: "Alex", wins: 2, draws: 3, losses: 3, points: 9 },
-  ];
+  // Fetch players from Supabase on load
+  useEffect(() => {
+  const fetchPlayers = async () => {
+    const { data, error } = await supabase
+      .from("players")
+      .select("*");
 
-  // Stats boxes
+    if (error) {
+      console.log("ERROR OBJECT:", JSON.stringify(error));
+    } else {
+      console.log("FETCH SUCCESS:", data);
+      setPlayers(data);
+    }
+  };
+
+  fetchPlayers();
+}, []);
+
+  // Handle Add Player
+  const handleAddPlayer = async () => {
+  const name = prompt("Enter new player's name:");
+  if (!name) return;
+
+  const { data, error } = await supabase
+    .from("players")
+    .insert([
+      { name, wins: 0, draws: 0, losses: 0, points: 0, active: true }
+    ])
+    .select();
+
+  if (error) {
+    console.log("INSERT ERROR:", JSON.stringify(error));
+  } else {
+    console.log("INSERT SUCCESS:", data);
+    setPlayers((prev) => [...prev, data[0]]);
+  }
+};
+
+  // Stats calculation
+  const totalPlayers = players.length;
+  const currentLeader = players[0]?.name || "—";
+
+  const mostImproved = players.reduce(
+    (best, p) => (p.improved > (best.improved || 0) ? p : best),
+    {}
+  ).name || "—";
+
+  const highestWinStreakPlayer = players.reduce(
+    (best, p) => (p.win_streak > (best.win_streak || 0) ? p : best),
+    {}
+  );
+
   const stats = [
     {
       label: "Total Players",
-      value: players.length,
+      value: totalPlayers,
       highlight: "blue",
       onClick: () => setActiveTab("Players"),
       cursorPointer: true,
     },
-    { label: "Current Leader", value: "Maddie", highlight: "gold" },
-    { label: "Most Improved", value: "Nathan", highlight: "grayButton" },
-    { label: "Highest Win Streak", value: "Helen (7)", highlight: "grayButton" },
+    { label: "Current Leader", value: currentLeader, highlight: "gold" },
+    { label: "Most Improved", value: mostImproved, highlight: "grayButton" },
+    {
+      label: "Highest Win Streak",
+      value: highestWinStreakPlayer.name || "—",
+      highlight: "grayButton",
+      streak: highestWinStreakPlayer.win_streak || 0,
+    },
   ];
 
-  // Tabs
   const tabs = ["Standings", "Matches", "Players", "Previous Matches"];
 
   return (
@@ -42,47 +93,10 @@ export default function Home() {
         </p>
       </header>
 
-      {/* Stats Cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
-        {stats.map(({ label, value, highlight, onClick, cursorPointer }, i) => (
-          <div
-            key={i}
-            onClick={onClick}
-            className={`rounded-lg p-6 shadow select-none transition-colors duration-200 ${
-              highlight === "gold"
-                ? "bg-yellow-800 text-yellow-300 hover:bg-yellow-700"
-                : highlight === "blue"
-                ? "bg-blue-900 text-blue-200 hover:bg-blue-800"
-                : highlight === "grayButton"
-                ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                : "bg-gray-700 text-gray-300"
-            } ${cursorPointer ? "cursor-pointer" : ""}`}
-          >
-            <div className="text-xs uppercase mb-1 flex items-center gap-1 font-semibold">
-              {label === "Total Players" && (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 7a4 4 0 11-8 0 4 4 0 018 0z"
-                  />
-                </svg>
-              )}
-              {label}
-            </div>
-            <div className="text-3xl font-bold">{value}</div>
-          </div>
-        ))}
-      </section>
+      {/* Stats */}
+      <HeaderStats stats={stats} />
 
-      {/* Tabs & Buttons */}
+      {/* Tabs */}
       <section className="bg-gray-900 rounded-t-lg shadow px-6 py-3 flex space-x-4 mb-4">
         {tabs.map((tab) => (
           <button
@@ -103,7 +117,10 @@ export default function Home() {
         ))}
 
         {activeTab === "Players" && (
-          <button className="ml-auto bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded flex items-center gap-1 text-sm">
+          <button
+            onClick={handleAddPlayer}
+            className="ml-auto bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded flex items-center gap-1 text-sm"
+          >
             👤 Add Player
           </button>
         )}
@@ -117,7 +134,7 @@ export default function Home() {
 
       {/* Tab Content */}
       <section className="bg-gray-900 rounded-b-lg shadow overflow-hidden p-6 text-gray-300">
-        {/* Standings / Leaderboard */}
+        {/* Standings */}
         {activeTab === "Standings" && (
           <div className="bg-white text-gray-700 rounded shadow overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500">
@@ -135,17 +152,17 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {players.map((player, index) => (
+                {players.map((p, i) => (
                   <tr
-                    key={index}
+                    key={i}
                     className="border-b even:bg-yellow-50 dark:even:bg-yellow-900/20 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
-                    <td className="p-2">{index + 1}</td>
-                    <td className="p-2 font-semibold">{player.name}</td>
-                    <td className="p-2 text-green-600 text-center">{player.wins}</td>
-                    <td className="p-2 text-yellow-500 text-center">{player.draws}</td>
-                    <td className="p-2 text-red-400 text-center">{player.losses}</td>
-                    <td className="p-2 text-right font-semibold">{player.points}</td>
+                    <td className="p-2">{i + 1}</td>
+                    <td className="p-2 font-semibold">{p.name}</td>
+                    <td className="p-2 text-green-600 text-center">{p.wins}</td>
+                    <td className="p-2 text-yellow-500 text-center">{p.draws}</td>
+                    <td className="p-2 text-red-400 text-center">{p.losses}</td>
+                    <td className="p-2 text-right font-semibold">{p.points}</td>
                   </tr>
                 ))}
               </tbody>
@@ -169,12 +186,12 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {players.map((player, index) => (
-                  <tr key={index} className="border-b even:bg-gray-600/40 hover:bg-gray-500/30">
-                    <td className="p-2">{index + 1}</td>
-                    <td className="p-2">{player.name}</td>
-                    <td className="p-2 text-green-400 text-center">{player.wins}</td>
-                    <td className="p-2 text-red-400 text-center">{player.losses}</td>
+                {players.map((p, i) => (
+                  <tr key={i} className="border-b even:bg-gray-600/40 hover:bg-gray-500/30">
+                    <td className="p-2">{i + 1}</td>
+                    <td className="p-2">{p.name}</td>
+                    <td className="p-2 text-green-400 text-center">{p.wins}</td>
+                    <td className="p-2 text-red-400 text-center">{p.losses}</td>
                   </tr>
                 ))}
               </tbody>
