@@ -18,10 +18,10 @@ export default function Tabs() {
       {tabs.map((tab) => (
         <Link key={tab.href} href={tab.href}>
           <span
-            className={`px-4 py-2 rounded font-medium cursor-pointer ${
+            className={`px-5 py-2 rounded-full font-medium text-sm transition-all duration-200 cursor-pointer ${
               pathname === tab.href
-                ? "bg-yellow-500 text-white"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                ? "bg-yellow-500 text-white shadow-md"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white"
             }`}
           >
             {tab.name}
