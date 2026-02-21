@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import HeaderStats from "../components/HeaderStats";
-import Tabs from "../components/Tabs";
 import { supabase } from "../lib/supabase";
 
 export default function HomePage() {
@@ -19,7 +18,10 @@ export default function HomePage() {
   }, []);
 
   const fetchPlayers = async () => {
-    const { data, error } = await supabase.from("players").select("*").order("points", { ascending: false });
+    const { data, error } = await supabase
+      .from("players")
+      .select("*")
+      .order("points", { ascending: false });
     if (!error) setPlayers(data || []);
   };
 
@@ -99,9 +101,8 @@ export default function HomePage() {
   };
 
   // Update score in real-time
-  const updateScore = async (idx, team, value, court) => {
+  const updateScore = (idx, team, value, court) => {
     const numericValue = value === "" ? 0 : parseInt(value);
-
     if (court === "court1") {
       const newScores = [...court1Scores];
       if (!newScores[idx]) newScores[idx] = { team1: 0, team2: 0 };
@@ -132,7 +133,7 @@ export default function HomePage() {
       <HeaderStats stats={stats} />
 
       {/* Tabs */}
-      <section className="bg-gray-900 rounded-t-lg shadow px-6 py-3 flex space-x-4 mb-4">
+      <section className="bg-gray-900 rounded-t-lg shadow px-6 py-3 flex flex-wrap gap-2 mb-4">
         {tabs.map((tab) => (
           <button
             key={tab}
@@ -237,67 +238,68 @@ export default function HomePage() {
         )}
 
         {/* Matches */}
-{activeTab === "Matches" && (
-  <div className="grid grid-cols-2 gap-6">
-    {/* Court 1 */}
-    <div className="bg-gray-700 rounded shadow p-4">
-      <h2 className="text-yellow-400 font-bold mb-4 text-xl">Court 1</h2>
-      {court1Matches.map((match, idx) => (
-        <div key={idx} className="mb-4 p-4 bg-gray-800 rounded-lg shadow hover:bg-gray-700 transition">
-          <div className="mb-2 font-semibold text-gray-200">
-            {match[0].name} & {match[1].name} vs {match[2].name} & {match[3].name}
-          </div>
-          <div className="flex items-center space-x-2 mt-2 bg-gray-900 p-2 rounded-lg">
-            <input
-              type="number"
-              min={0}
-              value={court1Scores[idx]?.team1 || ""}
-              onChange={(e) => updateScore(idx, "team1", e.target.value, "court1")}
-              className="w-20 px-2 py-1 rounded-lg text-gray-900 font-bold text-center shadow-inner focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            />
-            <span className="font-bold text-gray-300">-</span>
-            <input
-              type="number"
-              min={0}
-              value={court1Scores[idx]?.team2 || ""}
-              onChange={(e) => updateScore(idx, "team2", e.target.value, "court1")}
-              className="w-20 px-2 py-1 rounded-lg text-gray-900 font-bold text-center shadow-inner focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            />
-          </div>
-        </div>
-      ))}
-    </div>
+        {activeTab === "Matches" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Court 1 */}
+            <div className="bg-gray-700 rounded shadow p-4">
+              <h2 className="text-yellow-400 font-bold mb-4 text-xl">Court 1</h2>
+              {court1Matches.map((match, idx) => (
+                <div key={idx} className="mb-4 p-3 sm:p-4 bg-gray-800 rounded-lg shadow hover:bg-gray-700 transition">
+                  <div className="mb-2 font-semibold text-gray-200 text-sm sm:text-base break-words">
+                    {match[0].name} & {match[1].name} vs {match[2].name} & {match[3].name}
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2 bg-gray-900 p-2 rounded-lg">
+                    <input
+                      type="number"
+                      min={0}
+                      value={court1Scores[idx]?.team1 || ""}
+                      onChange={(e) => updateScore(idx, "team1", e.target.value, "court1")}
+                      className="w-16 sm:w-20 px-2 py-1 rounded-lg text-gray-900 font-bold text-center shadow-inner focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                    <span className="font-bold text-gray-300">-</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={court1Scores[idx]?.team2 || ""}
+                      onChange={(e) => updateScore(idx, "team2", e.target.value, "court1")}
+                      className="w-16 sm:w-20 px-2 py-1 rounded-lg text-gray-900 font-bold text-center shadow-inner focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
 
-    {/* Court 2 */}
-    <div className="bg-gray-700 rounded shadow p-4">
-      <h2 className="text-yellow-400 font-bold mb-4 text-xl">Court 2</h2>
-      {court2Matches.map((match, idx) => (
-        <div key={idx} className="mb-4 p-4 bg-gray-800 rounded-lg shadow hover:bg-gray-700 transition">
-          <div className="mb-2 font-semibold text-gray-200">
-            {match[0].name} & {match[1].name} vs {match[2].name} & {match[3].name}
+            {/* Court 2 */}
+            <div className="bg-gray-700 rounded shadow p-4">
+              <h2 className="text-yellow-400 font-bold mb-4 text-xl">Court 2</h2>
+              {court2Matches.map((match, idx) => (
+                <div key={idx} className="mb-4 p-3 sm:p-4 bg-gray-800 rounded-lg shadow hover:bg-gray-700 transition">
+                  <div className="mb-2 font-semibold text-gray-200 text-sm sm:text-base break-words">
+                    {match[0].name} & {match[1].name} vs {match[2].name} & {match[3].name}
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2 bg-gray-900 p-2 rounded-lg">
+                    <input
+                      type="number"
+                      min={0}
+                      value={court2Scores[idx]?.team1 || ""}
+                      onChange={(e) => updateScore(idx, "team1", e.target.value, "court2")}
+                      className="w-16 sm:w-20 px-2 py-1 rounded-lg text-gray-900 font-bold text-center shadow-inner focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                    <span className="font-bold text-gray-300">-</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={court2Scores[idx]?.team2 || ""}
+                      onChange={(e) => updateScore(idx, "team2", e.target.value, "court2")}
+                      className="w-16 sm:w-20 px-2 py-1 rounded-lg text-gray-900 font-bold text-center shadow-inner focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="flex items-center space-x-2 mt-2 bg-gray-900 p-2 rounded-lg">
-            <input
-              type="number"
-              min={0}
-              value={court2Scores[idx]?.team1 || ""}
-              onChange={(e) => updateScore(idx, "team1", e.target.value, "court2")}
-              className="w-20 px-2 py-1 rounded-lg text-gray-900 font-bold text-center shadow-inner focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            />
-            <span className="font-bold text-gray-300">-</span>
-            <input
-              type="number"
-              min={0}
-              value={court2Scores[idx]?.team2 || ""}
-              onChange={(e) => updateScore(idx, "team2", e.target.value, "court2")}
-              className="w-20 px-2 py-1 rounded-lg text-gray-900 font-bold text-center shadow-inner focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
+        )}
+
         {/* Previous Matches */}
         {activeTab === "Previous Matches" && (
           <div className="bg-gray-700 rounded shadow p-4">
