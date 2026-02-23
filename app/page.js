@@ -156,133 +156,153 @@ export default function HomePage() {
       <HeaderStats stats={stats} />
 
       {/* Tabs */}
-<section className="bg-gray-900 rounded-t-lg shadow px-4 py-4 mb-4">
-  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-    {tabs.map((tab) => (
-      <button
-        key={tab}
-        onClick={() => setActiveTab(tab)}
-        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm sm:text-base font-medium transition ${
-          activeTab === tab
-            ? "bg-white text-gray-900 shadow"
-            : "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
-        }`}
-      >
-        {tab === "Standings" && "🏆"}
-        {tab === "Matches" && "⚔"}
-        {tab === "Players" && "👥"}
-        {tab === "Previous Matches" && "🕒"}
-        <span>{tab}</span>
-      </button>
-    ))}
-  </div>
+      <section className="bg-gray-900 rounded-t-lg shadow px-4 py-4 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm sm:text-base font-medium transition ${
+                activeTab === tab
+                  ? "bg-white text-gray-900 shadow"
+                  : "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
+              }`}
+            >
+              {tab === "Standings" && "🏆"}
+              {tab === "Matches" && "⚔"}
+              {tab === "Players" && "👥"}
+              {tab === "Previous Matches" && "🕒"}
+              <span>{tab}</span>
+            </button>
+          ))}
+        </div>
 
-  {/* Action Buttons (right aligned like before) */}
-  {activeTab === "Players" && (
-    <div className="mt-4 flex justify-end">
-      <button
-        onClick={handleAddPlayer}
-        className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-      >
-        👤 Add Player
-      </button>
-    </div>
-  )}
+        {activeTab === "Players" && (
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={handleAddPlayer}
+              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+            >
+              👤 Add Player
+            </button>
+          </div>
+        )}
 
-  {activeTab === "Matches" && (
-    <div className="mt-4 flex justify-end">
-      <button
-        onClick={generateMatches}
-        className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-      >
-        🔄 Generate Fixtures
-      </button>
-    </div>
-  )}
-</section>
+        {activeTab === "Matches" && (
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={generateMatches}
+              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+            >
+              🔄 Generate Fixtures
+            </button>
+          </div>
+        )}
+      </section>
 
       {/* Content */}
       <section className="bg-gray-900 rounded-b-lg shadow overflow-hidden p-4 sm:p-6 text-gray-300">
-        
+
         {/* Standings */}
-{activeTab === "Standings" && (
-  <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden">
-    <div className="px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500">
-      🏆 Leaderboard
-    </div>
+        {activeTab === "Standings" && (
+          <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500">
+              🏆 Leaderboard
+            </div>
 
-    {/* ================= MOBILE CARDS ================= */}
-    <div className="sm:hidden p-4 space-y-3 bg-gray-50">
-      {players.map((p, i) => (
-        <div
-          key={p.id}
-          className="bg-white rounded-lg shadow border border-gray-200 p-4"
-        >
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-bold text-gray-900 flex items-center gap-2">
-  {i === 0 && "🥇"}
-  {i === 1 && "🥈"}
-  {i === 2 && "🥉"}
-  #{i + 1} {p.name}
-</span>
-            <span className="font-bold text-gray-900">
-              {p.points} pts
-            </span>
+            {/* Mobile Cards */}
+            <div className="sm:hidden p-4 space-y-3 bg-gray-50">
+              {players.map((p, i) => (
+                <div
+                  key={p.id}
+                  className={`rounded-lg shadow border p-4 transition
+                    ${
+                      i === 0
+                        ? "bg-yellow-50 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.5)]"
+                        : i === 1
+                        ? "bg-gray-100 border-gray-300 shadow-[0_0_18px_rgba(192,192,192,0.5)]"
+                        : i === 2
+                        ? "bg-orange-50 border-orange-300 shadow-[0_0_18px_rgba(205,127,50,0.5)]"
+                        : "bg-white border-gray-200"
+                    }`}
+                >
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-gray-900 flex items-center gap-2">
+                      {i === 0 && "🥇"}
+                      {i === 1 && "🥈"}
+                      {i === 2 && "🥉"}
+                      #{i + 1} {p.name}
+                    </span>
+                    <span className="font-bold text-gray-900">
+                      {p.points} pts
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span className="text-green-600">W {p.wins}</span>
+                    <span className="text-yellow-500">D {p.draws}</span>
+                    <span className="text-red-400">L {p.losses}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <table className="hidden sm:table w-full text-left">
+              <thead className="text-gray-400 text-sm uppercase border-b border-gray-200">
+                <tr>
+                  <th className="p-2">#</th>
+                  <th className="p-2">Player</th>
+                  <th className="p-2 text-green-600">W</th>
+                  <th className="p-2 text-yellow-500">D</th>
+                  <th className="p-2 text-red-400">L</th>
+                  <th className="p-2 text-right">Points</th>
+                  <th className="p-2 text-center">Available</th>
+                </tr>
+              </thead>
+              <tbody>
+                {players.map((p, i) => (
+                  <tr
+                    key={p.id}
+                    className={`border-b hover:bg-gray-100 transition
+                      ${
+                        i === 0
+                          ? "bg-yellow-50 shadow-[0_0_15px_rgba(255,215,0,0.35)]"
+                          : i === 1
+                          ? "bg-gray-100 shadow-[0_0_12px_rgba(192,192,192,0.35)]"
+                          : i === 2
+                          ? "bg-orange-50 shadow-[0_0_12px_rgba(205,127,50,0.35)]"
+                          : "even:bg-yellow-50"
+                      }`}
+                  >
+                    <td className="p-2">{i + 1}</td>
+                    <td className="p-2 font-semibold flex items-center gap-2">
+                      {i === 0 && <span>🥇</span>}
+                      {i === 1 && <span>🥈</span>}
+                      {i === 2 && <span>🥉</span>}
+                      {p.name}
+                    </td>
+                    <td className="p-2 text-green-600 text-center">{p.wins}</td>
+                    <td className="p-2 text-yellow-500 text-center">{p.draws}</td>
+                    <td className="p-2 text-red-400 text-center">{p.losses}</td>
+                    <td className="p-2 text-right font-semibold">{p.points}</td>
+                    <td className="p-2 text-center">
+                      <button
+                        onClick={() => toggleAvailability(p.id)}
+                        className={`px-2 py-1 rounded-full font-bold text-xs transition ${
+                          p.active
+                            ? "bg-green-500 text-white"
+                            : "bg-red-500 text-white"
+                        }`}
+                      >
+                        {p.active ? "Yes" : "No"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-
-          <div className="flex justify-between text-sm font-semibold">
-            <span className="text-green-600">W {p.wins}</span>
-            <span className="text-yellow-500">D {p.draws}</span>
-            <span className="text-red-400">L {p.losses}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-
-    {/* ================= DESKTOP TABLE (UNCHANGED STYLE) ================= */}
-    <table className="hidden sm:table w-full text-left">
-      <thead className="text-gray-400 text-sm uppercase border-b border-gray-200">
-        <tr>
-          <th className="p-2">#</th>
-          <th className="p-2">Player</th>
-          <th className="p-2 text-green-600">W</th>
-          <th className="p-2 text-yellow-500">D</th>
-          <th className="p-2 text-red-400">L</th>
-          <th className="p-2 text-right">Points</th>
-        </tr>
-      </thead>
-      <tbody>
-        {players.map((p, i) => (
-          <tr
-  key={p.id}
-  className={`border-b hover:bg-gray-100 transition
-    ${
-      i === 0
-        ? "bg-yellow-50 shadow-[0_0_15px_rgba(255,215,0,0.35)]"
-        : i === 1
-        ? "bg-gray-100 shadow-[0_0_12px_rgba(192,192,192,0.35)]"
-        : i === 2
-        ? "bg-orange-50 shadow-[0_0_12px_rgba(205,127,50,0.35)]"
-        : "even:bg-yellow-50"
-    }`}
->
-            <td className="p-2">{i + 1}</td>
-            <td className="p-2 font-semibold flex items-center gap-2">
-  {i === 0 && <span>🥇</span>}
-  {i === 1 && <span>🥈</span>}
-  {i === 2 && <span>🥉</span>}
-  {p.name}
-</td>
-            <td className="p-2 text-green-600 text-center">{p.wins}</td>
-            <td className="p-2 text-yellow-500 text-center">{p.draws}</td>
-            <td className="p-2 text-red-400 text-center">{p.losses}</td>
-            <td className="p-2 text-right font-semibold">{p.points}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-)}
+        )}
 
         {/* Matches */}
         {activeTab === "Matches" && (
