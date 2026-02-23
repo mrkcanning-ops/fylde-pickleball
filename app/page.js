@@ -200,40 +200,67 @@ export default function HomePage() {
       <section className="bg-gray-900 rounded-b-lg shadow overflow-hidden p-4 sm:p-6 text-gray-300">
         
         {/* Standings */}
-        {activeTab === "Standings" && (
-          <div className="bg-white text-gray-700 rounded shadow overflow-hidden">
-            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500 text-sm sm:text-base">
-              🏆 Leaderboard
-            </div>
+{activeTab === "Standings" && (
+  <div className="bg-white text-gray-700 rounded shadow overflow-hidden">
+    <div className="px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500">
+      🏆 Leaderboard
+    </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm sm:text-base min-w-[500px]">
-                <thead className="text-gray-400 uppercase border-b border-gray-200 text-xs sm:text-sm">
-                  <tr>
-                    <th className="p-2">#</th>
-                    <th className="p-2">Player</th>
-                    <th className="p-2 text-center text-green-600">W</th>
-                    <th className="p-2 text-center text-yellow-500">D</th>
-                    <th className="p-2 text-center text-red-400">L</th>
-                    <th className="p-2 text-right">Pts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {players.map((p, i) => (
-                    <tr key={i} className="border-b even:bg-yellow-50 hover:bg-gray-100">
-                      <td className="p-2">{i + 1}</td>
-                      <td className="p-2 font-semibold whitespace-nowrap">{p.name}</td>
-                      <td className="p-2 text-center text-green-600">{p.wins}</td>
-                      <td className="p-2 text-center text-yellow-500">{p.draws}</td>
-                      <td className="p-2 text-center text-red-400">{p.losses}</td>
-                      <td className="p-2 text-right font-semibold">{p.points}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+    {/* ================= MOBILE CARDS ================= */}
+    <div className="sm:hidden p-4 space-y-3 bg-gray-50">
+      {players.map((p, i) => (
+        <div
+          key={p.id}
+          className="bg-white rounded-lg shadow border border-gray-200 p-4"
+        >
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-bold text-gray-900">
+              #{i + 1} {p.name}
+            </span>
+            <span className="font-bold text-gray-900">
+              {p.points} pts
+            </span>
           </div>
-        )}
+
+          <div className="flex justify-between text-sm font-semibold">
+            <span className="text-green-600">W {p.wins}</span>
+            <span className="text-yellow-500">D {p.draws}</span>
+            <span className="text-red-400">L {p.losses}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* ================= DESKTOP TABLE (UNCHANGED STYLE) ================= */}
+    <table className="hidden sm:table w-full text-left">
+      <thead className="text-gray-400 text-sm uppercase border-b border-gray-200">
+        <tr>
+          <th className="p-2">#</th>
+          <th className="p-2">Player</th>
+          <th className="p-2 text-green-600">W</th>
+          <th className="p-2 text-yellow-500">D</th>
+          <th className="p-2 text-red-400">L</th>
+          <th className="p-2 text-right">Points</th>
+        </tr>
+      </thead>
+      <tbody>
+        {players.map((p, i) => (
+          <tr
+            key={p.id}
+            className="border-b even:bg-yellow-50 hover:bg-gray-100"
+          >
+            <td className="p-2">{i + 1}</td>
+            <td className="p-2 font-semibold">{p.name}</td>
+            <td className="p-2 text-green-600 text-center">{p.wins}</td>
+            <td className="p-2 text-yellow-500 text-center">{p.draws}</td>
+            <td className="p-2 text-red-400 text-center">{p.losses}</td>
+            <td className="p-2 text-right font-semibold">{p.points}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
 
         {/* Matches */}
         {activeTab === "Matches" && (
