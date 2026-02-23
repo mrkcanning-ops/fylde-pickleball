@@ -206,7 +206,7 @@ export default function HomePage() {
         
         {/* Standings */}
 {activeTab === "Standings" && (
-  <div className="bg-white text-gray-700 rounded shadow overflow-hidden">
+  <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden">
     <div className="px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500">
       🏆 Leaderboard
     </div>
@@ -219,9 +219,12 @@ export default function HomePage() {
           className="bg-white rounded-lg shadow border border-gray-200 p-4"
         >
           <div className="flex justify-between items-center mb-2">
-            <span className="font-bold text-gray-900">
-              #{i + 1} {p.name}
-            </span>
+            <span className="font-bold text-gray-900 flex items-center gap-2">
+  {i === 0 && "🥇"}
+  {i === 1 && "🥈"}
+  {i === 2 && "🥉"}
+  #{i + 1} {p.name}
+</span>
             <span className="font-bold text-gray-900">
               {p.points} pts
             </span>
@@ -251,11 +254,25 @@ export default function HomePage() {
       <tbody>
         {players.map((p, i) => (
           <tr
-            key={p.id}
-            className="border-b even:bg-yellow-50 hover:bg-gray-100"
-          >
+  key={p.id}
+  className={`border-b hover:bg-gray-100 transition
+    ${
+      i === 0
+        ? "bg-yellow-50 shadow-[0_0_15px_rgba(255,215,0,0.35)]"
+        : i === 1
+        ? "bg-gray-100 shadow-[0_0_12px_rgba(192,192,192,0.35)]"
+        : i === 2
+        ? "bg-orange-50 shadow-[0_0_12px_rgba(205,127,50,0.35)]"
+        : "even:bg-yellow-50"
+    }`}
+>
             <td className="p-2">{i + 1}</td>
-            <td className="p-2 font-semibold">{p.name}</td>
+            <td className="p-2 font-semibold flex items-center gap-2">
+  {i === 0 && <span>🥇</span>}
+  {i === 1 && <span>🥈</span>}
+  {i === 2 && <span>🥉</span>}
+  {p.name}
+</td>
             <td className="p-2 text-green-600 text-center">{p.wins}</td>
             <td className="p-2 text-yellow-500 text-center">{p.draws}</td>
             <td className="p-2 text-red-400 text-center">{p.losses}</td>
