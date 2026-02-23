@@ -292,67 +292,91 @@ export default function HomePage() {
         )}
 
         {/* Players Tab */}
-        {activeTab === "Players" && (
-          <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500">
-              👥 Players
-            </div>
+{activeTab === "Players" && (
+  <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden">
+    <div className="px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500">
+      👥 Players
+    </div>
 
-            {/* Mobile Players */}
-            <div className="sm:hidden p-4 space-y-3 bg-gray-50">
-              {players.map((p, i) => (
+    {/* Mobile Players */}
+    <div className="sm:hidden p-4 space-y-3 bg-gray-50">
+      {players.map((p) => (
+        <div
+          key={p.id}
+          className="rounded-lg shadow border p-4 transition bg-white border-gray-200 flex justify-between items-center"
+        >
+          <span className="font-semibold">{p.name}</span>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={p.active}
+              onChange={() => toggleAvailability(p.id)}
+              className="sr-only"
+            />
+            {/* Track */}
+            <div
+              className={`w-16 h-7 rounded-full transition-colors duration-300 ease-in-out ${
+                p.active ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
+            {/* Thumb with text */}
+            <span
+              className={`absolute left-0 top-0 w-8 h-7 flex items-center justify-center text-xs font-bold text-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${
+                p.active ? "translate-x-8 scale-105" : "translate-x-0 scale-100"
+              }`}
+            >
+              {p.active ? "Yes" : "No"}
+            </span>
+          </label>
+        </div>
+      ))}
+    </div>
+
+    {/* Desktop Players Table */}
+    <table className="hidden sm:table w-full text-left">
+      <thead className="text-gray-400 text-sm uppercase border-b border-gray-200">
+        <tr>
+          <th className="p-2">#</th>
+          <th className="p-2">Player</th>
+          <th className="p-2 text-center">Available</th>
+        </tr>
+      </thead>
+      <tbody>
+        {players.map((p, i) => (
+          <tr
+            key={p.id}
+            className={`border-b hover:bg-gray-100 transition`}
+          >
+            <td className="p-2">{i + 1}</td>
+            <td className="p-2 font-semibold">{p.name}</td>
+            <td className="p-2 text-center">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={p.active}
+                  onChange={() => toggleAvailability(p.id)}
+                  className="sr-only"
+                />
                 <div
-                  key={p.id}
-                  className="rounded-lg shadow border p-4 transition bg-white border-gray-200 flex justify-between items-center"
+                  className={`w-16 h-7 rounded-full transition-colors duration-300 ease-in-out ${
+                    p.active ? "bg-green-500" : "bg-red-500"
+                  }`}
+                />
+                <span
+                  className={`absolute left-0 top-0 w-8 h-7 flex items-center justify-center text-xs font-bold text-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${
+                    p.active ? "translate-x-8 scale-105" : "translate-x-0 scale-100"
+                  }`}
                 >
-                  <div>
-                    <span className="font-semibold">{p.name}</span>
-                  </div>
-                  <button
-                    onClick={() => toggleAvailability(p.id)}
-                    className={`px-2 py-1 rounded-full font-bold text-xs transition ${
-                      p.active ? "bg-green-500 text-white" : "bg-red-500 text-white"
-                    }`}
-                  >
-                    {p.active ? "Yes" : "No"}
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Desktop Players Table */}
-            <table className="hidden sm:table w-full text-left">
-              <thead className="text-gray-400 text-sm uppercase border-b border-gray-200">
-                <tr>
-                  <th className="p-2">#</th>
-                  <th className="p-2">Player</th>
-                  <th className="p-2 text-center">Available</th>
-                </tr>
-              </thead>
-              <tbody>
-                {players.map((p, i) => (
-                  <tr
-                    key={p.id}
-                    className={`border-b hover:bg-gray-100 transition`}
-                  >
-                    <td className="p-2">{i + 1}</td>
-                    <td className="p-2 font-semibold">{p.name}</td>
-                    <td className="p-2 text-center">
-                      <button
-                        onClick={() => toggleAvailability(p.id)}
-                        className={`px-2 py-1 rounded-full font-bold text-xs transition ${
-                          p.active ? "bg-green-500 text-white" : "bg-red-500 text-white"
-                        }`}
-                      >
-                        {p.active ? "Yes" : "No"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  {p.active ? "Yes" : "No"}
+                </span>
+              </label>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
 
         {/* Matches */}
         {activeTab === "Matches" && (
