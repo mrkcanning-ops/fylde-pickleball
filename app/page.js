@@ -256,7 +256,6 @@ export default function HomePage() {
                   <th className="p-2 text-yellow-500">D</th>
                   <th className="p-2 text-red-400">L</th>
                   <th className="p-2 text-right">Points</th>
-                  <th className="p-2 text-center">Available</th>
                 </tr>
               </thead>
               <tbody>
@@ -285,13 +284,64 @@ export default function HomePage() {
                     <td className="p-2 text-yellow-500 text-center">{p.draws}</td>
                     <td className="p-2 text-red-400 text-center">{p.losses}</td>
                     <td className="p-2 text-right font-semibold">{p.points}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Players Tab */}
+        {activeTab === "Players" && (
+          <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500">
+              👥 Players
+            </div>
+
+            {/* Mobile Players */}
+            <div className="sm:hidden p-4 space-y-3 bg-gray-50">
+              {players.map((p, i) => (
+                <div
+                  key={p.id}
+                  className="rounded-lg shadow border p-4 transition bg-white border-gray-200 flex justify-between items-center"
+                >
+                  <div>
+                    <span className="font-semibold">{p.name}</span>
+                  </div>
+                  <button
+                    onClick={() => toggleAvailability(p.id)}
+                    className={`px-2 py-1 rounded-full font-bold text-xs transition ${
+                      p.active ? "bg-green-500 text-white" : "bg-red-500 text-white"
+                    }`}
+                  >
+                    {p.active ? "Yes" : "No"}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Players Table */}
+            <table className="hidden sm:table w-full text-left">
+              <thead className="text-gray-400 text-sm uppercase border-b border-gray-200">
+                <tr>
+                  <th className="p-2">#</th>
+                  <th className="p-2">Player</th>
+                  <th className="p-2 text-center">Available</th>
+                </tr>
+              </thead>
+              <tbody>
+                {players.map((p, i) => (
+                  <tr
+                    key={p.id}
+                    className={`border-b hover:bg-gray-100 transition`}
+                  >
+                    <td className="p-2">{i + 1}</td>
+                    <td className="p-2 font-semibold">{p.name}</td>
                     <td className="p-2 text-center">
                       <button
                         onClick={() => toggleAvailability(p.id)}
                         className={`px-2 py-1 rounded-full font-bold text-xs transition ${
-                          p.active
-                            ? "bg-green-500 text-white"
-                            : "bg-red-500 text-white"
+                          p.active ? "bg-green-500 text-white" : "bg-red-500 text-white"
                         }`}
                       >
                         {p.active ? "Yes" : "No"}
