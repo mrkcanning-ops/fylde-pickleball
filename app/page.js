@@ -211,47 +211,51 @@ export default function HomePage() {
     </div>
 
     {/* Mobile Cards */}
-    <div className="sm:hidden p-4 space-y-3 bg-gray-50">
-      {players.map((p, i) => {
-        const gp = p.wins + p.losses + p.draws;
-        const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
-        const diff = p.points - (gp - p.points); // Example diff calculation (adjust as needed)
-        return (
-          <div
-            key={p.id}
-            className={`rounded-lg shadow border p-4 transition
-              ${
-                i === 0
-                  ? "bg-yellow-50 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.5)]"
-                  : i === 1
-                  ? "bg-gray-100 border-gray-300 shadow-[0_0_18px_rgba(192,192,192,0.5)]"
-                  : i === 2
-                  ? "bg-orange-50 border-orange-300 shadow-[0_0_18px_rgba(205,127,50,0.5)]"
-                  : "bg-white border-gray-200"
-              }`}
-          >
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-bold text-gray-900 flex items-center gap-2">
-                {i === 0 && "🥇"}
-                {i === 1 && "🥈"}
-                {i === 2 && "🥉"}
-                #{i + 1} {p.name}
-              </span>
-              <span className="font-bold text-gray-900">{p.points} pts</span>
-            </div>
-            <div className="grid grid-cols-7 text-sm font-semibold gap-1">
-              <span className="text-gray-700">GP {gp}</span>
-              <span className="text-green-600">W {p.wins}</span>
-              <span className="text-red-400">L {p.losses}</span>
-              <span className="text-yellow-500">D {p.draws}</span>
-              <span className="text-gray-700">Diff {diff}</span>
-              <span className="text-gray-700">Win {winPct}</span>
-              <span className="text-gray-900 font-bold">{p.points}</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
+<div className="sm:hidden p-4 space-y-3 bg-gray-50">
+  {players.map((p, i) => {
+    const gp = p.wins + p.losses + p.draws;
+    const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
+    const diff = p.points - (gp - p.points); // Adjust as needed
+
+    return (
+      <div
+        key={p.id}
+        className={`rounded-lg shadow border p-4 transition
+          ${
+            i === 0
+              ? "bg-yellow-50 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.5)]"
+              : i === 1
+              ? "bg-gray-100 border-gray-300 shadow-[0_0_18px_rgba(192,192,192,0.5)]"
+              : i === 2
+              ? "bg-orange-50 border-orange-300 shadow-[0_0_18px_rgba(205,127,50,0.5)]"
+              : "bg-white border-gray-200"
+          }`}
+      >
+        {/* Player Name and Rank */}
+        <div className="flex justify-between items-center mb-2">
+          <span className="font-bold text-gray-900 flex items-center gap-2">
+            {i === 0 && "🥇"}
+            {i === 1 && "🥈"}
+            {i === 2 && "🥉"}
+            #{i + 1} {p.name}
+          </span>
+          <span className="font-bold text-gray-900">{p.points} pts</span>
+        </div>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-7 text-sm font-semibold gap-1 text-center">
+          <span className="text-gray-700">{gp}</span>
+          <span className="text-green-600">{p.wins}</span>
+          <span className="text-red-400">{p.losses}</span>
+          <span className="text-yellow-500">{p.draws}</span>
+          <span className="text-gray-700">{diff}</span>
+          <span className="text-gray-700">{winPct}</span>
+          <span className="text-gray-900 font-bold">{p.points}</span>
+        </div>
+      </div>
+    );
+  })}
+</div>
 
     {/* Desktop Table */}
     <table className="hidden sm:table w-full text-left">
