@@ -204,92 +204,110 @@ export default function HomePage() {
       <section className="bg-gray-900 rounded-b-lg shadow overflow-hidden p-4 sm:p-6 text-gray-300">
 
         {/* Standings */}
-        {activeTab === "Standings" && (
-          <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500">
-              🏆 Leaderboard
-            </div>
+{activeTab === "Standings" && (
+  <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden">
+    <div className="px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500">
+      🏆 Leaderboard
+    </div>
 
-            {/* Mobile Cards */}
-            <div className="sm:hidden p-4 space-y-3 bg-gray-50">
-              {players.map((p, i) => (
-                <div
-                  key={p.id}
-                  className={`rounded-lg shadow border p-4 transition
-                    ${
-                      i === 0
-                        ? "bg-yellow-50 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.5)]"
-                        : i === 1
-                        ? "bg-gray-100 border-gray-300 shadow-[0_0_18px_rgba(192,192,192,0.5)]"
-                        : i === 2
-                        ? "bg-orange-50 border-orange-300 shadow-[0_0_18px_rgba(205,127,50,0.5)]"
-                        : "bg-white border-gray-200"
-                    }`}
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-bold text-gray-900 flex items-center gap-2">
-                      {i === 0 && "🥇"}
-                      {i === 1 && "🥈"}
-                      {i === 2 && "🥉"}
-                      #{i + 1} {p.name}
-                    </span>
-                    <span className="font-bold text-gray-900">
-                      {p.points} pts
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm font-semibold">
-                    <span className="text-green-600">W {p.wins}</span>
-                    <span className="text-yellow-500">D {p.draws}</span>
-                    <span className="text-red-400">L {p.losses}</span>
-                  </div>
-                </div>
-              ))}
+    {/* Mobile Cards */}
+    <div className="sm:hidden p-4 space-y-3 bg-gray-50">
+      {players.map((p, i) => {
+        const gp = p.wins + p.losses + p.draws;
+        const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
+        const diff = p.points - (gp - p.points); // Example diff calculation (adjust as needed)
+        return (
+          <div
+            key={p.id}
+            className={`rounded-lg shadow border p-4 transition
+              ${
+                i === 0
+                  ? "bg-yellow-50 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.5)]"
+                  : i === 1
+                  ? "bg-gray-100 border-gray-300 shadow-[0_0_18px_rgba(192,192,192,0.5)]"
+                  : i === 2
+                  ? "bg-orange-50 border-orange-300 shadow-[0_0_18px_rgba(205,127,50,0.5)]"
+                  : "bg-white border-gray-200"
+              }`}
+          >
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-bold text-gray-900 flex items-center gap-2">
+                {i === 0 && "🥇"}
+                {i === 1 && "🥈"}
+                {i === 2 && "🥉"}
+                #{i + 1} {p.name}
+              </span>
+              <span className="font-bold text-gray-900">{p.points} pts</span>
             </div>
-
-            {/* Desktop Table */}
-            <table className="hidden sm:table w-full text-left">
-              <thead className="text-gray-400 text-sm uppercase border-b border-gray-200">
-                <tr>
-                  <th className="p-2">#</th>
-                  <th className="p-2">Player</th>
-                  <th className="p-2 text-green-600">W</th>
-                  <th className="p-2 text-yellow-500">D</th>
-                  <th className="p-2 text-red-400">L</th>
-                  <th className="p-2 text-right">Points</th>
-                </tr>
-              </thead>
-              <tbody>
-                {players.map((p, i) => (
-                  <tr
-                    key={p.id}
-                    className={`border-b hover:bg-gray-100 transition
-                      ${
-                        i === 0
-                          ? "bg-yellow-50 shadow-[0_0_15px_rgba(255,215,0,0.35)]"
-                          : i === 1
-                          ? "bg-gray-100 shadow-[0_0_12px_rgba(192,192,192,0.35)]"
-                          : i === 2
-                          ? "bg-orange-50 shadow-[0_0_12px_rgba(205,127,50,0.35)]"
-                          : "even:bg-yellow-50"
-                      }`}
-                  >
-                    <td className="p-2">{i + 1}</td>
-                    <td className="p-2 font-semibold flex items-center gap-2">
-                      {i === 0 && <span>🥇</span>}
-                      {i === 1 && <span>🥈</span>}
-                      {i === 2 && <span>🥉</span>}
-                      {p.name}
-                    </td>
-                    <td className="p-2 text-green-600 text-center">{p.wins}</td>
-                    <td className="p-2 text-yellow-500 text-center">{p.draws}</td>
-                    <td className="p-2 text-red-400 text-center">{p.losses}</td>
-                    <td className="p-2 text-right font-semibold">{p.points}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="grid grid-cols-7 text-sm font-semibold gap-1">
+              <span className="text-gray-700">GP {gp}</span>
+              <span className="text-green-600">W {p.wins}</span>
+              <span className="text-red-400">L {p.losses}</span>
+              <span className="text-yellow-500">D {p.draws}</span>
+              <span className="text-gray-700">Diff {diff}</span>
+              <span className="text-gray-700">Win {winPct}</span>
+              <span className="text-gray-900 font-bold">{p.points}</span>
+            </div>
           </div>
-        )}
+        );
+      })}
+    </div>
+
+    {/* Desktop Table */}
+    <table className="hidden sm:table w-full text-left">
+      <thead className="text-gray-400 text-sm uppercase border-b border-gray-200">
+        <tr>
+          <th className="p-2">#</th>
+          <th className="p-2">Player</th>
+          <th className="p-2 text-center text-gray-700">GP</th>
+          <th className="p-2 text-green-600">W</th>
+          <th className="p-2 text-red-400">L</th>
+          <th className="p-2 text-yellow-500">D</th>
+          <th className="p-2 text-center text-gray-700">Diff</th>
+          <th className="p-2 text-center text-gray-700">Win %</th>
+          <th className="p-2 text-right">Points</th>
+        </tr>
+      </thead>
+      <tbody>
+        {players.map((p, i) => {
+          const gp = p.wins + p.losses + p.draws;
+          const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
+          const diff = p.points - (gp - p.points); // Adjust as needed
+          return (
+            <tr
+              key={p.id}
+              className={`border-b hover:bg-gray-100 transition
+                ${
+                  i === 0
+                    ? "bg-yellow-50 shadow-[0_0_15px_rgba(255,215,0,0.35)]"
+                    : i === 1
+                    ? "bg-gray-100 shadow-[0_0_12px_rgba(192,192,192,0.35)]"
+                    : i === 2
+                    ? "bg-orange-50 shadow-[0_0_12px_rgba(205,127,50,0.35)]"
+                    : "even:bg-yellow-50"
+                }`}
+            >
+              <td className="p-2">{i + 1}</td>
+              <td className="p-2 font-semibold flex items-center gap-2">
+                {i === 0 && <span>🥇</span>}
+                {i === 1 && <span>🥈</span>}
+                {i === 2 && <span>🥉</span>}
+                {p.name}
+              </td>
+              <td className="p-2 text-center text-gray-700">{gp}</td>
+              <td className="p-2 text-green-600 text-center">{p.wins}</td>
+              <td className="p-2 text-red-400 text-center">{p.losses}</td>
+              <td className="p-2 text-yellow-500 text-center">{p.draws}</td>
+              <td className="p-2 text-center text-gray-700">{diff}</td>
+              <td className="p-2 text-center text-gray-700">{winPct}</td>
+              <td className="p-2 text-right font-semibold">{p.points}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+)}
 
         {/* Players Tab */}
 {activeTab === "Players" && (
