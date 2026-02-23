@@ -50,6 +50,19 @@ export default function HomePage() {
 
   const totalPlayers = players.length;
   const currentLeader = players[0]?.name || "—";
+  const mostImproved =
+    players.reduce(
+      (best, p) =>
+        p.improved > (best.improved || 0) ? p : best,
+      {}
+    ).name || "—";
+
+  const highestWinStreakPlayer =
+    players.reduce(
+      (best, p) =>
+        p.win_streak > (best.win_streak || 0) ? p : best,
+      {}
+    ) || {};
 
   const stats = [
     {
@@ -60,173 +73,231 @@ export default function HomePage() {
       cursorPointer: true,
     },
     { label: "Current Leader", value: currentLeader, highlight: "gold" },
+    { label: "Most Improved", value: mostImproved, highlight: "grayButton" },
+    {
+      label: "Highest Win Streak",
+      value: highestWinStreakPlayer.name || "—",
+      highlight: "grayButton",
+      streak: highestWinStreakPlayer.win_streak || 0,
+    },
   ];
 
   const tabs = ["Standings", "Matches", "Players", "Previous Matches"];
+
+  const generateMatches = () => {
+    const available = players.filter((p) => p.active);
+    let topHalf = [];
+    let bottomHalf = [];
+
+    if (available.length < 7) {
+      topHalf = available;
+    } else {
+      const half = Math.ceil(available.length / 2);
+      topHalf = available.slice(0, half);
+      bottomHalf = available.slice(half);
+    }
+
+    const pairMatches = (arr) => {
+      const matches = [];
+      for (let i = 0; i < arr.length - 3; i++) {
+        for (let j = i + 1; j < arr.length - 2; j++) {
+          for (let k = j + 1; k < arr.length - 1; k++) {
+            for (let l = k + 1; l < arr.length; l++) {
+              matches.push([arr[i], arr[j], arr[k], arr[l]]);
+            }
+          }
+        }
+      }
+      return matches;
+    };
+
+    const c1 = pairMatches(topHalf);
+    const c2 = bottomHalf.length ? pairMatches(bottomHalf) : [];
+
+    setCourt1Matches(c1);
+    setCourt2Matches(c2);
+    setCourt1Scores(c1.map(() => ({ team1: 0, team2: 0 })));
+    setCourt2Scores(c2.map(() => ({ team1: 0, team2: 0 })));
+  };
+
+  const updateScore = (idx, team, value, court) => {
+    const numericValue = value === "" ? 0 : parseInt(value);
+
+    if (court === "court1") {
+      const newScores = [...court1Scores];
+      if (!newScores[idx]) newScores[idx] = { team1: 0, team2: 0 };
+      newScores[idx][team] = numericValue;
+      setCourt1Scores(newScores);
+    } else {
+      const newScores = [...court2Scores];
+      if (!newScores[idx]) newScores[idx] = { team1: 0, team2: 0 };
+      newScores[idx][team] = numericValue;
+      setCourt2Scores(newScores);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
       
       {/* Header */}
-      <header className="mb-8 relative">
-        <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white">
-          <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl">🏆</span>
+      <header className="mb-8 sm:mb-10 relative">
+        <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+          <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
+            🏆
+          </span>
           Fylde Pickleball League
         </h1>
+        <p className="text-gray-400 mt-2 text-xs sm:text-sm tracking-wide">
+          Weekly Matches • 8 Weeks • Prize for Winner • 2 Courts
+        </p>
+        <div className="absolute -bottom-3 left-0 w-20 sm:w-24 h-1 bg-yellow-400 rounded-full" />
       </header>
 
       <HeaderStats stats={stats} />
 
       {/* Tabs */}
-      <section className="bg-gray-900 rounded-lg shadow px-3 py-3 mb-4">
+      <section className="bg-gray-900 rounded-t-lg shadow px-3 sm:px-6 py-3 mb-4">
         <div className="flex gap-2 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`whitespace-nowrap px-4 py-2 rounded text-sm ${
+              className={`whitespace-nowrap flex items-center gap-1 px-4 py-2 rounded text-sm sm:text-base ${
                 activeTab === tab
-                  ? "bg-white text-gray-900 font-semibold"
+                  ? "bg-white text-gray-900 font-semibold shadow"
                   : "text-gray-400 hover:text-white"
               }`}
             >
+              {tab === "Standings" && "🏆"}
+              {tab === "Matches" && "⚔"}
+              {tab === "Players" && "👥"}
+              {tab === "Previous Matches" && "🕒"}
               {tab}
             </button>
           ))}
+
+          {activeTab === "Players" && (
+            <button
+              onClick={handleAddPlayer}
+              className="ml-auto bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
+            >
+              👤 Add
+            </button>
+          )}
+
+          {activeTab === "Matches" && (
+            <button
+              onClick={generateMatches}
+              className="ml-auto bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
+            >
+              🔄 Generate
+            </button>
+          )}
         </div>
       </section>
 
       {/* Content */}
-      <section className="bg-gray-900 rounded-lg shadow p-4 sm:p-6">
+      <section className="bg-gray-900 rounded-b-lg shadow overflow-hidden p-4 sm:p-6 text-gray-300">
         
-        {/* ================= STANDINGS ================= */}
+        {/* Standings */}
         {activeTab === "Standings" && (
-          <>
-            {/* Mobile Cards */}
-            <div className="space-y-3 sm:hidden">
-              {players.map((p, i) => (
-                <div
-                  key={p.id}
-                  className="bg-white text-gray-800 rounded-lg p-4 shadow"
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="font-bold text-lg">
-                      #{i + 1} {p.name}
-                    </div>
-                    <div className="font-bold text-yellow-600">
-                      {p.points} pts
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between text-sm">
-                    <span className="text-green-600">W: {p.wins}</span>
-                    <span className="text-yellow-500">D: {p.draws}</span>
-                    <span className="text-red-500">L: {p.losses}</span>
-                  </div>
-                </div>
-              ))}
+          <div className="bg-white text-gray-700 rounded shadow overflow-hidden">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500 text-sm sm:text-base">
+              🏆 Leaderboard
             </div>
 
-            {/* Desktop Table */}
-            <div className="hidden sm:block bg-white text-gray-700 rounded shadow overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="border-b">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm sm:text-base min-w-[500px]">
+                <thead className="text-gray-400 uppercase border-b border-gray-200 text-xs sm:text-sm">
                   <tr>
-                    <th className="p-3">#</th>
-                    <th className="p-3">Player</th>
-                    <th className="p-3 text-center">W</th>
-                    <th className="p-3 text-center">D</th>
-                    <th className="p-3 text-center">L</th>
-                    <th className="p-3 text-right">Points</th>
+                    <th className="p-2">#</th>
+                    <th className="p-2">Player</th>
+                    <th className="p-2 text-center text-green-600">W</th>
+                    <th className="p-2 text-center text-yellow-500">D</th>
+                    <th className="p-2 text-center text-red-400">L</th>
+                    <th className="p-2 text-right">Pts</th>
                   </tr>
                 </thead>
                 <tbody>
                   {players.map((p, i) => (
-                    <tr key={p.id} className="border-b hover:bg-gray-100">
-                      <td className="p-3">{i + 1}</td>
-                      <td className="p-3 font-semibold">{p.name}</td>
-                      <td className="p-3 text-center">{p.wins}</td>
-                      <td className="p-3 text-center">{p.draws}</td>
-                      <td className="p-3 text-center">{p.losses}</td>
-                      <td className="p-3 text-right font-bold">
-                        {p.points}
-                      </td>
+                    <tr key={i} className="border-b even:bg-yellow-50 hover:bg-gray-100">
+                      <td className="p-2">{i + 1}</td>
+                      <td className="p-2 font-semibold whitespace-nowrap">{p.name}</td>
+                      <td className="p-2 text-center text-green-600">{p.wins}</td>
+                      <td className="p-2 text-center text-yellow-500">{p.draws}</td>
+                      <td className="p-2 text-center text-red-400">{p.losses}</td>
+                      <td className="p-2 text-right font-semibold">{p.points}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </>
+          </div>
         )}
 
-        {/* ================= PLAYERS ================= */}
-        {activeTab === "Players" && (
-          <>
-            {/* Mobile Cards */}
-            <div className="space-y-3 sm:hidden">
-              {players.map((p, i) => (
-                <div
-                  key={p.id}
-                  className="bg-gray-800 rounded-lg p-4 shadow"
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="font-bold text-lg">
-                      #{i + 1} {p.name}
+        {/* Matches */}
+        {activeTab === "Matches" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {[{
+              title: "Court 1",
+              matches: court1Matches,
+              scores: court1Scores,
+              court: "court1"
+            },{
+              title: "Court 2",
+              matches: court2Matches,
+              scores: court2Scores,
+              court: "court2"
+            }].map(({ title, matches, scores, court }) => (
+              <div key={title} className="bg-gray-700 rounded shadow p-4">
+                <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">
+                  {title}
+                </h2>
+
+                {matches.map((match, idx) => (
+                  <div key={idx} className="mb-4 p-3 bg-gray-800 rounded-lg">
+                    <div className="mb-3 font-semibold text-gray-200 text-sm break-words">
+                      {match[0].name} & {match[1].name}
+                      <br className="sm:hidden" />
+                      <span className="hidden sm:inline"> vs </span>
+                      <br className="sm:hidden" />
+                      {match[2].name} & {match[3].name}
                     </div>
-                    <button
-                      onClick={() => toggleAvailability(p.id)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        p.active
-                          ? "bg-green-500 text-white"
-                          : "bg-red-500 text-white"
-                      }`}
-                    >
-                      {p.active ? "Available" : "Unavailable"}
-                    </button>
-                  </div>
 
-                  <div className="flex justify-between text-sm">
-                    <span className="text-green-400">Wins: {p.wins}</span>
-                    <span className="text-red-400">Losses: {p.losses}</span>
+                    <div className="flex justify-center items-center gap-3 bg-gray-900 p-3 rounded-lg">
+                      <input
+                        type="number"
+                        min={0}
+                        value={scores[idx]?.team1 || ""}
+                        onChange={(e) =>
+                          updateScore(idx, "team1", e.target.value, court)
+                        }
+                        className="w-16 px-2 py-2 rounded text-gray-900 font-bold text-center focus:ring-2 focus:ring-yellow-400"
+                      />
+                      <span className="font-bold text-gray-300">-</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={scores[idx]?.team2 || ""}
+                        onChange={(e) =>
+                          updateScore(idx, "team2", e.target.value, court)
+                        }
+                        className="w-16 px-2 py-2 rounded text-gray-900 font-bold text-center focus:ring-2 focus:ring-yellow-400"
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Desktop Table */}
-            <div className="hidden sm:block bg-gray-700 rounded shadow overflow-hidden">
-              <table className="w-full text-left text-gray-300">
-                <thead className="border-b border-gray-600">
-                  <tr>
-                    <th className="p-3">#</th>
-                    <th className="p-3">Name</th>
-                    <th className="p-3 text-center">Wins</th>
-                    <th className="p-3 text-center">Losses</th>
-                    <th className="p-3 text-center">Available</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {players.map((p, i) => (
-                    <tr key={p.id} className="border-b border-gray-600">
-                      <td className="p-3">{i + 1}</td>
-                      <td className="p-3">{p.name}</td>
-                      <td className="p-3 text-center">{p.wins}</td>
-                      <td className="p-3 text-center">{p.losses}</td>
-                      <td className="p-3 text-center">
-                        {p.active ? "Yes" : "No"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+                ))}
+              </div>
+            ))}
+          </div>
         )}
 
         {activeTab === "Previous Matches" && (
-          <p className="italic text-gray-400">
-            Previous matches coming soon...
-          </p>
+          <div className="bg-gray-700 rounded shadow p-4">
+            <p className="text-gray-300 italic text-sm">
+              Previous matches content coming soon...
+            </p>
+          </div>
         )}
       </section>
     </main>
