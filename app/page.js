@@ -156,45 +156,50 @@ export default function HomePage() {
       <HeaderStats stats={stats} />
 
       {/* Tabs */}
-      <section className="bg-gray-900 rounded-t-lg shadow px-3 sm:px-6 py-3 mb-4">
-        <div className="flex gap-2 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`whitespace-nowrap flex items-center gap-1 px-4 py-2 rounded text-sm sm:text-base ${
-                activeTab === tab
-                  ? "bg-white text-gray-900 font-semibold shadow"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              {tab === "Standings" && "🏆"}
-              {tab === "Matches" && "⚔"}
-              {tab === "Players" && "👥"}
-              {tab === "Previous Matches" && "🕒"}
-              {tab}
-            </button>
-          ))}
+<section className="bg-gray-900 rounded-t-lg shadow px-4 py-4 mb-4">
+  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    {tabs.map((tab) => (
+      <button
+        key={tab}
+        onClick={() => setActiveTab(tab)}
+        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm sm:text-base font-medium transition ${
+          activeTab === tab
+            ? "bg-white text-gray-900 shadow"
+            : "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
+        }`}
+      >
+        {tab === "Standings" && "🏆"}
+        {tab === "Matches" && "⚔"}
+        {tab === "Players" && "👥"}
+        {tab === "Previous Matches" && "🕒"}
+        <span>{tab}</span>
+      </button>
+    ))}
+  </div>
 
-          {activeTab === "Players" && (
-            <button
-              onClick={handleAddPlayer}
-              className="ml-auto bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
-            >
-              👤 Add
-            </button>
-          )}
+  {/* Action Buttons (right aligned like before) */}
+  {activeTab === "Players" && (
+    <div className="mt-4 flex justify-end">
+      <button
+        onClick={handleAddPlayer}
+        className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+      >
+        👤 Add Player
+      </button>
+    </div>
+  )}
 
-          {activeTab === "Matches" && (
-            <button
-              onClick={generateMatches}
-              className="ml-auto bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
-            >
-              🔄 Generate
-            </button>
-          )}
-        </div>
-      </section>
+  {activeTab === "Matches" && (
+    <div className="mt-4 flex justify-end">
+      <button
+        onClick={generateMatches}
+        className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+      >
+        🔄 Generate Fixtures
+      </button>
+    </div>
+  )}
+</section>
 
       {/* Content */}
       <section className="bg-gray-900 rounded-b-lg shadow overflow-hidden p-4 sm:p-6 text-gray-300">
