@@ -6,23 +6,37 @@ import { supabase } from "../lib/supabase";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("Standings");
+  const [division, setDivision] = useState(1); // 1 or 2
   const [players, setPlayers] = useState([]);
+
   const [court1Matches, setCourt1Matches] = useState([]);
   const [court2Matches, setCourt2Matches] = useState([]);
+
   const [court1Scores, setCourt1Scores] = useState([]);
   const [court2Scores, setCourt2Scores] = useState([]);
 
+  const [court1Round, setCourt1Round] = useState(0);
+const [court2Round, setCourt2Round] = useState(0);
+
+  const [currentRound, setCurrentRound] = useState(0);
+const [roundMatches, setRoundMatches] = useState([]); // flattened all matches by round
+
   useEffect(() => {
     fetchPlayers();
-  }, []);
+  }, [division]);
 
   const fetchPlayers = async () => {
     const { data, error } = await supabase
       .from("players")
       .select("*")
+      .eq("division", division) // filter by current division
       .order("points", { ascending: false });
 
     if (!error) setPlayers(data || []);
+  };
+
+  const toggleDivision = () => {
+    setDivision(division === 1 ? 2 : 1);
   };
 
   const handleAddPlayer = async () => {
@@ -31,7 +45,7 @@ export default function HomePage() {
 
     const { data, error } = await supabase
       .from("players")
-      .insert([{ name, wins: 0, draws: 0, losses: 0, points: 0, active: true }])
+      .insert([{ name, wins: 0, draws: 0, losses: 0, points: 0, active: true, division }])
       .select();
 
     if (!error) setPlayers((prev) => [...prev, data[0]]);
@@ -48,30 +62,38 @@ export default function HomePage() {
     );
   };
 
-  const totalPlayers = players.length;
   const currentLeader = players[0]?.name || "—";
   const mostImproved =
     players.reduce(
-      (best, p) =>
-        p.improved > (best.improved || 0) ? p : best,
+      (best, p) => (p.improved > (best.improved || 0) ? p : best),
       {}
     ).name || "—";
 
   const highestWinStreakPlayer =
     players.reduce(
-      (best, p) =>
-        p.win_streak > (best.win_streak || 0) ? p : best,
+      (best, p) => (p.win_streak > (best.win_streak || 0) ? p : best),
       {}
     ) || {};
 
   const stats = [
     {
-      label: "Total Players",
-      value: totalPlayers,
-      highlight: "blue",
-      onClick: () => setActiveTab("Players"),
-      cursorPointer: true,
-    },
+  label: "Division",
+  value: division, // keep a value so HeaderStats shows the stat
+  highlight: "blue",
+  onClick: toggleDivision,
+  renderCustom: () => (
+    <div className="flex flex-col items-center cursor-pointer select-none">
+      {/* Current division */}
+      <span className="text-yellow-400 font-extrabold text-lg">
+        Division {division}
+      </span>
+      {/* Other division */}
+      <span className="text-gray-400 text-sm mt-1">
+        Division {division === 1 ? 2 : 1}
+      </span>
+    </div>
+  ),
+},
     { label: "Current Leader", value: currentLeader, highlight: "gold" },
     { label: "Most Improved", value: mostImproved, highlight: "grayButton" },
     {
@@ -85,56 +107,112 @@ export default function HomePage() {
   const tabs = ["Standings", "Matches", "Players", "Previous Matches"];
 
   const generateMatches = () => {
-    const available = players.filter((p) => p.active);
-    let topHalf = [];
-    let bottomHalf = [];
+  const available = players.filter((p) => p.active);
+  if (available.length < 4) {
+    alert("At least 4 active players required.");
+    return;
+  }
 
-    if (available.length < 7) {
-      topHalf = available;
-    } else {
-      const half = Math.ceil(available.length / 2);
-      topHalf = available.slice(0, half);
-      bottomHalf = available.slice(half);
+  // Split roughly in half for 2 courts
+  const half = Math.ceil(available.length / 2);
+  const court1Group = available.slice(0, half);
+  const court2Group = available.slice(half);
+
+  // Function to generate round-robin 2v2 schedule for a court
+  const buildCourtRounds = (group) => {
+    const N = group.length;
+    const rounds = [];
+    const usedPairs = new Set();
+
+    // Generate all 2-player combinations
+    const pairs = [];
+    for (let i = 0; i < N; i++) {
+      for (let j = i + 1; j < N; j++) {
+        pairs.push([group[i], group[j]]);
+      }
     }
 
-    const pairMatches = (arr) => {
-      const matches = [];
-      for (let i = 0; i < arr.length - 3; i++) {
-        for (let j = i + 1; j < arr.length - 2; j++) {
-          for (let k = j + 1; k < arr.length - 1; k++) {
-            for (let l = k + 1; l < arr.length; l++) {
-              matches.push([arr[i], arr[j], arr[k], arr[l]]);
-            }
-          }
+    // Each round, pick 2 pairs (4 players) that haven't been together yet
+    // Remaining players sit out as bye
+    for (let round = 0; round < N; round++) {
+      const roundPlayers = new Set();
+      const roundPairs = [];
+      const byePlayers = [];
+
+      // Pick 2 pairs for this round
+      for (const [a, b] of pairs) {
+        const key = [a.id, b.id].sort().join("-");
+        if (!usedPairs.has(key) && !roundPlayers.has(a.id) && !roundPlayers.has(b.id)) {
+          roundPairs.push([a, b]);
+          roundPlayers.add(a.id);
+          roundPlayers.add(b.id);
+          usedPairs.add(key);
+          if (roundPairs.length === 2) break;
         }
       }
-      return matches;
-    };
 
-    const c1 = pairMatches(topHalf);
-    const c2 = bottomHalf.length ? pairMatches(bottomHalf) : [];
+      // Handle cases where not enough new pairs left: fill with any available
+      if (roundPairs.length < 2) {
+        for (let i = 0; i < group.length; i++) {
+          if (!roundPlayers.has(group[i].id)) {
+            roundPlayers.add(group[i].id);
+            byePlayers.push(group[i]);
+          }
+        }
+        // If fewer than 4 players, pad roundPairs with bye players to 2v2
+        while (roundPairs.flat().length < 4 && byePlayers.length > 0) {
+          const p = byePlayers.shift();
+          roundPairs.push([p, p]); // dummy pairing, will never happen
+        }
+      }
 
-    setCourt1Matches(c1);
-    setCourt2Matches(c2);
-    setCourt1Scores(c1.map(() => ({ team1: 0, team2: 0 })));
-    setCourt2Scores(c2.map(() => ({ team1: 0, team2: 0 })));
+      // Calculate bye players (not in roundPairs)
+      group.forEach((p) => {
+        if (!roundPlayers.has(p.id)) byePlayers.push(p);
+      });
+
+      rounds.push({ match: roundPairs, bye: byePlayers });
+    }
+
+    return rounds;
   };
+
+  const court1Rounds = buildCourtRounds(court1Group);
+  const court2Rounds = buildCourtRounds(court2Group);
+
+  // Save matches and scores
+  setCourt1Matches(court1Rounds.map((r) => r.match));
+  setCourt1Scores(court1Rounds.map(() => ({ team1: 0, team2: 0 })));
+  setCourt1Round(0);
+
+  setCourt2Matches(court2Rounds.map((r) => r.match));
+  setCourt2Scores(court2Rounds.map(() => ({ team1: 0, team2: 0 })));
+  setCourt2Round(0);
+
+  // Save bye players for JSX display
+  setRoundMatches({
+    court1: court1Rounds.map((r) => r.bye),
+    court2: court2Rounds.map((r) => r.bye),
+  });
+};
 
   const updateScore = (idx, team, value, court) => {
-    const numericValue = value === "" ? 0 : parseInt(value);
+  if (court === "court1") {
+    const newScores = [...court1Scores];
+    if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
+    newScores[idx][team] = value; // keep as string
+    setCourt1Scores(newScores);
+  } else {
+    const newScores = [...court2Scores];
+    if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
+    newScores[idx][team] = value; // keep as string
+    setCourt2Scores(newScores);
+  }
+};
 
-    if (court === "court1") {
-      const newScores = [...court1Scores];
-      if (!newScores[idx]) newScores[idx] = { team1: 0, team2: 0 };
-      newScores[idx][team] = numericValue;
-      setCourt1Scores(newScores);
-    } else {
-      const newScores = [...court2Scores];
-      if (!newScores[idx]) newScores[idx] = { team1: 0, team2: 0 };
-      newScores[idx][team] = numericValue;
-      setCourt2Scores(newScores);
-    }
-  };
+const saveMatches = () => {
+  alert("Save logic coming next.");
+};
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
@@ -211,7 +289,18 @@ export default function HomePage() {
     </div>
 
     {/* Mobile Cards */}
-<div className="sm:hidden p-4 space-y-3 bg-gray-50">
+<div className="sm:hidden p-4 space-y-2 bg-gray-50">
+  {/* Header Row */}
+  <div className="grid grid-cols-7 text-xs font-bold text-gray-400 text-center mb-1">
+    <span>GP</span>
+    <span className="text-green-600">W</span>
+    <span className="text-red-400">L</span>
+    <span className="text-yellow-500">D</span>
+    <span>Diff</span>
+    <span>Win %</span>
+    <span>Pts</span>
+  </div>
+
   {players.map((p, i) => {
     const gp = p.wins + p.losses + p.draws;
     const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
@@ -401,61 +490,164 @@ export default function HomePage() {
 )}
 
         {/* Matches */}
-        {activeTab === "Matches" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {[{
-              title: "Court 1",
-              matches: court1Matches,
-              scores: court1Scores,
-              court: "court1"
-            },{
-              title: "Court 2",
-              matches: court2Matches,
-              scores: court2Scores,
-              court: "court2"
-            }].map(({ title, matches, scores, court }) => (
-              <div key={title} className="bg-gray-700 rounded shadow p-4">
-                <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">
-                  {title}
-                </h2>
+{activeTab === "Matches" && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+    {/* Court 1 */}
+<div className="bg-gray-700 rounded shadow p-4">
+  <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">Court 1</h2>
+  {court1Matches[court1Round] ? (
+    <>
+      <div className="mb-2 bg-white rounded-2xl shadow-xl p-6 text-gray-900">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+          {/* Team 1 */}
+          <div className="text-center">
+            <div className="font-bold text-lg mb-3 text-gray-700">
+              {court1Matches[court1Round][0].map(p => p.name).join(" & ")}
+            </div>
+            <input
+              type="number"
+              min={0}
+              value={court1Scores[court1Round]?.team1 ?? ""}
+              onChange={(e) =>
+                updateScore(court1Round, "team1", e.target.value, "court1")
+              }
+              className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
+            />
+          </div>
 
-                {matches.map((match, idx) => (
-                  <div key={idx} className="mb-4 p-3 bg-gray-800 rounded-lg">
-                    <div className="mb-3 font-semibold text-gray-200 text-sm break-words">
-                      {match[0].name} & {match[1].name}
-                      <br className="sm:hidden" />
-                      <span className="hidden sm:inline"> vs </span>
-                      <br className="sm:hidden" />
-                      {match[2].name} & {match[3].name}
-                    </div>
+          {/* Team 2 */}
+          <div className="text-center">
+            <div className="font-bold text-lg mb-3 text-gray-700">
+              {court1Matches[court1Round][1].map(p => p.name).join(" & ")}
+            </div>
+            <input
+              type="number"
+              min={0}
+              value={court1Scores[court1Round]?.team2 ?? ""}
+              onChange={(e) =>
+                updateScore(court1Round, "team2", e.target.value, "court1")
+              }
+              className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
+            />
+          </div>
+        </div>
 
-                    <div className="flex justify-center items-center gap-3 bg-gray-900 p-3 rounded-lg">
-                      <input
-                        type="number"
-                        min={0}
-                        value={scores[idx]?.team1 || ""}
-                        onChange={(e) =>
-                          updateScore(idx, "team1", e.target.value, court)
-                        }
-                        className="w-16 px-2 py-2 rounded text-gray-900 font-bold text-center focus:ring-2 focus:ring-yellow-400"
-                      />
-                      <span className="font-bold text-gray-300">-</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={scores[idx]?.team2 || ""}
-                        onChange={(e) =>
-                          updateScore(idx, "team2", e.target.value, court)
-                        }
-                        className="w-16 px-2 py-2 rounded text-gray-900 font-bold text-center focus:ring-2 focus:ring-yellow-400"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
+        <div className="text-center text-gray-400 font-bold mt-6 text-lg tracking-widest">
+          VS
+        </div>
+
+        {/* Bye players */}
+        {roundMatches?.court1?.[court1Round]?.length > 0 && (
+          <div className="mt-2 text-gray-400 text-sm italic text-center">
+            Resting: {roundMatches.court1[court1Round].map(p => p.name).join(", ")}
           </div>
         )}
+      </div>
+    </>
+  ) : (
+    <p className="text-gray-300 italic">No matches scheduled for this court.</p>
+  )}
+
+  <div className="flex justify-between mt-4">
+    <button
+      onClick={() => setCourt1Round(prev => Math.max(prev - 1, 0))}
+      disabled={court1Round === 0}
+      className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded disabled:opacity-50"
+    >
+      ◀ Previous Round
+    </button>
+    <button
+      onClick={() => setCourt1Round(prev => Math.min(prev + 1, court1Matches.length - 1))}
+      disabled={court1Round >= court1Matches.length - 1}
+      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
+    >
+      Next Round ▶
+    </button>
+  </div>
+</div>
+
+{/* Court 2 */}
+<div className="bg-gray-700 rounded shadow p-4">
+  <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">Court 2</h2>
+  {court2Matches[court2Round] ? (
+    <>
+      <div className="mb-2 bg-white rounded-2xl shadow-xl p-6 text-gray-900">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+          {/* Team 1 */}
+          <div className="text-center">
+            <div className="font-bold text-lg mb-3 text-gray-700">
+              {court2Matches[court2Round][0].map(p => p.name).join(" & ")}
+            </div>
+            <input
+              type="number"
+              min={0}
+              value={court2Scores[court2Round]?.team1 ?? ""}
+              onChange={(e) =>
+                updateScore(court2Round, "team1", e.target.value, "court2")
+              }
+              className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
+            />
+          </div>
+
+          {/* Team 2 */}
+          <div className="text-center">
+            <div className="font-bold text-lg mb-3 text-gray-700">
+              {court2Matches[court2Round][1].map(p => p.name).join(" & ")}
+            </div>
+            <input
+              type="number"
+              min={0}
+              value={court2Scores[court2Round]?.team2 ?? ""}
+              onChange={(e) =>
+                updateScore(court2Round, "team2", e.target.value, "court2")
+              }
+              className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
+            />
+          </div>
+        </div>
+
+        <div className="text-center text-gray-400 font-bold mt-6 text-lg tracking-widest">
+          VS
+        </div>
+
+        {/* Bye players */}
+        {roundMatches?.court2?.[court2Round]?.length > 0 && (
+          <div className="mt-2 text-gray-400 text-sm italic text-center">
+            Resting: {roundMatches.court2[court2Round].map(p => p.name).join(", ")}
+          </div>
+        )}
+      </div>
+    </>
+  ) : (
+    <p className="text-gray-300 italic">No matches scheduled for this court.</p>
+  )}
+
+  <div className="flex justify-between mt-4">
+    <button
+      onClick={() => setCourt2Round(prev => Math.max(prev - 1, 0))}
+      disabled={court2Round === 0}
+      className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded disabled:opacity-50"
+    >
+      ◀ Previous Round
+    </button>
+    <button
+      onClick={() => setCourt2Round(prev => Math.min(prev + 1, court2Matches.length - 1))}
+      disabled={court2Round >= court2Matches.length - 1}
+      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
+    >
+      Next Round ▶
+    </button>
+  </div>
+</div>
+
+    {/* Save All Matches */}
+    <div className="col-span-1 md:col-span-2 flex justify-center mt-4">
+      <button onClick={saveMatches} className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded">
+        💾 Save Matches
+      </button>
+    </div>
+  </div>
+)}
 
         {activeTab === "Previous Matches" && (
           <div className="bg-gray-700 rounded shadow p-4">
