@@ -216,10 +216,49 @@ const [roundMatches, setRoundMatches] = useState([]); // flattened all matches b
   }
 };
 
-const saveMatches = () => {
-  alert("Save logic coming next.");
-};
+const saveMatches = async () => {
+  try {
+    // Helper to format matches for saving
+    const formatMatches = (matches, scores, court) => {
+      return matches.map((m, idx) => ({
+        court,
+        division,
+        players: m.flat().map(p => p.name), // store player names instead of IDs
+        scores: scores[idx],
+      }));
+    };
 
+    const court1Data = formatMatches(court1Matches, court1Scores, "court1");
+    const court2Data = formatMatches(court2Matches, court2Scores, "court2");
+
+    const allMatches = [...court1Data, ...court2Data];
+
+    // Insert into Supabase
+    const { data, error } = await supabase
+      .from("previous_matches")
+      .insert(allMatches)
+      .select();
+
+    if (error) {
+      console.error("Error saving matches:", error);
+      alert("Failed to save matches. Check console.");
+    } else {
+      alert("Matches saved successfully!");
+      
+      // Optionally reset current matches for next round
+      setCourt1Matches([]);
+      setCourt2Matches([]);
+      setCourt1Scores([]);
+      setCourt2Scores([]);
+      setRoundMatches([]);
+      setCourt1Round(0);
+      setCourt2Round(0);
+    }
+  } catch (err) {
+    console.error("Unexpected error saving matches:", err);
+    alert("Something went wrong while saving matches.");
+  }
+};
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
       
@@ -227,12 +266,12 @@ const saveMatches = () => {
       <header className="mb-8 sm:mb-10 relative">
         <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
           <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
-            🏆
+            🔥
           </span>
           Fylde Pickleball League
         </h1>
         <p className="text-gray-400 mt-2 text-xs sm:text-sm tracking-wide">
-          Weekly Matches • 8 Weeks • Prize for Winner • 2 Courts
+          Weekly Matches • 8 Weeks • 2 Courts • Prize for Winner!🏆
         </p>
         <div className="absolute -bottom-3 left-0 w-20 sm:w-24 h-1 bg-yellow-400 rounded-full" />
       </header>
