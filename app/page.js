@@ -106,93 +106,99 @@ const [roundMatches, setRoundMatches] = useState([]); // flattened all matches b
 
   const tabs = ["Standings", "Matches", "Players", "Previous Matches"];
 
-  const generateMatches = () => {
-  const available = players.filter((p) => p.active);
+ const generateMatches = () => {
+  const available = players
+    .filter((p) => p.active)
+    .sort((a, b) => b.points - a.points);
+
   if (available.length < 4) {
     alert("At least 4 active players required.");
     return;
   }
 
-  // Split roughly in half for 2 courts
+  // Split top-ranked for Court 1
   const half = Math.ceil(available.length / 2);
   const court1Group = available.slice(0, half);
   const court2Group = available.slice(half);
 
-  // Function to generate round-robin 2v2 schedule for a court
-  const buildCourtRounds = (group) => {
-    const N = group.length;
-    const rounds = [];
-    const usedPairs = new Set();
-
-    // Generate all 2-player combinations
-    const pairs = [];
-    for (let i = 0; i < N; i++) {
-      for (let j = i + 1; j < N; j++) {
-        pairs.push([group[i], group[j]]);
-      }
-    }
-
-    // Each round, pick 2 pairs (4 players) that haven't been together yet
-    // Remaining players sit out as bye
-    for (let round = 0; round < N; round++) {
-      const roundPlayers = new Set();
-      const roundPairs = [];
-      const byePlayers = [];
-
-      // Pick 2 pairs for this round
-      for (const [a, b] of pairs) {
-        const key = [a.id, b.id].sort().join("-");
-        if (!usedPairs.has(key) && !roundPlayers.has(a.id) && !roundPlayers.has(b.id)) {
-          roundPairs.push([a, b]);
-          roundPlayers.add(a.id);
-          roundPlayers.add(b.id);
-          usedPairs.add(key);
-          if (roundPairs.length === 2) break;
-        }
-      }
-
-      // Handle cases where not enough new pairs left: fill with any available
-      if (roundPairs.length < 2) {
-        for (let i = 0; i < group.length; i++) {
-          if (!roundPlayers.has(group[i].id)) {
-            roundPlayers.add(group[i].id);
-            byePlayers.push(group[i]);
-          }
-        }
-        // If fewer than 4 players, pad roundPairs with bye players to 2v2
-        while (roundPairs.flat().length < 4 && byePlayers.length > 0) {
-          const p = byePlayers.shift();
-          roundPairs.push([p, p]); // dummy pairing, will never happen
-        }
-      }
-
-      // Calculate bye players (not in roundPairs)
-      group.forEach((p) => {
-        if (!roundPlayers.has(p.id)) byePlayers.push(p);
-      });
-
-      rounds.push({ match: roundPairs, bye: byePlayers });
-    }
-
-    return rounds;
+  // Decide games per player for each court
+  const gamesPerPlayer = (group) => {
+    const n = group.length;
+    if (n <= 5) return n;        // Keep current logic for 4–5
+    if (n === 6) return 4;
+    if (n === 7) return 4;
+    return 3;                     // 8 players
   };
 
-  const court1Rounds = buildCourtRounds(court1Group);
-  const court2Rounds = buildCourtRounds(court2Group);
+  const buildCourt = (group) => {
+    const matches = [];
+    const byes = [];
+    const usedMatchKeys = new Set();
+    const gamesPlayed = {};
+    group.forEach((p) => (gamesPlayed[p.id] = 0));
 
-  // Save matches and scores
-  setCourt1Matches(court1Rounds.map((r) => r.match));
-  setCourt1Scores(court1Rounds.map(() => ({ team1: 0, team2: 0 })));
+    const maxGames = gamesPerPlayer(group);
+
+    while (Object.values(gamesPlayed).some((g) => g < maxGames)) {
+      // Pick 4 players with least games played
+      const sorted = [...group].sort((a, b) => gamesPlayed[a.id] - gamesPlayed[b.id]);
+      const playing = sorted.slice(0, 4);
+
+      // Generate a match key to prevent duplicate 4-player groups
+      const matchKey = playing.map((p) => p.id).sort().join("-");
+      if (usedMatchKeys.has(matchKey)) {
+        // Try next combination if duplicate (rotate players)
+        let found = false;
+        for (let i = 0; i < group.length - 3 && !found; i++) {
+          for (let j = i + 1; j < group.length - 2 && !found; j++) {
+            for (let k = j + 1; k < group.length - 1 && !found; k++) {
+              for (let l = k + 1; l < group.length && !found; l++) {
+                const candidate = [group[i], group[j], group[k], group[l]];
+                const candidateKey = candidate.map((p) => p.id).sort().join("-");
+                if (!usedMatchKeys.has(candidateKey) && candidate.every((p) => gamesPlayed[p.id] < maxGames)) {
+                  playing.splice(0, 4, ...candidate);
+                  found = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      usedMatchKeys.add(playing.map((p) => p.id).sort().join("-"));
+
+      // Assign teams (simple split)
+      const team1 = [playing[0], playing[1]];
+      const team2 = [playing[2], playing[3]];
+
+      matches.push([team1, team2]);
+
+      // Resting players
+      const resting = group.filter((p) => !playing.includes(p));
+      byes.push(resting);
+
+      // Increment games played
+      playing.forEach((p) => (gamesPlayed[p.id]++));
+    }
+
+    return { matches, byes };
+  };
+
+  const court1 = buildCourt(court1Group);
+  const court2 = buildCourt(court2Group);
+
+  setCourt1Matches(court1.matches);
+  setCourt1Scores(court1.matches.map(() => ({ team1: "", team2: "" })));
   setCourt1Round(0);
 
-  setCourt2Matches(court2Rounds.map((r) => r.match));
-  setCourt2Scores(court2Rounds.map(() => ({ team1: 0, team2: 0 })));
+  setCourt2Matches(court2.matches);
+  setCourt2Scores(court2.matches.map(() => ({ team1: "", team2: "" })));
   setCourt2Round(0);
 
-  // Save bye players for JSX display
   setRoundMatches({
-    court1: court1Rounds.map((r) => r.bye),
-    court2: court2Rounds.map((r) => r.bye),
+    court1: court1.byes,
+    court2: court2.byes,
   });
 };
 
@@ -498,7 +504,11 @@ const saveMatches = () => {
   {court1Matches[court1Round] ? (
     <>
       <div className="mb-2 bg-white rounded-2xl shadow-xl p-6 text-gray-900">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+         {/* ROUND INDICATOR */}
+  <div className="text-center text-xs uppercase tracking-widest text-yellow-500 font-bold mb-4">
+  Round {court1Round + 1} of {court1Matches.length}
+</div>
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
           {/* Team 1 */}
           <div className="text-center">
             <div className="font-bold text-lg mb-3 text-gray-700">
@@ -572,6 +582,10 @@ const saveMatches = () => {
   {court2Matches[court2Round] ? (
     <>
       <div className="mb-2 bg-white rounded-2xl shadow-xl p-6 text-gray-900">
+         {/* ROUND INDICATOR */}
+  <div className="text-center text-xs uppercase tracking-widest text-yellow-500 font-bold mb-4">
+  Round {court2Round + 1} of {court2Matches.length}
+</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
           {/* Team 1 */}
           <div className="text-center">
