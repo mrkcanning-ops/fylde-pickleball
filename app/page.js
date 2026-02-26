@@ -21,8 +21,52 @@ const [court2Round, setCourt2Round] = useState(0);
   const [currentRound, setCurrentRound] = useState(0);
 const [roundMatches, setRoundMatches] = useState([]); // flattened all matches by round
 
+const [isAdmin, setIsAdmin] = useState(false);
+const [showAdminModal, setShowAdminModal] = useState(false);
+const [adminCode, setAdminCode] = useState("");
+const [adminError, setAdminError] = useState("");
+
+const [previousMatches, setPreviousMatches] = useState([]);
+
+const handleAdminUnlock = () => {
+  const code = prompt("Enter admin passcode:");
+
+  if (!code) return;
+
+  if (code === process.env.NEXT_PUBLIC_ADMIN_PASSCODE) {
+    setIsAdmin(true);
+    alert("Admin access granted ✅");
+  } else {
+    alert("Incorrect passcode ❌");
+  }
+};
+
+const verifyAdminCode = () => {
+  if (adminCode === process.env.NEXT_PUBLIC_ADMIN_PASSCODE) {
+    setIsAdmin(true);
+    setShowAdminModal(false);
+    setAdminCode("");
+    setAdminError("");
+  } else {
+    setAdminError("Incorrect passcode");
+  }
+};
+const fetchPreviousMatches = async () => {
+  const { data, error } = await supabase
+    .from("previous_matches")
+    .select("*")
+    .order("id", { ascending: true }); // or by created_at if you have timestamp
+
+  if (error) {
+    console.error("Error fetching previous matches:", error);
+  } else {
+    setPreviousMatches(data || []);
+  }
+};
+
   useEffect(() => {
     fetchPlayers();
+    fetchPreviousMatches();
   }, [division]);
 
   const fetchPlayers = async () => {
@@ -230,7 +274,6 @@ const saveMatches = async () => {
 
     const court1Data = formatMatches(court1Matches, court1Scores, "court1");
     const court2Data = formatMatches(court2Matches, court2Scores, "court2");
-
     const allMatches = [...court1Data, ...court2Data];
 
     // Insert into Supabase
@@ -242,18 +285,22 @@ const saveMatches = async () => {
     if (error) {
       console.error("Error saving matches:", error);
       alert("Failed to save matches. Check console.");
-    } else {
-      alert("Matches saved successfully!");
-      
-      // Optionally reset current matches for next round
-      setCourt1Matches([]);
-      setCourt2Matches([]);
-      setCourt1Scores([]);
-      setCourt2Scores([]);
-      setRoundMatches([]);
-      setCourt1Round(0);
-      setCourt2Round(0);
+      return; // stop here on error
     }
+
+    // Success → reset current matches
+    setCourt1Matches([]);
+    setCourt2Matches([]);
+    setCourt1Scores([]);
+    setCourt2Scores([]);
+    setRoundMatches([]);
+    setCourt1Round(0);
+    setCourt2Round(0);
+
+    // Refresh previous matches tab
+    fetchPreviousMatches();
+
+    alert("Matches saved successfully!");
   } catch (err) {
     console.error("Unexpected error saving matches:", err);
     alert("Something went wrong while saving matches.");
@@ -312,15 +359,24 @@ const saveMatches = async () => {
         )}
 
         {activeTab === "Matches" && (
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={generateMatches}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-            >
-              🔄 Generate Fixtures
-            </button>
-          </div>
-        )}
+  <div className="mt-4 flex justify-end">
+    {!isAdmin ? (
+      <button
+        onClick={() => setShowAdminModal(true)}
+        className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm"
+      >
+        🔒 Generate Fixtures
+      </button>
+    ) : (
+      <button
+        onClick={generateMatches}
+        className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+      >
+        🔄 Generate Fixtures
+      </button>
+    )}
+  </div>
+)}
       </section>
 
       {/* Content */}
@@ -349,7 +405,7 @@ const saveMatches = async () => {
   {players.map((p, i) => {
     const gp = p.wins + p.losses + p.draws;
     const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
-    const diff = p.points - (gp - p.points); // Adjust as needed
+    const diff = (p.points_for || 0) - (p.points_against || 0);
 
     return (
       <div
@@ -703,13 +759,81 @@ const saveMatches = async () => {
 )}
 
         {activeTab === "Previous Matches" && (
-          <div className="bg-gray-700 rounded shadow p-4">
-            <p className="text-gray-300 italic text-sm">
-              Previous matches content coming soon...
-            </p>
+  <div className="bg-gray-700 rounded shadow p-4">
+    {previousMatches.length === 0 ? (
+      <p className="text-gray-300 italic text-sm">No previous matches yet...</p>
+    ) : (
+      <div className="space-y-4">
+        {previousMatches.map((m, idx) => (
+          <div key={idx} className="bg-gray-800 p-3 rounded text-gray-200">
+            <div className="text-yellow-400 font-bold mb-1">
+              Court: {m.court} | Division: {m.division}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className="font-semibold">Team 1</div>
+                {m.players.slice(0,2).join(" & ")} 
+                <div>Score: {m.scores?.team1 || "—"}</div>
+              </div>
+              <div>
+                <div className="font-semibold">Team 2</div>
+                {m.players.slice(2,4).join(" & ")} 
+                <div>Score: {m.scores?.team2 || "—"}</div>
+              </div>
+            </div>
           </div>
-        )}
+        ))}
+      </div>
+    )}
+  </div>
+)}
       </section>
+      {showAdminModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+    <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
+      <h2 className="text-lg font-bold text-yellow-400 mb-4 text-center">
+        Admin Access
+      </h2>
+
+      <input
+        type="password"
+        value={adminCode}
+        onChange={(e) => {
+          setAdminCode(e.target.value);
+          setAdminError("");
+        }}
+        placeholder="Enter passcode"
+        className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
+      />
+
+      {adminError && (
+        <p className="text-red-400 text-sm mt-2 text-center">
+          {adminError}
+        </p>
+      )}
+
+      <div className="flex justify-between mt-5">
+        <button
+          onClick={() => {
+            setShowAdminModal(false);
+            setAdminCode("");
+            setAdminError("");
+          }}
+          className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={verifyAdminCode}
+          className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm"
+        >
+          Unlock
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </main>
   );
 }
