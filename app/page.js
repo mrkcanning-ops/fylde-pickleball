@@ -231,7 +231,7 @@ const handleAdminUnlock = () => {
   alert("Admin access granted ✅");
 } else {
   alert("Incorrect passcode ❌");
-};
+};}
 
 const verifyAdminCode = () => {
   if (adminCode === process.env.NEXT_PUBLIC_ADMIN_PASSCODE) {
