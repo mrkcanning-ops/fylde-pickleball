@@ -223,24 +223,16 @@ const team2 = playersArray.slice(2, 4);
 };
 const handleAdminUnlock = () => {
   const code = prompt("Enter admin passcode:");
-
   if (!code) return;
 
-  if (code.trim() === process.env.NEXT_PUBLIC_ADMIN_PASSCODE?.trim()) {
-  setIsAdmin(true);
-  alert("Admin access granted ✅");
-} else {
-  alert("Incorrect passcode ❌");
-};}
+  const cleanInput = code.trim().toLowerCase();
+  const cleanEnv = process.env.NEXT_PUBLIC_ADMIN_PASSCODE?.trim().toLowerCase();
 
-const verifyAdminCode = () => {
-  if (adminCode === process.env.NEXT_PUBLIC_ADMIN_PASSCODE) {
+  if (cleanInput === cleanEnv) {
     setIsAdmin(true);
-    setShowAdminModal(false);
-    setAdminCode("");
-    setAdminError("");
+    alert("Admin access granted ✅");
   } else {
-    setAdminError("Incorrect passcode");
+    alert("Incorrect passcode ❌");
   }
 };
 const fetchPreviousMatches = async () => {
