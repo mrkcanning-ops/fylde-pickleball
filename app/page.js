@@ -223,18 +223,28 @@ const team2 = playersArray.slice(2, 4);
 };
 const handleAdminUnlock = () => {
   const code = prompt("Enter admin passcode:");
+
   if (!code) return;
 
-  const cleanInput = code.trim().toLowerCase();
-  const cleanEnv = process.env.NEXT_PUBLIC_ADMIN_PASSCODE?.trim().toLowerCase();
-
-  if (cleanInput === cleanEnv) {
+  if (code === process.env.NEXT_PUBLIC_ADMIN_PASSCODE) {
     setIsAdmin(true);
     alert("Admin access granted ✅");
   } else {
     alert("Incorrect passcode ❌");
   }
 };
+
+const verifyAdminCode = () => {
+  if (adminCode === process.env.NEXT_PUBLIC_ADMIN_PASSCODE) {
+    setIsAdmin(true);
+    setShowAdminModal(false);
+    setAdminCode("");
+    setAdminError("");
+  } else {
+    setAdminError("Incorrect passcode");
+  }
+};
+
 const fetchPreviousMatches = async () => {
   const { data, error } = await supabase
     .from("previous_matches")
