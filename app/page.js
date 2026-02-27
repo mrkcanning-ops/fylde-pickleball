@@ -28,6 +28,199 @@ const [adminError, setAdminError] = useState("");
 
 const [previousMatches, setPreviousMatches] = useState([]);
 
+const recalculateStandings = async () => {
+  // 1️⃣ Get all players
+  const { data: players } = await supabase
+    .from("players")
+    .select("*");
+
+  if (!players) return;
+
+  // 2️⃣ Reset all stats to zero
+  for (const player of players) {
+    await supabase
+      .from("players")
+      .update({
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        points: 0,
+        points_for: 0,
+        points_against: 0,
+        win_streak: 0,
+      })
+      .eq("id", player.id);
+  }
+
+  // 3️⃣ Get all matches
+  const { data: matches } = await supabase
+    .from("previous_matches")
+    .select("*");
+
+  if (!matches) return;
+
+  // 4️⃣ Recalculate from scratch
+  for (const match of matches) {
+    console.log("Players in match:", match.players);
+    const team1 = match.players.slice(0, 2);
+    const team2 = match.players.slice(2, 4);
+    const score1 = Number(match.scores.team1);
+    const score2 = Number(match.scores.team2);
+
+    let result1, result2;
+
+    if (score1 > score2) {
+      result1 = "win";
+      result2 = "loss";
+    } else if (score1 < score2) {
+      result1 = "loss";
+      result2 = "win";
+    } else {
+      result1 = "draw";
+      result2 = "draw";
+    }
+
+    const updatePlayer = async (playerId, result, scored, conceded) => {
+  const { data: player, error: fetchError } = await supabase
+    .from("players")
+    .select("*")
+    .eq("id", playerId)
+    .single();
+
+  if (fetchError) {
+    console.error(`Failed to fetch player ${playerId}:`, fetchError);
+    return;
+  }
+  if (!player) return;
+
+  let newStats = {
+    wins: player.wins || 0,
+    losses: player.losses || 0,
+    draws: player.draws || 0,
+    points: player.points || 0,
+    points_for: player.points_for || 0,
+    points_against: player.points_against || 0,
+    win_streak: player.win_streak || 0,
+  };
+
+  if (result === "win") {
+    newStats.wins += 1;
+    newStats.points += 3;
+  } else if (result === "loss") {
+    newStats.losses += 1;
+  } else {
+    newStats.draws += 1;
+    newStats.points += 1;
+  }
+
+  newStats.points_for += scored;
+  newStats.points_against += conceded;
+
+  console.log(`Updating player ${playerId} with`, newStats);
+
+  const { error: updateError } = await supabase
+    .from("players")
+    .update(newStats)
+    .eq("id", playerId);
+
+  if (updateError) {
+    console.error(`Failed to update player ${playerId}:`, updateError);
+  }
+};
+
+    for (const p of team1) {
+      await updatePlayer(p, result1, score1, score2);
+    }
+
+    for (const p of team2) {
+      await updatePlayer(p, result2, score2, score1);
+    }
+  }
+};
+
+const updatePlayerStatsFromMatches = async () => {
+  const { data: matches } = await supabase
+    .from("previous_matches")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  for (const match of matches) {
+    const playersArray = JSON.parse(match.players);
+
+const team1 = playersArray.slice(0, 2);
+const team2 = playersArray.slice(2, 4);
+    const score1 = Number(match.scores.team1);
+    const score2 = Number(match.scores.team2);
+
+    // Determine result
+    let resultTeam1, resultTeam2;
+    if (score1 > score2) {
+      resultTeam1 = "win";
+      resultTeam2 = "loss";
+    } else if (score1 < score2) {
+      resultTeam1 = "loss";
+      resultTeam2 = "win";
+    } else {
+      resultTeam1 = "draw";
+      resultTeam2 = "draw";
+    }
+
+    // Helper to update stats
+    const updateStats = async (playerName, result, scored, conceded) => {
+      const { data: player } = await supabase
+        .from("players")
+        .select("*")
+        .eq("id", playerId)
+        .single();
+
+        console.log("Looking for:", name);
+  console.log("Found:", player);
+
+      if (!player) return;
+
+      const updated = {
+        wins: player.wins,
+        losses: player.losses,
+        draws: player.draws,
+        points: player.points,
+        points_for: player.points_for || 0,
+        points_against: player.points_against || 0,
+        win_streak: player.win_streak || 0,
+      };
+
+      // Increment result
+      if (result === "win") {
+        updated.wins += 1;
+        updated.points += 3; // 3 points per win
+        updated.win_streak += 1;
+      } else if (result === "loss") {
+        updated.losses += 1;
+        updated.win_streak = 0;
+      } else {
+        updated.draws += 1;
+        updated.points += 1; // 1 point per draw
+        updated.win_streak = 0;
+      }
+
+      updated.points_for += scored;
+      updated.points_against += conceded;
+
+      await supabase
+        .from("players")
+        .update(updated)
+        .eq("id", player.id);
+    };
+
+    // Update team 1
+    for (const p of team1) {
+      await updateStats(p, resultTeam1, score1, score2);
+    }
+    // Update team 2
+    for (const p of team2) {
+      await updateStats(p, resultTeam2, score2, score1);
+    }
+  }
+};
 const handleAdminUnlock = () => {
   const code = prompt("Enter admin passcode:");
 
@@ -232,6 +425,9 @@ const fetchPreviousMatches = async () => {
   const court1 = buildCourt(court1Group);
   const court2 = buildCourt(court2Group);
 
+  console.log("Court1 matches preview:", court1.matches);
+console.log("Court2 matches preview:", court2.matches);
+
   setCourt1Matches(court1.matches);
   setCourt1Scores(court1.matches.map(() => ({ team1: "", team2: "" })));
   setCourt1Round(0);
@@ -267,14 +463,19 @@ const saveMatches = async () => {
       return matches.map((m, idx) => ({
         court,
         division,
-        players: m.flat().map(p => p.name), // store player names instead of IDs
+        // Use player IDs instead of names
+        players: m.flat().map(p => p.id),
         scores: scores[idx],
       }));
     };
 
     const court1Data = formatMatches(court1Matches, court1Scores, "court1");
     const court2Data = formatMatches(court2Matches, court2Scores, "court2");
+
     const allMatches = [...court1Data, ...court2Data];
+
+    // DEBUG: confirm IDs are being saved
+    console.log("Saving matches with player IDs:", allMatches);
 
     // Insert into Supabase
     const { data, error } = await supabase
@@ -285,22 +486,23 @@ const saveMatches = async () => {
     if (error) {
       console.error("Error saving matches:", error);
       alert("Failed to save matches. Check console.");
-      return; // stop here on error
+    } else {
+      alert("Matches saved successfully!");
+
+      // Reset current matches for next round
+      setCourt1Matches([]);
+      setCourt2Matches([]);
+      setCourt1Scores([]);
+      setCourt2Scores([]);
+      setRoundMatches([]);
+      setCourt1Round(0);
+      setCourt2Round(0);
+
+      // Recalculate standings
+      console.log("Recalculating standings...");
+      await recalculateStandings();
+      await fetchPlayers();
     }
-
-    // Success → reset current matches
-    setCourt1Matches([]);
-    setCourt2Matches([]);
-    setCourt1Scores([]);
-    setCourt2Scores([]);
-    setRoundMatches([]);
-    setCourt1Round(0);
-    setCourt2Round(0);
-
-    // Refresh previous matches tab
-    fetchPreviousMatches();
-
-    alert("Matches saved successfully!");
   } catch (err) {
     console.error("Unexpected error saving matches:", err);
     alert("Something went wrong while saving matches.");
