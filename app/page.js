@@ -226,12 +226,11 @@ const handleAdminUnlock = () => {
 
   if (!code) return;
 
-  if (code === process.env.NEXT_PUBLIC_ADMIN_PASSCODE) {
-    setIsAdmin(true);
-    alert("Admin access granted ✅");
-  } else {
-    alert("Incorrect passcode ❌");
-  }
+  if (code.trim() === process.env.NEXT_PUBLIC_ADMIN_PASSCODE?.trim()) {
+  setIsAdmin(true);
+  alert("Admin access granted ✅");
+} else {
+  alert("Incorrect passcode ❌");
 };
 
 const verifyAdminCode = () => {
