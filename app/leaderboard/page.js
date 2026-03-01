@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getPlayers, savePlayers } from "../../lib/players";
+import { getPlayers, setPlayers } from "../../lib/players";
 
 export default function Leaderboard() {
   const [players, setPlayers] = useState([]);
@@ -51,7 +51,6 @@ export default function Leaderboard() {
       }));
 
       setPlayers(resetPlayers);
-      savePlayers(resetPlayers); // save to localStorage
       alert("Leaderboard reset ✅");
     } else {
       alert("Incorrect passcode ❌");
@@ -73,7 +72,7 @@ export default function Leaderboard() {
     }));
 
     setPlayers(resetPlayers);
-    savePlayers(resetPlayers);
+    setPlayers(resetPlayers);
 
     setShowResetModal(false);
     setResetPasswordInput("");
