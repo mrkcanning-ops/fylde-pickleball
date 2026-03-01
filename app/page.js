@@ -28,7 +28,62 @@ const [adminError, setAdminError] = useState("");
 
 const [previousMatches, setPreviousMatches] = useState([]);
 
-const recalculateStandings = async () => {
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [openDates, setOpenDates] = useState([]); // dates that are expanded
+
+  const toggleDate = (date) => {
+    setOpenDates((prev) =>
+      prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date]
+    );
+  }; 
+
+  const [showResetModal, setShowResetModal] = useState(false);
+const [resetPasswordInput, setResetPasswordInput] = useState("");
+const [resetError, setResetError] = useState("");
+
+const [showAddMatchModal, setShowAddMatchModal] = useState(false);
+const [showAddMatchPasscodeModal, setShowAddMatchPasscodeModal] = useState(false);
+const [addMatchPasscode, setAddMatchPasscode] = useState("");
+const [addMatchPasscodeError, setAddMatchPasscodeError] = useState("");
+const [addMatchError, setAddMatchError] = useState("");
+const [allDivisionPlayers, setAllDivisionPlayers] = useState([]);
+const [addMatchData, setAddMatchData] = useState({
+  date: new Date().toISOString().split('T')[0],
+  team1Players: [],
+  team1Name: "",
+  team2Players: [],
+  team2Name: "",
+  team1Score: "",
+  team2Score: "",
+  court: "court1",
+});
+
+  // Load leaderboard from localStorage if needed
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem("leaderboard")) || [];
+    setLeaderboard(saved);
+    fetchAllDivisionPlayers();
+  }, []);
+
+  const resetLeaderboard = () => {
+    const code = prompt("Enter admin passcode to reset leaderboard:");
+    if (!code) return;
+
+    const envPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
+
+    if (code.trim() === envPasscode?.trim()) {
+      const confirmed = confirm("Are you sure you want to reset the leaderboard?");
+      if (!confirmed) return;
+
+      setLeaderboard([]);
+      localStorage.removeItem("leaderboard");
+      alert("Leaderboard reset ✅");
+    } else {
+      alert("Incorrect passcode ❌");
+    }
+  };
+
+  const recalculateStandings = async () => {
   // 1️⃣ Get all players
   const { data: players } = await supabase
     .from("players")
@@ -106,11 +161,14 @@ const recalculateStandings = async () => {
   if (result === "win") {
     newStats.wins += 1;
     newStats.points += 3;
+    newStats.win_streak = (player.win_streak || 0) + 1;
   } else if (result === "loss") {
     newStats.losses += 1;
+    newStats.win_streak = 0;
   } else {
     newStats.draws += 1;
     newStats.points += 1;
+    newStats.win_streak = 0;
   }
 
   newStats.points_for += scored;
@@ -249,7 +307,7 @@ const fetchPreviousMatches = async () => {
   const { data, error } = await supabase
     .from("previous_matches")
     .select("*")
-    .order("id", { ascending: true }); // or by created_at if you have timestamp
+    .order("created_at", { ascending: false }); // Most recent first
 
   if (error) {
     console.error("Error fetching previous matches:", error);
@@ -261,20 +319,89 @@ const fetchPreviousMatches = async () => {
   useEffect(() => {
     fetchPlayers();
     fetchPreviousMatches();
+    fetchAllDivisionPlayers();
   }, [division]);
+
+  const sortPlayersByStats = (players) => {
+    return [...players].sort((a, b) => {
+      // Calculate stats for sorting
+      const aGP = (a.wins || 0) + (a.losses || 0) + (a.draws || 0);
+      const bGP = (b.wins || 0) + (b.losses || 0) + (b.draws || 0);
+      const aWinPct = aGP > 0 ? (a.wins || 0) / aGP : 0;
+      const bWinPct = bGP > 0 ? (b.wins || 0) / bGP : 0;
+      const aDiff = (a.points_for || 0) - (a.points_against || 0);
+      const bDiff = (b.points_for || 0) - (b.points_against || 0);
+
+      // 1. Win % (descending)
+      if (bWinPct !== aWinPct) return bWinPct - aWinPct;
+      // 2. Point Diff (descending)
+      if (bDiff !== aDiff) return bDiff - aDiff;
+      // 3. Games Played (descending)
+      if (bGP !== aGP) return bGP - aGP;
+      // 4. Alphabetically (ascending)
+      return (a.name || "").localeCompare(b.name || "");
+    });
+  };
 
   const fetchPlayers = async () => {
     const { data, error } = await supabase
       .from("players")
       .select("*")
-      .eq("division", division) // filter by current division
-      .order("points", { ascending: false });
+      .eq("division", division); // filter by current division
 
-    if (!error) setPlayers(data || []);
+    if (!error) {
+      // load previous leaderboard from localStorage for improvement calculation
+      const saved = JSON.parse(localStorage.getItem("leaderboard")) || [];
+      const prevPoints = {};
+      const prevPositions = {};
+      saved.forEach((p, idx) => {
+        if (p.id != null) {
+          prevPoints[p.id] = p.points || 0;
+          prevPositions[p.id] = idx; // position in previous leaderboard
+        }
+      });
+
+      const processed = (data || []).map((p) => ({
+        ...p,
+        win_streak: p.win_streak || 0,
+        improved: prevPoints[p.id] !== undefined ? (p.points || 0) - prevPoints[p.id] : 0,
+      }));
+
+      // Sort using new criteria and calculate positionChange based on new positions
+      const sorted = sortPlayersByStats(processed);
+      const withPositionChange = sorted.map((p) => ({
+        ...p,
+        positionChange: prevPositions[p.id] !== undefined ? prevPositions[p.id] - sorted.indexOf(p) : 0,
+      }));
+
+      setPlayers(withPositionChange);
+
+      // update localStorage snapshot for next round
+      const snapshot = withPositionChange.map((p) => ({
+        id: p.id,
+        name: p.name,
+        points: p.points || 0,
+      }));
+      localStorage.setItem("leaderboard", JSON.stringify(snapshot));
+    }
   };
 
   const toggleDivision = () => {
-    setDivision(division === 1 ? 2 : 1);
+    const newDivision = division === 1 ? 2 : 1;
+    setDivision(newDivision);
+    fetchAllDivisionPlayers(newDivision);
+  };
+
+  const fetchAllDivisionPlayers = async (divisionNum = division) => {
+    const { data, error } = await supabase
+      .from("players")
+      .select("*")
+      .eq("division", divisionNum)
+      .order("name", { ascending: true });
+
+    if (!error) {
+      setAllDivisionPlayers(data || []);
+    }
   };
 
   const handleAddPlayer = async () => {
@@ -301,15 +428,18 @@ const fetchPreviousMatches = async () => {
   };
 
   const currentLeader = players[0]?.name || "—";
-  const mostImproved =
+  const mostImprovedPlayer =
     players.reduce(
-      (best, p) => (p.improved > (best.improved || 0) ? p : best),
+      (best, p) => (p.positionChange > (best.positionChange || 0) ? p : best),
       {}
-    ).name || "—";
+    ) || {};
 
   const highestWinStreakPlayer =
     players.reduce(
-      (best, p) => (p.win_streak > (best.win_streak || 0) ? p : best),
+      (best, p) => {
+        // If best doesn't have an id (empty object), or if p has higher streak, select p
+        return !best.id || p.win_streak > best.win_streak ? p : best;
+      },
       {}
     ) || {};
 
@@ -333,7 +463,7 @@ const fetchPreviousMatches = async () => {
   ),
 },
     { label: "Current Leader", value: currentLeader, highlight: "gold" },
-    { label: "Most Improved", value: mostImproved, highlight: "grayButton" },
+    { label: "Most Improved", value: mostImprovedPlayer.name || "—", highlight: "grayButton", positionChange: mostImprovedPlayer.positionChange || 0 },
     {
       label: "Highest Win Streak",
       value: highestWinStreakPlayer.name || "—",
@@ -343,6 +473,41 @@ const fetchPreviousMatches = async () => {
   ];
 
   const tabs = ["Standings", "Matches", "Players", "Previous Matches"];
+
+  // Group matches by date
+  const groupMatchesByDate = () => {
+    const grouped = {};
+    
+    previousMatches.forEach((match) => {
+      const date = match.created_at ? new Date(match.created_at).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }) : 'Unknown Date';
+      
+      if (!grouped[date]) {
+        grouped[date] = { court1: [], court2: [] };
+      }
+      
+      // Separate by court
+      if (match.court === 'court1' || match.court === 'Court 1') {
+        grouped[date].court1.push(match);
+      } else if (match.court === 'court2' || match.court === 'Court 2') {
+        grouped[date].court2.push(match);
+      }
+    });
+    
+    // Return as array sorted by date (already in chronological order from most recent)
+    return Object.entries(grouped);
+  };
+
+  const matchesByDate = groupMatchesByDate();
+
+  // Helper function to convert player IDs to names
+  const getPlayerNameFromId = (playerId) => {
+    const player = players.find(p => p.id === playerId);
+    return player ? player.name : 'Unknown Player';
+  };
 
  const generateMatches = () => {
   const available = players
@@ -503,10 +668,96 @@ const saveMatches = async () => {
       console.log("Recalculating standings...");
       await recalculateStandings();
       await fetchPlayers();
+      
+      // Fetch updated previous matches
+      await fetchPreviousMatches();
     }
   } catch (err) {
     console.error("Unexpected error saving matches:", err);
     alert("Something went wrong while saving matches.");
+  }
+};
+
+const verifyAddMatchPasscode = async () => {
+  const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
+  if (addMatchPasscode.trim() !== correctPasscode?.trim()) {
+    setAddMatchPasscodeError("Incorrect passcode");
+    return;
+  }
+  setAddMatchPasscodeError("");
+  setShowAddMatchPasscodeModal(false);
+  await fetchAllDivisionPlayers();
+  setShowAddMatchModal(true);
+};
+
+const addMatch = async () => {
+  try {
+    setAddMatchError("");
+
+    // Validate form data
+    if (!addMatchData.date) {
+      setAddMatchError("Please select a date");
+      return;
+    }
+    if (addMatchData.team1Players.length < 2 || addMatchData.team2Players.length < 2) {
+      setAddMatchError("Each team must have 2 players");
+      return;
+    }
+    if (addMatchData.team1Score === "" || addMatchData.team2Score === "") {
+      setAddMatchError("Please enter scores for both teams");
+      return;
+    }
+
+    // Format player IDs for the match
+    const allPlayers = [
+      ...addMatchData.team1Players.map(p => p.id),
+      ...addMatchData.team2Players.map(p => p.id),
+    ];
+
+    // Insert match into Supabase
+    const { data, error } = await supabase
+      .from("previous_matches")
+      .insert({
+        created_at: addMatchData.date + "T00:00:00Z",
+        court: addMatchData.court,
+        division,
+        players: allPlayers,
+        scores: {
+          team1: parseInt(addMatchData.team1Score),
+          team2: parseInt(addMatchData.team2Score),
+        },
+      })
+      .select();
+
+    if (error) {
+      console.error("Error adding match:", error);
+      setAddMatchError("Failed to save match. Check console.");
+      return;
+    }
+
+    alert("Match added successfully!");
+
+    // Reset form
+    setAddMatchData({
+      date: new Date().toISOString().split('T')[0],
+      team1Players: [],
+      team1Name: "",
+      team2Players: [],
+      team2Name: "",
+      team1Score: "",
+      team2Score: "",
+      court: "court1",
+    });
+    setShowAddMatchModal(false);
+    setAddMatchPasscode("");
+
+    // Recalculate standings
+    await recalculateStandings();
+    await fetchPlayers();
+    await fetchPreviousMatches();
+  } catch (err) {
+    console.error("Unexpected error adding match:", err);
+    setAddMatchError("Something went wrong");
   }
 };
   return (
@@ -601,7 +852,7 @@ const saveMatches = async () => {
     <span className="text-red-400">L</span>
     <span className="text-yellow-500">D</span>
     <span>Diff</span>
-    <span>Win %</span>
+    <span className="text-cyan-600 font-black text-xs">Win %</span>
     <span>Pts</span>
   </div>
 
@@ -642,7 +893,7 @@ const saveMatches = async () => {
           <span className="text-red-400">{p.losses}</span>
           <span className="text-yellow-500">{p.draws}</span>
           <span className="text-gray-700">{diff}</span>
-          <span className="text-gray-700">{winPct}</span>
+          <span className="text-cyan-600 font-black text-base">{winPct}</span>
           <span className="text-gray-900 font-bold">{p.points}</span>
         </div>
       </div>
@@ -661,7 +912,7 @@ const saveMatches = async () => {
           <th className="p-2 text-red-400">L</th>
           <th className="p-2 text-yellow-500">D</th>
           <th className="p-2 text-center text-gray-700">Diff</th>
-          <th className="p-2 text-center text-gray-700">Win %</th>
+          <th className="p-2 text-center text-cyan-600 font-black">Win %</th>
           <th className="p-2 text-right">Points</th>
         </tr>
       </thead>
@@ -696,13 +947,22 @@ const saveMatches = async () => {
               <td className="p-2 text-red-400 text-center">{p.losses}</td>
               <td className="p-2 text-yellow-500 text-center">{p.draws}</td>
               <td className="p-2 text-center text-gray-700">{diff}</td>
-              <td className="p-2 text-center text-gray-700">{winPct}</td>
+              <td className="p-2 text-center text-cyan-600 font-black text-base">{winPct}</td>
               <td className="p-2 text-right font-semibold">{p.points}</td>
             </tr>
           );
         })}
       </tbody>
     </table>
+
+    <div className="mt-8 px-6 py-6 flex justify-center border-t border-gray-200 bg-red-50">
+      <button
+        onClick={() => setShowResetModal(true)}
+        className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-8 py-3 rounded font-semibold transition"
+      >
+        🔄 Reset Leaderboard
+      </button>
+    </div>
   </div>
 )}
 
@@ -963,27 +1223,103 @@ const saveMatches = async () => {
 
         {activeTab === "Previous Matches" && (
   <div className="bg-gray-700 rounded shadow p-4">
+    {/* Add Match Button */}
+    <div className="flex justify-center mb-4">
+      <button onClick={() => setShowAddMatchPasscodeModal(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded">
+        ➕ Add Match
+      </button>
+    </div>
     {previousMatches.length === 0 ? (
       <p className="text-gray-300 italic text-sm">No previous matches yet...</p>
     ) : (
-      <div className="space-y-4">
-        {previousMatches.map((m, idx) => (
-          <div key={idx} className="bg-gray-800 p-3 rounded text-gray-200">
-            <div className="text-yellow-400 font-bold mb-1">
-              Court: {m.court} | Division: {m.division}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+      <div className="space-y-8">
+        {matchesByDate.map(([date, courtMatches]) => (
+          <div key={date}>
+            <button
+              onClick={() => toggleDate(date)}
+              className="w-full text-left bg-yellow-400 text-gray-900 font-bold px-4 py-2 rounded mb-2 hover:bg-yellow-500"
+            >
+              📅 {date}
+            </button>
+            {openDates.includes(date) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Court 1 */}
               <div>
-                <div className="font-semibold">Team 1</div>
-                {m.players.slice(0,2).join(" & ")} 
-                <div>Score: {m.scores?.team1 || "—"}</div>
+                <div className="bg-blue-100 text-blue-900 font-bold px-3 py-2 rounded mb-2 text-center">
+                  🎾 Court 1
+                </div>
+                <div className="space-y-2">
+                  {courtMatches.court1.length === 0 ? (
+                    <p className="text-gray-300 text-sm italic">No matches</p>
+                  ) : (
+                    courtMatches.court1.map((m, idx) => (
+                      <div key={idx} className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300">
+                        <div className="text-blue-600 font-semibold mb-1">
+                          Division {m.division}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                          <div className="text-center">
+                            <div className="font-bold text-base text-gray-700">
+                              {m.players.slice(0,2).map(id => getPlayerNameFromId(id)).join(" & ")}
+                            </div>
+                            <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                              {m.scores?.team1 ?? "—"}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-bold text-base text-gray-700">
+                              {m.players.slice(2,4).map(id => getPlayerNameFromId(id)).join(" & ")}
+                            </div>
+                            <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                              {m.scores?.team2 ?? "—"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
+
+              {/* Court 2 */}
               <div>
-                <div className="font-semibold">Team 2</div>
-                {m.players.slice(2,4).join(" & ")} 
-                <div>Score: {m.scores?.team2 || "—"}</div>
+                <div className="bg-purple-100 text-purple-900 font-bold px-3 py-2 rounded mb-2 text-center">
+                  🎾 Court 2
+                </div>
+                <div className="space-y-2">
+                  {courtMatches.court2.length === 0 ? (
+                    <p className="text-gray-300 text-sm italic">No matches</p>
+                  ) : (
+                    courtMatches.court2.map((m, idx) => (
+                      <div key={idx} className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300">
+                        <div className="text-purple-600 font-semibold mb-1">
+                          Division {m.division}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                          <div className="text-center">
+                            <div className="font-bold text-base text-gray-700">
+                              {m.players.slice(0,2).map(id => getPlayerNameFromId(id)).join(" & ")}
+                            </div>
+                            <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                              {m.scores?.team1 ?? "—"}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-bold text-base text-gray-700">
+                              {m.players.slice(2,4).map(id => getPlayerNameFromId(id)).join(" & ")}
+                            </div>
+                            <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                              {m.scores?.team2 ?? "—"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
+            )}
           </div>
         ))}
       </div>
@@ -1037,6 +1373,307 @@ const saveMatches = async () => {
     </div>
   </div>
 )}
+
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
+            <h2 className="text-lg font-bold text-red-400 mb-4 text-center">
+              Reset Leaderboard
+            </h2>
+            <p className="text-gray-300 mb-4 text-center text-sm">
+              Enter the reset passcode to reset the leaderboard.
+            </p>
+
+            <input
+              type="password"
+              value={resetPasswordInput}
+              onChange={(e) => {
+                setResetPasswordInput(e.target.value);
+                setResetError("");
+              }}
+              placeholder="Enter passcode"
+              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-red-400"
+            />
+
+            {resetError && (
+              <p className="text-red-400 text-sm mt-2 text-center">
+                {resetError}
+              </p>
+            )}
+
+            <div className="flex justify-between mt-5">
+              <button
+                onClick={() => {
+                  setShowResetModal(false);
+                  setResetPasswordInput("");
+                  setResetError("");
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={async () => {
+                  const resetPasscode = process.env.NEXT_PUBLIC_RESET_PASSCODE;
+                  if (resetPasswordInput === resetPasscode) {
+                    const confirmed = confirm("Are you sure you want to reset the leaderboard? This cannot be undone.");
+                    if (confirmed) {
+                      try {
+                        // Reset all players in Supabase
+                        const { data: allPlayers } = await supabase
+                          .from("players")
+                          .select("*");
+
+                        if (allPlayers) {
+                          for (const player of allPlayers) {
+                            await supabase
+                              .from("players")
+                              .update({
+                                wins: 0,
+                                losses: 0,
+                                draws: 0,
+                                points: 0,
+                                points_for: 0,
+                                points_against: 0,
+                                win_streak: 0,
+                              })
+                              .eq("id", player.id);
+                          }
+                        }
+
+                        // Refresh the players list
+                        await fetchPlayers();
+
+                        // Clear localStorage
+                        localStorage.removeItem("leaderboard");
+                        setLeaderboard([]);
+
+                        alert("Leaderboard reset ✅");
+                        setShowResetModal(false);
+                        setResetPasswordInput("");
+                      } catch (err) {
+                        console.error("Error resetting leaderboard:", err);
+                        setResetError("Error resetting leaderboard");
+                      }
+                    }
+                  } else {
+                    setResetError("Incorrect passcode");
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Match Passcode Modal */}
+      {showAddMatchPasscodeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
+            <h2 className="text-lg font-bold text-blue-400 mb-4 text-center">
+              Add Match
+            </h2>
+            <p className="text-gray-300 mb-4 text-center text-sm">
+              Enter the admin passcode to add a match.
+            </p>
+
+            <input
+              type="password"
+              value={addMatchPasscode}
+              onChange={(e) => {
+                setAddMatchPasscode(e.target.value);
+                setAddMatchPasscodeError("");
+              }}
+              placeholder="Enter passcode"
+              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
+            />
+
+            {addMatchPasscodeError && (
+              <p className="text-red-400 text-sm mt-2 text-center">
+                {addMatchPasscodeError}
+              </p>
+            )}
+
+            <div className="flex justify-between mt-5">
+              <button
+                onClick={() => {
+                  setShowAddMatchPasscodeModal(false);
+                  setAddMatchPasscode("");
+                  setAddMatchPasscodeError("");
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={verifyAddMatchPasscode}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Match Modal */}
+      {showAddMatchModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-2xl border border-gray-700 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-blue-400 mb-4">➕ Add Match</h2>
+
+            {/* Date */}
+            <div className="mb-4">
+              <label className="text-gray-300 text-sm block mb-1">Match Date</label>
+              <input
+                type="date"
+                value={addMatchData.date}
+                onChange={(e) => setAddMatchData({ ...addMatchData, date: e.target.value })}
+                className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
+              />
+            </div>
+
+            {/* Court Selection */}
+            <div className="mb-4">
+              <label className="text-gray-300 text-sm block mb-1">Court</label>
+              <select
+                value={addMatchData.court}
+                onChange={(e) => setAddMatchData({ ...addMatchData, court: e.target.value })}
+                className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
+              >
+                <option value="court1">Court 1</option>
+                <option value="court2">Court 2</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {/* Team 1 */}
+              <div>
+                <label className="text-gray-300 text-sm block mb-1">Team 1 Players</label>
+                <div className="bg-gray-800 p-2 rounded border border-gray-600 max-h-48 overflow-y-auto">
+                  {allDivisionPlayers.map((p) => (
+                    <label key={p.id} className="flex items-center text-gray-300 mb-2">
+                      <input
+                        type="checkbox"
+                        checked={addMatchData.team1Players.some(tp => tp.id === p.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setAddMatchData({
+                              ...addMatchData,
+                              team1Players: [...addMatchData.team1Players, p],
+                            });
+                          } else {
+                            setAddMatchData({
+                              ...addMatchData,
+                              team1Players: addMatchData.team1Players.filter(tp => tp.id !== p.id),
+                            });
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      {p.name}
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Selected: {addMatchData.team1Players.length === 2 ? "✓" : `${addMatchData.team1Players.length}/2`}
+                </p>
+              </div>
+
+              {/* Team 2 */}
+              <div>
+                <label className="text-gray-300 text-sm block mb-1">Team 2 Players</label>
+                <div className="bg-gray-800 p-2 rounded border border-gray-600 max-h-48 overflow-y-auto">
+                  {allDivisionPlayers.map((p) => (
+                    <label key={p.id} className="flex items-center text-gray-300 mb-2">
+                      <input
+                        type="checkbox"
+                        checked={addMatchData.team2Players.some(tp => tp.id === p.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setAddMatchData({
+                              ...addMatchData,
+                              team2Players: [...addMatchData.team2Players, p],
+                            });
+                          } else {
+                            setAddMatchData({
+                              ...addMatchData,
+                              team2Players: addMatchData.team2Players.filter(tp => tp.id !== p.id),
+                            });
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      {p.name}
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Selected: {addMatchData.team2Players.length === 2 ? "✓" : `${addMatchData.team2Players.length}/2`}
+                </p>
+              </div>
+            </div>
+
+            {/* Scores */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="text-gray-300 text-sm block mb-1">Team 1 Score</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={addMatchData.team1Score}
+                  onChange={(e) => setAddMatchData({ ...addMatchData, team1Score: e.target.value })}
+                  placeholder="0"
+                  className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
+                />
+              </div>
+              <div>
+                <label className="text-gray-300 text-sm block mb-1">Team 2 Score</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={addMatchData.team2Score}
+                  onChange={(e) => setAddMatchData({ ...addMatchData, team2Score: e.target.value })}
+                  placeholder="0"
+                  className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
+                />
+              </div>
+            </div>
+
+            {addMatchError && (
+              <p className="text-red-400 text-sm mb-4 text-center">
+                {addMatchError}
+              </p>
+            )}
+
+            <div className="flex justify-between gap-2">
+              <button
+                onClick={() => {
+                  setShowAddMatchModal(false);
+                  setAddMatchPasscode("");
+                  setAddMatchError("");
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm flex-1"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={addMatch}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm flex-1"
+              >
+                Add Match
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }

@@ -27,15 +27,30 @@ export default function HeaderStats({ stats }) {
           </div>
 
           {/* Extra info for Highest Win Streak */}
-          {stat.label === "Highest Win Streak" && stat.streak && (
-            <div className="flex space-x-1 mt-2">
-              {Array.from({ length: stat.streak }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-4 h-4 bg-green-500 rounded-full"
-                  title={`Win ${i + 1}`}
-                />
-              ))}
+          {stat.label === "Highest Win Streak" && stat.streak !== undefined && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-sm font-semibold text-green-500">
+                {stat.streak} win{stat.streak !== 1 ? "s" : ""}
+              </span>
+              <div className="flex space-x-1">
+                {Array.from({ length: stat.streak }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-4 h-4 bg-green-500"
+                    title={`Win ${i + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Extra info for Most Improved */}
+          {stat.label === "Most Improved" && stat.positionChange !== undefined && stat.positionChange > 0 && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-2xl text-green-500">↑</span>
+              <span className="text-sm font-semibold text-green-500">
+                {stat.positionChange} place{stat.positionChange !== 1 ? "s" : ""}
+              </span>
             </div>
           )}
         </div>
