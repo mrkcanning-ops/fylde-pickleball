@@ -428,12 +428,27 @@ const fetchPreviousMatches = async () => {
   };
 
   const currentLeader = players[0]?.name || "—";
-  const mostImprovedPlayer =
-    players.reduce(
-      (best, p) => (p.positionChange > (best.positionChange || 0) ? p : best),
-      {}
-    ) || {};
+  // determine most improved by position change, fallback to point delta
+  // find best position change (largest positive)
+  const maxPositionChange = players.length
+    ? Math.max(0, ...players.map((p) => p.positionChange || 0))
+    : 0;
+  const mostImprovedByPosition =
+    maxPositionChange > 0
+      ? players.find((p) => (p.positionChange || 0) === maxPositionChange) || {}
+      : {};
 
+  // find best point improvement (can be zero or negative)
+  let maxImproved = 0;
+  if (players.length) {
+    maxImproved = Math.max(...players.map((p) => p.improved || 0));
+  }
+  const mostImprovedByPoints =
+    players.find((p) => (p.improved || 0) === maxImproved) || {};
+  const mostImprovedPlayer =
+    (mostImprovedByPosition.positionChange || 0) > 0
+      ? mostImprovedByPosition
+      : mostImprovedByPoints;
   // compute highest win streak and players sharing it
   const highestWinStreak = players.length
     ? Math.max(0, ...players.map((p) => p.win_streak || 0))
