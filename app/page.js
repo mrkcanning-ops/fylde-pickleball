@@ -434,14 +434,14 @@ const fetchPreviousMatches = async () => {
       {}
     ) || {};
 
-  const highestWinStreakPlayer =
-    players.reduce(
-      (best, p) => {
-        // If best doesn't have an id (empty object), or if p has higher streak, select p
-        return !best.id || p.win_streak > best.win_streak ? p : best;
-      },
-      {}
-    ) || {};
+  // compute highest win streak and players sharing it
+  const highestWinStreak = players.length
+    ? Math.max(0, ...players.map((p) => p.win_streak || 0))
+    : 0;
+  const highestWinStreakPlayers =
+    highestWinStreak > 0
+      ? players.filter((p) => (p.win_streak || 0) === highestWinStreak)
+      : [];
 
   const stats = [
     {
@@ -466,9 +466,12 @@ const fetchPreviousMatches = async () => {
     { label: "Most Improved", value: mostImprovedPlayer.name || "—", highlight: "grayButton", positionChange: mostImprovedPlayer.positionChange || 0 },
     {
       label: "Highest Win Streak",
-      value: highestWinStreakPlayer.name || "—",
+      value:
+        highestWinStreakPlayers.length > 0
+          ? highestWinStreakPlayers.map((p) => p.name).join(", ")
+          : "—",
       highlight: "grayButton",
-      streak: highestWinStreakPlayer.win_streak || 0,
+      streak: highestWinStreak,
     },
   ];
 
@@ -920,7 +923,7 @@ const addMatch = async () => {
         {players.map((p, i) => {
           const gp = p.wins + p.losses + p.draws;
           const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
-          const diff = p.points - (gp - p.points); // Adjust as needed
+          const diff = (p.points_for || 0) - (p.points_against || 0);
           return (
             <tr
               key={p.id}
