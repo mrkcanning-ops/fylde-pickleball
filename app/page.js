@@ -40,6 +40,9 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const [showResetModal, setShowResetModal] = useState(false);
 const [resetPasswordInput, setResetPasswordInput] = useState("");
 const [resetError, setResetError] = useState("");
+const [showRecalculateModal, setShowRecalculateModal] = useState(false);
+const [recalculatePasswordInput, setRecalculatePasswordInput] = useState("");
+const [recalculateError, setRecalculateError] = useState("");
 
 const [showAddMatchModal, setShowAddMatchModal] = useState(false);
 const [showAddMatchPasscodeModal, setShowAddMatchPasscodeModal] = useState(false);
@@ -317,9 +320,15 @@ const fetchPreviousMatches = async () => {
 };
 
   useEffect(() => {
-    fetchPlayers();
-    fetchPreviousMatches();
-    fetchAllDivisionPlayers();
+    const syncAndFetchData = async () => {
+      // Keep player standings aligned with previous_matches (including deleted matches)
+      await recalculateStandings();
+      await fetchPlayers();
+      await fetchPreviousMatches();
+      await fetchAllDivisionPlayers();
+    };
+
+    syncAndFetchData();
   }, [division]);
 
   const sortPlayersByStats = (players) => {
@@ -350,14 +359,15 @@ const fetchPreviousMatches = async () => {
       .eq("division", division); // filter by current division
 
     if (!error) {
+      const leaderboardSnapshotKey = `leaderboard_division_${division}`;
       // load previous leaderboard from localStorage for improvement calculation
-      const saved = JSON.parse(localStorage.getItem("leaderboard")) || [];
+      const saved = JSON.parse(localStorage.getItem(leaderboardSnapshotKey)) || [];
       const prevPoints = {};
       const prevPositions = {};
       saved.forEach((p, idx) => {
         if (p.id != null) {
           prevPoints[p.id] = p.points || 0;
-          prevPositions[p.id] = idx; // position in previous leaderboard
+          prevPositions[p.id] = idx + 1; // position in previous leaderboard
         }
       });
 
@@ -369,20 +379,23 @@ const fetchPreviousMatches = async () => {
 
       // Sort using new criteria and calculate positionChange based on new positions
       const sorted = sortPlayersByStats(processed);
-      const withPositionChange = sorted.map((p) => ({
+
+      const withPositionChange = sorted.map((p, index) => ({
         ...p,
-        positionChange: prevPositions[p.id] !== undefined ? prevPositions[p.id] - sorted.indexOf(p) : 0,
+        positionChange:
+          prevPositions[p.id] !== undefined
+            ? prevPositions[p.id] - (index + 1)
+            : 0,
       }));
 
       setPlayers(withPositionChange);
-
       // update localStorage snapshot for next round
       const snapshot = withPositionChange.map((p) => ({
         id: p.id,
         name: p.name,
         points: p.points || 0,
       }));
-      localStorage.setItem("leaderboard", JSON.stringify(snapshot));
+      localStorage.setItem(leaderboardSnapshotKey, JSON.stringify(snapshot));
     }
   };
 
@@ -773,6 +786,27 @@ const addMatch = async () => {
     setAddMatchError("Something went wrong");
   }
 };
+
+const handleRecalculateStandings = async () => {
+  try {
+    const adminPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
+    if (recalculatePasswordInput.trim() !== adminPasscode?.trim()) {
+      setRecalculateError("Incorrect passcode");
+      return;
+    }
+
+    await recalculateStandings();
+    await fetchPlayers();
+    await fetchPreviousMatches();
+    setShowRecalculateModal(false);
+    setRecalculatePasswordInput("");
+    setRecalculateError("");
+    alert("Standings recalculated ✅");
+  } catch (err) {
+    console.error("Error recalculating standings:", err);
+    alert("Failed to recalculate standings.");
+  }
+};
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
       
@@ -968,7 +1002,13 @@ const addMatch = async () => {
       </tbody>
     </table>
 
-    <div className="mt-8 px-6 py-6 flex justify-center border-t border-gray-200 bg-red-50">
+    <div className="mt-8 px-6 py-6 flex justify-center gap-4 border-t border-gray-200 bg-red-50">
+      <button
+        onClick={() => setShowRecalculateModal(true)}
+        className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-8 py-3 rounded font-semibold transition"
+      >
+        ♻ Recalculate Standings
+      </button>
       <button
         onClick={() => setShowResetModal(true)}
         className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-8 py-3 rounded font-semibold transition"
@@ -1386,6 +1426,56 @@ const addMatch = async () => {
     </div>
   </div>
 )}
+
+      {showRecalculateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
+            <h2 className="text-lg font-bold text-blue-400 mb-4 text-center">
+              Recalculate Standings
+            </h2>
+            <p className="text-gray-300 mb-4 text-center text-sm">
+              Enter the admin passcode to recalculate standings.
+            </p>
+
+            <input
+              type="password"
+              value={recalculatePasswordInput}
+              onChange={(e) => {
+                setRecalculatePasswordInput(e.target.value);
+                setRecalculateError("");
+              }}
+              placeholder="Enter passcode"
+              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
+            />
+
+            {recalculateError && (
+              <p className="text-red-400 text-sm mt-2 text-center">
+                {recalculateError}
+              </p>
+            )}
+
+            <div className="flex justify-between mt-5">
+              <button
+                onClick={() => {
+                  setShowRecalculateModal(false);
+                  setRecalculatePasswordInput("");
+                  setRecalculateError("");
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleRecalculateStandings}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Recalculate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showResetModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
