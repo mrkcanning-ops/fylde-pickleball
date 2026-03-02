@@ -428,32 +428,16 @@ const fetchPreviousMatches = async () => {
   };
 
   const currentLeader = players[0]?.name || "—";
-  // determine most improved by position change, fallback to point delta
-  // find best position change (largest positive)
+  // determine most improved solely by positive position change
   const maxPositionChange = players.length
     ? Math.max(0, ...players.map((p) => p.positionChange || 0))
     : 0;
-  const mostImprovedByPosition =
+  const mostImprovedPlayer =
     maxPositionChange > 0
       ? players.find((p) => (p.positionChange || 0) === maxPositionChange) || {}
       : {};
-
-  // find best point improvement (can be zero or negative)
-  let maxImproved = 0;
-  if (players.length) {
-    maxImproved = Math.max(...players.map((p) => p.improved || 0));
-  }
-  const mostImprovedByPoints =
-    players.find((p) => (p.improved || 0) === maxImproved) || {};
-  const mostImprovedPlayer =
-    (mostImprovedByPosition.positionChange || 0) > 0
-      ? mostImprovedByPosition
-      : mostImprovedByPoints;
-  const improvementIsRanking = (mostImprovedByPosition.positionChange || 0) > 0;
-  const improvementValue = improvementIsRanking
-    ? mostImprovedByPosition.positionChange || 0
-    : mostImprovedByPoints.improved || 0;
-  const improvementLabel = improvementIsRanking ? "Ranking" : "Points";
+  const improvementValue = mostImprovedPlayer.positionChange || 0;
+  const improvementLabel = "Ranking";
   // compute highest win streak and players sharing it
   const highestWinStreak = players.length
     ? Math.max(0, ...players.map((p) => p.win_streak || 0))
