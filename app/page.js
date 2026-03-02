@@ -321,9 +321,10 @@ const fetchPreviousMatches = async () => {
 
   useEffect(() => {
     const syncAndFetchData = async () => {
-      await fetchPlayers();
+      const fetchedPlayers = await fetchPlayers();
       await fetchPreviousMatches();
       await fetchAllDivisionPlayers();
+      await loadPendingFixtures(fetchedPlayers || []);
     };
 
     syncAndFetchData();
@@ -469,7 +470,10 @@ const fetchPreviousMatches = async () => {
       }));
 
       setPlayers(withPositionChange);
+      return withPositionChange;
     }
+
+    return [];
   };
 
   const toggleDivision = () => {
@@ -608,7 +612,74 @@ const fetchPreviousMatches = async () => {
     return player ? player.name : 'Unknown Player';
   };
 
- const generateMatches = () => {
+  const savePendingFixtures = async (nextCourt1Matches, nextCourt2Matches, nextCourt1Scores, nextCourt2Scores, nextRoundMatches) => {
+    const payload = {
+      division,
+      court1_matches: (nextCourt1Matches || []).map((match) =>
+        (match || []).map((team) => (team || []).map((p) => p.id))
+      ),
+      court2_matches: (nextCourt2Matches || []).map((match) =>
+        (match || []).map((team) => (team || []).map((p) => p.id))
+      ),
+      court1_scores: nextCourt1Scores || [],
+      court2_scores: nextCourt2Scores || [],
+      court1_byes: (nextRoundMatches?.court1 || []).map((round) => (round || []).map((p) => p.id)),
+      court2_byes: (nextRoundMatches?.court2 || []).map((round) => (round || []).map((p) => p.id)),
+      status: "generated",
+    };
+
+    await supabase.from("pending_fixtures").delete().eq("division", division);
+    const { error } = await supabase.from("pending_fixtures").insert(payload);
+    if (error) {
+      console.error("Error saving pending fixtures:", error);
+      alert("Fixtures generated locally, but could not be shared live.");
+    }
+  };
+
+  const clearPendingFixtures = async () => {
+    const { error } = await supabase.from("pending_fixtures").delete().eq("division", division);
+    if (error) {
+      console.error("Error clearing pending fixtures:", error);
+    }
+  };
+
+  const loadPendingFixtures = async (playerPool = []) => {
+    const { data, error } = await supabase
+      .from("pending_fixtures")
+      .select("*")
+      .eq("division", division)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) return;
+
+    const pending = data[0];
+    const availablePlayers = playerPool.length ? playerPool : players;
+    const findPlayer = (id) => availablePlayers.find((p) => p.id === id) || { id, name: "Unknown Player" };
+
+    const mappedCourt1Matches = (pending.court1_matches || []).map((match) => [
+      (match[0] || []).map(findPlayer),
+      (match[1] || []).map(findPlayer),
+    ]);
+
+    const mappedCourt2Matches = (pending.court2_matches || []).map((match) => [
+      (match[0] || []).map(findPlayer),
+      (match[1] || []).map(findPlayer),
+    ]);
+
+    const mappedCourt1Byes = (pending.court1_byes || []).map((round) => (round || []).map(findPlayer));
+    const mappedCourt2Byes = (pending.court2_byes || []).map((round) => (round || []).map(findPlayer));
+
+    setCourt1Matches(mappedCourt1Matches);
+    setCourt2Matches(mappedCourt2Matches);
+    setCourt1Scores(pending.court1_scores || mappedCourt1Matches.map(() => ({ team1: "", team2: "" })));
+    setCourt2Scores(pending.court2_scores || mappedCourt2Matches.map(() => ({ team1: "", team2: "" })));
+    setRoundMatches({ court1: mappedCourt1Byes, court2: mappedCourt2Byes });
+    setCourt1Round(0);
+    setCourt2Round(0);
+  };
+
+ const generateMatches = async () => {
   const available = players
     .filter((p) => p.active)
     .sort((a, b) => b.points - a.points);
@@ -705,6 +776,14 @@ console.log("Court2 matches preview:", court2.matches);
     court1: court1.byes,
     court2: court2.byes,
   });
+
+  await savePendingFixtures(
+    court1.matches,
+    court2.matches,
+    court1.matches.map(() => ({ team1: "", team2: "" })),
+    court2.matches.map(() => ({ team1: "", team2: "" })),
+    { court1: court1.byes, court2: court2.byes }
+  );
 };
 
   const updateScore = (idx, team, value, court) => {
@@ -762,6 +841,8 @@ const saveMatches = async () => {
       setRoundMatches([]);
       setCourt1Round(0);
       setCourt2Round(0);
+
+      await clearPendingFixtures();
 
       await recalculateStandings();
       await fetchPlayers();
