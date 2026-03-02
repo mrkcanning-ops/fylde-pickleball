@@ -449,6 +449,11 @@ const fetchPreviousMatches = async () => {
     (mostImprovedByPosition.positionChange || 0) > 0
       ? mostImprovedByPosition
       : mostImprovedByPoints;
+  const improvementIsRanking = (mostImprovedByPosition.positionChange || 0) > 0;
+  const improvementValue = improvementIsRanking
+    ? mostImprovedByPosition.positionChange || 0
+    : mostImprovedByPoints.improved || 0;
+  const improvementLabel = improvementIsRanking ? "Ranking" : "Points";
   // compute highest win streak and players sharing it
   const highestWinStreak = players.length
     ? Math.max(0, ...players.map((p) => p.win_streak || 0))
@@ -478,7 +483,13 @@ const fetchPreviousMatches = async () => {
   ),
 },
     { label: "Current Leader", value: currentLeader, highlight: "gold" },
-    { label: "Most Improved", value: mostImprovedPlayer.name || "—", highlight: "grayButton", positionChange: mostImprovedPlayer.positionChange || 0 },
+    {
+      label: "Most Improved",
+      value: mostImprovedPlayer.name || "—",
+      highlight: "grayButton",
+      improvementType: improvementLabel,
+      improvementValue: improvementValue,
+    },
     {
       label: "Highest Win Streak",
       value:
