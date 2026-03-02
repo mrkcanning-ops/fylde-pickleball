@@ -680,9 +680,9 @@ const fetchPreviousMatches = async () => {
   };
 
  const generateMatches = async () => {
-  const available = players
-    .filter((p) => p.active)
-    .sort((a, b) => b.points - a.points);
+  const available = sortPlayersByStats(
+    players.filter((p) => p.active)
+  );
 
   if (available.length < 4) {
     alert("At least 4 active players required.");
@@ -694,44 +694,125 @@ const fetchPreviousMatches = async () => {
   const court1Group = available.slice(0, half);
   const court2Group = available.slice(half);
 
-  // Decide games per player for each court
-  const gamesPerPlayer = (group) => {
-    const n = group.length;
-    if (n <= 5) return n;        // Keep current logic for 4–5
-    if (n === 6) return 4;
-    if (n === 7) return 4;
-    return 3;                     // 8 players
-  };
-
   const buildCourt = (group) => {
+    if (group.length < 4) {
+      return { matches: [], byes: [] };
+    }
+
     const matches = [];
     const byes = [];
-    const usedMatchKeys = new Set();
+
+    const partnerCounts = {};
+    const restCounts = {};
     const gamesPlayed = {};
-    group.forEach((p) => (gamesPlayed[p.id] = 0));
+    const n = group.length;
 
-    const maxGames = gamesPerPlayer(group);
+    group.forEach((p) => {
+      restCounts[p.id] = 0;
+      gamesPlayed[p.id] = 0;
+    });
 
-    while (Object.values(gamesPlayed).some((g) => g < maxGames)) {
-      // Pick 4 players with least games played
-      const sorted = [...group].sort((a, b) => gamesPlayed[a.id] - gamesPlayed[b.id]);
-      const playing = sorted.slice(0, 4);
+    const pairKey = (a, b) => [a.id, b.id].sort().join("-");
+    const getPartnerCount = (a, b) => partnerCounts[pairKey(a, b)] || 0;
+    const calcSpread = (values) => Math.max(...values) - Math.min(...values);
 
-      // Generate a match key to prevent duplicate 4-player groups
-      const matchKey = playing.map((p) => p.id).sort().join("-");
-      if (usedMatchKeys.has(matchKey)) {
-        // Try next combination if duplicate (rotate players)
-        let found = false;
-        for (let i = 0; i < group.length - 3 && !found; i++) {
-          for (let j = i + 1; j < group.length - 2 && !found; j++) {
-            for (let k = j + 1; k < group.length - 1 && !found; k++) {
-              for (let l = k + 1; l < group.length && !found; l++) {
-                const candidate = [group[i], group[j], group[k], group[l]];
-                const candidateKey = candidate.map((p) => p.id).sort().join("-");
-                if (!usedMatchKeys.has(candidateKey) && candidate.every((p) => gamesPlayed[p.id] < maxGames)) {
-                  playing.splice(0, 4, ...candidate);
-                  found = true;
-                  break;
+    const getRoundConfig = (playerCount) => {
+      // Club-night cap: prefer 6 or 7 rounds where possible.
+      if (playerCount === 7) {
+        return { rounds: 7, gamesPerPlayer: 4, byesPerPlayer: 3, warning: null };
+      }
+      if (playerCount === 6) {
+        return { rounds: 6, gamesPerPlayer: 4, byesPerPlayer: 2, warning: null };
+      }
+      if (playerCount === 8) {
+        return { rounds: 6, gamesPerPlayer: 3, byesPerPlayer: 3, warning: null };
+      }
+      if (playerCount === 4) {
+        return { rounds: 3, gamesPerPlayer: 3, byesPerPlayer: 0, warning: null };
+      }
+
+      // 5 players cannot have equal games in exactly 6 or 7 rounds:
+      // 6*4=24 and 7*4=28 are not divisible by 5.
+      // Fall back to 5 rounds for equal games (4 each + 1 bye each).
+      return {
+        rounds: 5,
+        gamesPerPlayer: 4,
+        byesPerPlayer: 1,
+        warning:
+          "5 players per court cannot be equal in 6 or 7 rounds; using 5 rounds to keep games even.",
+      };
+    };
+
+    const roundConfig = getRoundConfig(n);
+    const targetRounds = roundConfig.rounds;
+    const targetGamesPerPlayer = roundConfig.gamesPerPlayer;
+    const targetByesPerPlayer = roundConfig.byesPerPlayer;
+
+    if (roundConfig.warning) {
+      console.warn(roundConfig.warning);
+    }
+
+    for (let round = 0; round < targetRounds; round++) {
+      let bestPlan = null;
+
+      for (let i = 0; i < n - 3; i++) {
+        for (let j = i + 1; j < n - 2; j++) {
+          for (let k = j + 1; k < n - 1; k++) {
+            for (let l = k + 1; l < n; l++) {
+              const quartet = [group[i], group[j], group[k], group[l]];
+              const quartedIds = new Set(quartet.map((p) => p.id));
+              const resting = group.filter((p) => !quartedIds.has(p.id));
+
+              // Strict fairness constraints to ensure equal games/byes where possible
+              const violatesGamesCap = quartet.some(
+                (p) => gamesPlayed[p.id] >= targetGamesPerPlayer
+              );
+              const violatesByesCap = resting.some(
+                (p) => restCounts[p.id] >= targetByesPerPlayer
+              );
+
+              if (violatesGamesCap || violatesByesCap) {
+                continue;
+              }
+
+              const teamOptions = [
+                [[quartet[0], quartet[1]], [quartet[2], quartet[3]]],
+                [[quartet[0], quartet[2]], [quartet[1], quartet[3]]],
+                [[quartet[0], quartet[3]], [quartet[1], quartet[2]]],
+              ];
+
+              for (const [team1, team2] of teamOptions) {
+                const team1Count = getPartnerCount(team1[0], team1[1]);
+                const team2Count = getPartnerCount(team2[0], team2[1]);
+                const newPartners = (team1Count === 0 ? 1 : 0) + (team2Count === 0 ? 1 : 0);
+                const repeatPartners = (team1Count > 0 ? team1Count : 0) + (team2Count > 0 ? team2Count : 0);
+
+                const projectedRestCounts = { ...restCounts };
+                resting.forEach((p) => {
+                  projectedRestCounts[p.id] += 1;
+                });
+
+                const projectedGamesPlayed = { ...gamesPlayed };
+                quartet.forEach((p) => {
+                  projectedGamesPlayed[p.id] += 1;
+                });
+
+                const restSpread = calcSpread(Object.values(projectedRestCounts));
+                const gamesSpread = calcSpread(Object.values(projectedGamesPlayed));
+
+                // Priority order:
+                // 1) maximize new partner combos
+                // 2) minimize repeated partners
+                // 3) keep rests even
+                // 4) keep total games balanced
+                const score =
+                  newPartners * 100 -
+                  repeatPartners * 40 -
+                  restSpread * 8 -
+                  gamesSpread * 4;
+
+                if (!bestPlan || score > bestPlan.score) {
+                  bestPlan = { quartet, team1, team2, resting, score };
                 }
               }
             }
@@ -739,20 +820,92 @@ const fetchPreviousMatches = async () => {
         }
       }
 
-      usedMatchKeys.add(playing.map((p) => p.id).sort().join("-"));
+      if (!bestPlan) break;
 
-      // Assign teams (simple split)
-      const team1 = [playing[0], playing[1]];
-      const team2 = [playing[2], playing[3]];
+      matches.push([bestPlan.team1, bestPlan.team2]);
+      byes.push(bestPlan.resting);
 
-      matches.push([team1, team2]);
+      bestPlan.quartet.forEach((p) => {
+        gamesPlayed[p.id] += 1;
+      });
+      bestPlan.resting.forEach((p) => {
+        restCounts[p.id] += 1;
+      });
 
-      // Resting players
-      const resting = group.filter((p) => !playing.includes(p));
-      byes.push(resting);
+      const key1 = pairKey(bestPlan.team1[0], bestPlan.team1[1]);
+      const key2 = pairKey(bestPlan.team2[0], bestPlan.team2[1]);
+      partnerCounts[key1] = (partnerCounts[key1] || 0) + 1;
+      partnerCounts[key2] = (partnerCounts[key2] || 0) + 1;
+    }
 
-      // Increment games played
-      playing.forEach((p) => (gamesPlayed[p.id]++));
+    // Safety pass: if constraints stopped early, fill remaining rounds with best-effort balancing.
+    while (matches.length < targetRounds) {
+      let bestPlan = null;
+
+      for (let i = 0; i < n - 3; i++) {
+        for (let j = i + 1; j < n - 2; j++) {
+          for (let k = j + 1; k < n - 1; k++) {
+            for (let l = k + 1; l < n; l++) {
+              const quartet = [group[i], group[j], group[k], group[l]];
+              const quartedIds = new Set(quartet.map((p) => p.id));
+              const resting = group.filter((p) => !quartedIds.has(p.id));
+
+              const teamOptions = [
+                [[quartet[0], quartet[1]], [quartet[2], quartet[3]]],
+                [[quartet[0], quartet[2]], [quartet[1], quartet[3]]],
+                [[quartet[0], quartet[3]], [quartet[1], quartet[2]]],
+              ];
+
+              for (const [team1, team2] of teamOptions) {
+                const team1Count = getPartnerCount(team1[0], team1[1]);
+                const team2Count = getPartnerCount(team2[0], team2[1]);
+                const newPartners = (team1Count === 0 ? 1 : 0) + (team2Count === 0 ? 1 : 0);
+                const repeatPartners = (team1Count > 0 ? team1Count : 0) + (team2Count > 0 ? team2Count : 0);
+
+                const projectedRestCounts = { ...restCounts };
+                resting.forEach((p) => {
+                  projectedRestCounts[p.id] += 1;
+                });
+
+                const projectedGamesPlayed = { ...gamesPlayed };
+                quartet.forEach((p) => {
+                  projectedGamesPlayed[p.id] += 1;
+                });
+
+                const restSpread = calcSpread(Object.values(projectedRestCounts));
+                const gamesSpread = calcSpread(Object.values(projectedGamesPlayed));
+
+                const score =
+                  newPartners * 100 -
+                  repeatPartners * 40 -
+                  restSpread * 8 -
+                  gamesSpread * 4;
+
+                if (!bestPlan || score > bestPlan.score) {
+                  bestPlan = { quartet, team1, team2, resting, score };
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (!bestPlan) break;
+
+      matches.push([bestPlan.team1, bestPlan.team2]);
+      byes.push(bestPlan.resting);
+
+      bestPlan.quartet.forEach((p) => {
+        gamesPlayed[p.id] += 1;
+      });
+      bestPlan.resting.forEach((p) => {
+        restCounts[p.id] += 1;
+      });
+
+      const key1 = pairKey(bestPlan.team1[0], bestPlan.team1[1]);
+      const key2 = pairKey(bestPlan.team2[0], bestPlan.team2[1]);
+      partnerCounts[key1] = (partnerCounts[key1] || 0) + 1;
+      partnerCounts[key2] = (partnerCounts[key2] || 0) + 1;
     }
 
     return { matches, byes };
@@ -854,6 +1007,28 @@ const saveMatches = async () => {
     console.error("Unexpected error saving matches:", err);
     alert("Something went wrong while saving matches.");
   }
+};
+
+const clearGeneratedMatches = async () => {
+  const hasGeneratedMatches = court1Matches.length > 0 || court2Matches.length > 0;
+  if (!hasGeneratedMatches) {
+    alert("No generated matches to clear.");
+    return;
+  }
+
+  const confirmed = confirm("Clear all generated matches? This will remove unsaved fixtures.");
+  if (!confirmed) return;
+
+  setCourt1Matches([]);
+  setCourt2Matches([]);
+  setCourt1Scores([]);
+  setCourt2Scores([]);
+  setRoundMatches([]);
+  setCourt1Round(0);
+  setCourt2Round(0);
+
+  await clearPendingFixtures();
+  alert("Generated matches cleared ✅");
 };
 
 const verifyAddMatchPasscode = async () => {
@@ -958,6 +1133,9 @@ const handleRecalculateStandings = async () => {
     alert("Failed to recalculate standings.");
   }
 };
+
+const hasGeneratedFixtures = court1Matches.length > 0 || court2Matches.length > 0;
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
       
@@ -1015,14 +1193,16 @@ const handleRecalculateStandings = async () => {
     {!isAdmin ? (
       <button
         onClick={() => setShowAdminModal(true)}
-        className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm"
+        disabled={hasGeneratedFixtures}
+        className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
       >
         🔒 Generate Fixtures
       </button>
     ) : (
       <button
         onClick={generateMatches}
-        className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+        disabled={hasGeneratedFixtures}
+        className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
       >
         🔄 Generate Fixtures
       </button>
@@ -1417,9 +1597,16 @@ const handleRecalculateStandings = async () => {
 </div>
 
     {/* Save All Matches */}
-    <div className="col-span-1 md:col-span-2 flex justify-center mt-4">
+    <div className="col-span-1 md:col-span-2 flex justify-center gap-3 mt-4">
       <button onClick={saveMatches} className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded">
         💾 Save Matches
+      </button>
+      <button
+        onClick={clearGeneratedMatches}
+        disabled={!hasGeneratedFixtures}
+        className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        🗑 Clear Matches
       </button>
     </div>
   </div>
