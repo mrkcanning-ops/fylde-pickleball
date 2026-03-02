@@ -310,6 +310,7 @@ const fetchPreviousMatches = async () => {
   const { data, error } = await supabase
     .from("previous_matches")
     .select("*")
+    .eq("division", division)
     .order("created_at", { ascending: false }); // Most recent first
 
   if (error) {
