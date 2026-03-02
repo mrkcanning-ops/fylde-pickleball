@@ -16,11 +16,15 @@ export default function Leaderboard() {
   const sortedPlayers = [...players].sort((a, b) => {
     const aGP = (a.wins || 0) + (a.losses || 0) + (a.draws || 0);
     const bGP = (b.wins || 0) + (b.losses || 0) + (b.draws || 0);
+    const aHasPlayed = aGP > 0 ? 1 : 0;
+    const bHasPlayed = bGP > 0 ? 1 : 0;
     const aWinPct = aGP > 0 ? (a.wins || 0) / aGP : 0;
     const bWinPct = bGP > 0 ? (b.wins || 0) / bGP : 0;
     const aDiff = (a.points_for || 0) - (a.points_against || 0);
     const bDiff = (b.points_for || 0) - (b.points_against || 0);
 
+    // 0. Players with GP > 0 always rank above players with GP = 0
+    if (bHasPlayed !== aHasPlayed) return bHasPlayed - aHasPlayed;
     // 1. Win % (descending)
     if (bWinPct !== aWinPct) return bWinPct - aWinPct;
     // 2. Point Diff (descending)

@@ -321,8 +321,6 @@ const fetchPreviousMatches = async () => {
 
   useEffect(() => {
     const syncAndFetchData = async () => {
-      // Keep player standings aligned with previous_matches (including deleted matches)
-      await recalculateStandings();
       await fetchPlayers();
       await fetchPreviousMatches();
       await fetchAllDivisionPlayers();
@@ -336,11 +334,15 @@ const fetchPreviousMatches = async () => {
       // Calculate stats for sorting
       const aGP = (a.wins || 0) + (a.losses || 0) + (a.draws || 0);
       const bGP = (b.wins || 0) + (b.losses || 0) + (b.draws || 0);
+      const aHasPlayed = aGP > 0 ? 1 : 0;
+      const bHasPlayed = bGP > 0 ? 1 : 0;
       const aWinPct = aGP > 0 ? (a.wins || 0) / aGP : 0;
       const bWinPct = bGP > 0 ? (b.wins || 0) / bGP : 0;
       const aDiff = (a.points_for || 0) - (a.points_against || 0);
       const bDiff = (b.points_for || 0) - (b.points_against || 0);
 
+      // 0. Players with GP > 0 always rank above players with GP = 0
+      if (bHasPlayed !== aHasPlayed) return bHasPlayed - aHasPlayed;
       // 1. Win % (descending)
       if (bWinPct !== aWinPct) return bWinPct - aWinPct;
       // 2. Point Diff (descending)
@@ -690,8 +692,6 @@ const saveMatches = async () => {
       setCourt1Round(0);
       setCourt2Round(0);
 
-      // Recalculate standings
-      console.log("Recalculating standings...");
       await recalculateStandings();
       await fetchPlayers();
       
@@ -777,7 +777,6 @@ const addMatch = async () => {
     setShowAddMatchModal(false);
     setAddMatchPasscode("");
 
-    // Recalculate standings
     await recalculateStandings();
     await fetchPlayers();
     await fetchPreviousMatches();
