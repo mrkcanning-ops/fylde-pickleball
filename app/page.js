@@ -361,23 +361,101 @@ const fetchPreviousMatches = async () => {
       .eq("division", division); // filter by current division
 
     if (!error) {
-      const leaderboardSnapshotKey = `leaderboard_division_${division}`;
-      // load previous leaderboard from localStorage for improvement calculation
-      const saved = JSON.parse(localStorage.getItem(leaderboardSnapshotKey)) || [];
-      const prevPoints = {};
-      const prevPositions = {};
-      saved.forEach((p, idx) => {
-        if (p.id != null) {
-          prevPoints[p.id] = p.points || 0;
-          prevPositions[p.id] = idx + 1; // position in previous leaderboard
-        }
-      });
-
       const processed = (data || []).map((p) => ({
         ...p,
         win_streak: p.win_streak || 0,
-        improved: prevPoints[p.id] !== undefined ? (p.points || 0) - prevPoints[p.id] : 0,
+        improved: 0,
       }));
+
+      const prevPositions = {};
+      const { data: divisionMatches, error: matchesError } = await supabase
+        .from("previous_matches")
+        .select("players,scores,created_at")
+        .eq("division", division)
+        .order("created_at", { ascending: true });
+
+      if (!matchesError && Array.isArray(divisionMatches) && divisionMatches.length > 0) {
+        const matchesByDate = {};
+        for (const match of divisionMatches) {
+          const dateKey = match.created_at ? String(match.created_at).split("T")[0] : "unknown";
+          if (!matchesByDate[dateKey]) matchesByDate[dateKey] = [];
+          matchesByDate[dateKey].push(match);
+        }
+
+        const orderedDates = Object.keys(matchesByDate).sort();
+        const runningStats = {};
+        processed.forEach((p) => {
+          runningStats[p.id] = {
+            wins: 0,
+            losses: 0,
+            draws: 0,
+            points: 0,
+            points_for: 0,
+            points_against: 0,
+          };
+        });
+
+        const rankSnapshots = [];
+        for (const dateKey of orderedDates) {
+          const dayMatches = matchesByDate[dateKey];
+
+          for (const match of dayMatches) {
+            const playersArray = Array.isArray(match.players)
+              ? match.players
+              : JSON.parse(match.players || "[]");
+
+            const team1 = playersArray.slice(0, 2);
+            const team2 = playersArray.slice(2, 4);
+            const score1 = Number(match.scores?.team1 || 0);
+            const score2 = Number(match.scores?.team2 || 0);
+
+            const applyResult = (playerId, scored, conceded, result) => {
+              if (!runningStats[playerId]) return;
+              runningStats[playerId].points_for += scored;
+              runningStats[playerId].points_against += conceded;
+
+              if (result === "win") {
+                runningStats[playerId].wins += 1;
+                runningStats[playerId].points += 3;
+              } else if (result === "loss") {
+                runningStats[playerId].losses += 1;
+              } else {
+                runningStats[playerId].draws += 1;
+                runningStats[playerId].points += 1;
+              }
+            };
+
+            if (score1 > score2) {
+              team1.forEach((id) => applyResult(id, score1, score2, "win"));
+              team2.forEach((id) => applyResult(id, score2, score1, "loss"));
+            } else if (score1 < score2) {
+              team1.forEach((id) => applyResult(id, score1, score2, "loss"));
+              team2.forEach((id) => applyResult(id, score2, score1, "win"));
+            } else {
+              team1.forEach((id) => applyResult(id, score1, score2, "draw"));
+              team2.forEach((id) => applyResult(id, score2, score1, "draw"));
+            }
+          }
+
+          const rankedAtDate = sortPlayersByStats(
+            processed.map((p) => ({
+              ...p,
+              ...runningStats[p.id],
+            }))
+          );
+
+          const rankMap = {};
+          rankedAtDate.forEach((p, index) => {
+            rankMap[p.id] = index + 1;
+          });
+          rankSnapshots.push(rankMap);
+        }
+
+        if (rankSnapshots.length >= 2) {
+          const previousSnapshot = rankSnapshots[rankSnapshots.length - 2];
+          Object.assign(prevPositions, previousSnapshot);
+        }
+      }
 
       // Sort using new criteria and calculate positionChange based on new positions
       const sorted = sortPlayersByStats(processed);
@@ -391,13 +469,6 @@ const fetchPreviousMatches = async () => {
       }));
 
       setPlayers(withPositionChange);
-      // update localStorage snapshot for next round
-      const snapshot = withPositionChange.map((p) => ({
-        id: p.id,
-        name: p.name,
-        points: p.points || 0,
-      }));
-      localStorage.setItem(leaderboardSnapshotKey, JSON.stringify(snapshot));
     }
   };
 

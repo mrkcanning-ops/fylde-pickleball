@@ -45,7 +45,7 @@ export default function HeaderStats({ stats }) {
           )}
 
           {/* Extra info for Most Improved */}
-          {stat.label === "Most Improved" && stat.improvementValue !== undefined && (
+          {stat.label === "Most Improved" && stat.improvementValue !== undefined && stat.improvementValue > 0 && (
             <div className="flex items-center gap-2 mt-2">
               <span className="text-2xl text-green-500">↑</span>
               <span className="text-sm font-semibold text-green-500">
