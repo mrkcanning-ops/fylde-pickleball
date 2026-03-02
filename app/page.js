@@ -1225,14 +1225,13 @@ const hasGeneratedFixtures = court1Matches.length > 0 || court2Matches.length > 
     {/* Mobile Cards */}
 <div className="sm:hidden p-4 space-y-2 bg-gray-50">
   {/* Header Row */}
-  <div className="grid grid-cols-7 text-xs font-bold text-gray-400 text-center mb-1">
+  <div className="grid grid-cols-6 text-xs font-bold text-gray-400 text-center mb-1">
     <span>GP</span>
     <span className="text-green-600">W</span>
     <span className="text-red-400">L</span>
     <span className="text-yellow-500">D</span>
     <span>Diff</span>
     <span className="text-cyan-600 font-black text-xs">Win %</span>
-    <span>Pts</span>
   </div>
 
   {players.map((p, i) => {
@@ -1266,14 +1265,13 @@ const hasGeneratedFixtures = court1Matches.length > 0 || court2Matches.length > 
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-7 text-sm font-semibold gap-1 text-center">
+        <div className="grid grid-cols-6 text-sm font-semibold gap-1 text-center">
           <span className="text-gray-700">{gp}</span>
           <span className="text-green-600">{p.wins}</span>
           <span className="text-red-400">{p.losses}</span>
           <span className="text-yellow-500">{p.draws}</span>
           <span className="text-gray-700">{diff}</span>
           <span className="text-cyan-600 font-black text-base">{winPct}</span>
-          <span className="text-gray-900 font-bold">{p.points}</span>
         </div>
       </div>
     );
