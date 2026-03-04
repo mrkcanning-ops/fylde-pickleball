@@ -940,17 +940,33 @@ console.log("Court2 matches preview:", court2.matches);
   );
 };
 
-  const updateScore = (idx, team, value, court) => {
+  const updateScore = async (idx, team, value, court) => {
   if (court === "court1") {
     const newScores = [...court1Scores];
     if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
     newScores[idx][team] = value; // keep as string
     setCourt1Scores(newScores);
+
+    await savePendingFixtures(
+      court1Matches,
+      court2Matches,
+      newScores,
+      court2Scores,
+      roundMatches
+    );
   } else {
     const newScores = [...court2Scores];
     if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
     newScores[idx][team] = value; // keep as string
     setCourt2Scores(newScores);
+
+    await savePendingFixtures(
+      court1Matches,
+      court2Matches,
+      court1Scores,
+      newScores,
+      roundMatches
+    );
   }
 };
 
