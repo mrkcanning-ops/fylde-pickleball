@@ -940,33 +940,17 @@ console.log("Court2 matches preview:", court2.matches);
   );
 };
 
-  const updateScore = async (idx, team, value, court) => {
+  const updateScore = (idx, team, value, court) => {
   if (court === "court1") {
     const newScores = [...court1Scores];
     if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
     newScores[idx][team] = value; // keep as string
     setCourt1Scores(newScores);
-
-    await savePendingFixtures(
-      court1Matches,
-      court2Matches,
-      newScores,
-      court2Scores,
-      roundMatches
-    );
   } else {
     const newScores = [...court2Scores];
     if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
     newScores[idx][team] = value; // keep as string
     setCourt2Scores(newScores);
-
-    await savePendingFixtures(
-      court1Matches,
-      court2Matches,
-      court1Scores,
-      newScores,
-      roundMatches
-    );
   }
 };
 
@@ -1150,6 +1134,23 @@ const handleRecalculateStandings = async () => {
     alert("Failed to recalculate standings.");
   }
 };
+
+useEffect(() => {
+  const syncPendingScores = async () => {
+    const hasPendingFixtures = court1Matches.length > 0 || court2Matches.length > 0;
+    if (!hasPendingFixtures) return;
+
+    await savePendingFixtures(
+      court1Matches,
+      court2Matches,
+      court1Scores,
+      court2Scores,
+      roundMatches
+    );
+  };
+
+  syncPendingScores();
+}, [court1Scores, court2Scores, court1Matches, court2Matches, roundMatches, division]);
 
 const hasGeneratedFixtures = court1Matches.length > 0 || court2Matches.length > 0;
 
