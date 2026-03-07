@@ -110,16 +110,31 @@ const [addMatchData, setAddMatchData] = useState({
       .eq("id", player.id);
   }
 
-  // 3️⃣ Get all matches
+  // 3️⃣ Get all matches in chronological order
   const { data: matches } = await supabase
     .from("previous_matches")
-    .select("*");
+    .select("*")
+    .order("created_at", { ascending: true });
 
   if (!matches) return;
 
-  // 4️⃣ Recalculate from scratch
+  // 4️⃣ Initialize player stats tracking
+  const playerStats = {};
+  players.forEach((p) => {
+    playerStats[p.id] = {
+      wins: 0,
+      losses: 0,
+      draws: 0,
+      points: 0,
+      points_for: 0,
+      points_against: 0,
+      win_streak: 0,
+    };
+  });
+
+  // 5️⃣ Process matches in chronological order
   for (const match of matches) {
-    console.log("Players in match:", match.players);
+    console.log("Processing match:", match.players);
     const team1 = match.players.slice(0, 2);
     const team2 = match.players.slice(2, 4);
     const score1 = Number(match.scores.team1);
@@ -138,63 +153,47 @@ const [addMatchData, setAddMatchData] = useState({
       result2 = "draw";
     }
 
-    const updatePlayer = async (playerId, result, scored, conceded) => {
-  const { data: player, error: fetchError } = await supabase
-    .from("players")
-    .select("*")
-    .eq("id", playerId)
-    .single();
+    const updatePlayerStats = (playerId, result, scored, conceded) => {
+      if (!playerStats[playerId]) return;
 
-  if (fetchError) {
-    console.error(`Failed to fetch player ${playerId}:`, fetchError);
-    return;
-  }
-  if (!player) return;
+      const stats = playerStats[playerId];
 
-  let newStats = {
-    wins: player.wins || 0,
-    losses: player.losses || 0,
-    draws: player.draws || 0,
-    points: player.points || 0,
-    points_for: player.points_for || 0,
-    points_against: player.points_against || 0,
-    win_streak: player.win_streak || 0,
-  };
+      if (result === "win") {
+        stats.wins += 1;
+        stats.points += 3;
+        stats.win_streak += 1;
+      } else if (result === "loss") {
+        stats.losses += 1;
+        stats.win_streak = 0;
+      } else {
+        stats.draws += 1;
+        stats.points += 1;
+        stats.win_streak = 0;
+      }
 
-  if (result === "win") {
-    newStats.wins += 1;
-    newStats.points += 3;
-    newStats.win_streak = (player.win_streak || 0) + 1;
-  } else if (result === "loss") {
-    newStats.losses += 1;
-    newStats.win_streak = 0;
-  } else {
-    newStats.draws += 1;
-    newStats.points += 1;
-    newStats.win_streak = 0;
-  }
-
-  newStats.points_for += scored;
-  newStats.points_against += conceded;
-
-  console.log(`Updating player ${playerId} with`, newStats);
-
-  const { error: updateError } = await supabase
-    .from("players")
-    .update(newStats)
-    .eq("id", playerId);
-
-  if (updateError) {
-    console.error(`Failed to update player ${playerId}:`, updateError);
-  }
-};
+      stats.points_for += scored;
+      stats.points_against += conceded;
+    };
 
     for (const p of team1) {
-      await updatePlayer(p, result1, score1, score2);
+      updatePlayerStats(p, result1, score1, score2);
     }
 
     for (const p of team2) {
-      await updatePlayer(p, result2, score2, score1);
+      updatePlayerStats(p, result2, score2, score1);
+    }
+  }
+
+  // 6️⃣ Save all stats back to database
+  for (const playerId in playerStats) {
+    const stats = playerStats[playerId];
+    const { error } = await supabase
+      .from("players")
+      .update(stats)
+      .eq("id", playerId);
+
+    if (error) {
+      console.error(`Failed to update player ${playerId}:`, error);
     }
   }
 };
