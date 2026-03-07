@@ -1643,9 +1643,20 @@ const hasGeneratedFixtures = court1Matches.length > 0 || court2Matches.length > 
           <div key={date}>
             <button
               onClick={() => toggleDate(date)}
-              className="w-full text-left bg-yellow-400 text-gray-900 font-bold px-4 py-2 rounded mb-2 hover:bg-yellow-500"
+              className={`w-full text-left font-bold px-4 py-3 rounded mb-2 transition-all flex items-center justify-between ${
+                openDates.includes(date)
+                  ? "bg-yellow-400 text-gray-900 hover:bg-yellow-500"
+                  : "bg-gray-700 text-yellow-400 hover:bg-gray-600"
+              }`}
             >
-              📅 {date}
+              <span className="flex items-center gap-2">
+                📅 {date}
+              </span>
+              <span className={`transform transition-transform duration-200 ${
+                openDates.includes(date) ? "rotate-180" : "rotate-0"
+              }`}>
+                ▼
+              </span>
             </button>
             {openDates.includes(date) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
