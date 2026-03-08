@@ -529,19 +529,12 @@ const fetchPreviousMatches = async () => {
   onClick: toggleDivision,
   renderCustom: () => (
     <div className="flex flex-col items-center gap-2 select-none">
-      <div className="flex items-center gap-2">
-        <span className="text-xs uppercase tracking-wide text-gray-400">Active</span>
-        <span className="bg-yellow-500 text-gray-950 font-extrabold text-sm px-3 py-1 rounded-full">
-          Division {division}
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-xs uppercase tracking-wide text-gray-500">Other</span>
-        <span className="bg-gray-700 text-gray-300 font-semibold text-sm px-3 py-1 rounded-full border border-gray-500">
-          Division {division === 1 ? 2 : 1}
-        </span>
-      </div>
-      <span className="text-[11px] text-gray-400">Tap to switch</span>
+      <span className="bg-yellow-500 text-gray-950 font-extrabold text-lg px-4 py-1 rounded-full">
+        Division {division}
+      </span>
+      <span className="bg-gray-700 text-gray-300 font-semibold text-xs px-3 py-1 rounded-full border border-gray-500">
+        Division {division === 1 ? 2 : 1}
+      </span>
     </div>
   ),
 },
