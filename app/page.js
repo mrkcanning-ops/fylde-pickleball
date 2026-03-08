@@ -135,8 +135,13 @@ const [addMatchData, setAddMatchData] = useState({
   // 5️⃣ Process matches in chronological order
   for (const match of matches) {
     console.log("Processing match:", match.players);
-    const team1 = match.players.slice(0, 2);
-    const team2 = match.players.slice(2, 4);
+    
+    const playersArray = Array.isArray(match.players)
+  ? match.players
+  : JSON.parse(match.players || "[]");
+
+const team1 = playersArray.slice(0, 2);
+const team2 = playersArray.slice(2, 4);
     const score1 = Number(match.scores.team1);
     const score2 = Number(match.scores.team2);
 
