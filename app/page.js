@@ -1633,252 +1633,215 @@ const hasGeneratedFixtures = court1Matches.length > 0 || court2Matches.length > 
 )}
 
         {activeTab === "Previous Matches" && (
-  <div className="bg-gray-700 rounded shadow p-4">
-    {/* Add Match Button */}
-    <div className="flex justify-center mb-4">
-      <button onClick={() => setShowAddMatchPasscodeModal(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded">
-        ➕ Add Match
-      </button>
-    </div>
-    {previousMatches.length === 0 ? (
-      <p className="text-gray-300 italic text-sm">No previous matches yet...</p>
-    ) : (
-      <div className="space-y-8">
-        {matchesByDate.map(([date, courtMatches]) => {
-  const isOpen = openDates.includes(date);
-  const totalMatches =
-    (courtMatches.court1?.length || 0) + (courtMatches.court2?.length || 0);
-
-  return (
-    <details
-      key={date}
-      open={isOpen}
-      onToggle={(e) => {
-        // Keep your openDates state in sync with the native dropdown
-        if (e.currentTarget.open) {
-          setOpenDates((prev) => (prev.includes(date) ? prev : [...prev, date]));
-        } else {
-          setOpenDates((prev) => prev.filter((d) => d !== date));
-        }
-      }}
-      className="mb-3 rounded-xl border border-gray-600 bg-gray-800 overflow-hidden"
-    >
-      <summary className="list-none cursor-pointer select-none px-4 py-4 flex items-center justify-between gap-4 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-xl">📅</span>
-
-          <div className="min-w-0">
-            <div className="font-extrabold text-yellow-300 truncate">
-              {date}
+          <div className="bg-gray-700 rounded shadow p-4">
+            {/* Add Match Button */}
+            <div className="flex justify-center mb-4">
+              <button
+                onClick={() => setShowAddMatchPasscodeModal(true)}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded"
+              >
+                ➕ Add Match
+              </button>
             </div>
-            <div className="text-xs font-semibold text-gray-300">
-              Click to {isOpen ? "hide" : "show"} matches
-            </div>
-          </div>
 
-          <span className="shrink-0 text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">
-            {totalMatches} match{totalMatches === 1 ? "" : "es"}
-          </span>
-        </div>
+            {previousMatches.length === 0 ? (
+              <p className="text-gray-300 italic text-sm">No previous matches yet...</p>
+            ) : (
+              <div className="space-y-8">
+                {matchesByDate.map(([date, courtMatches]) => {
+                  const isOpen = openDates.includes(date);
+                  const totalMatches =
+                    (courtMatches.court1?.length || 0) + (courtMatches.court2?.length || 0);
 
-        <div className="shrink-0 flex items-center gap-2">
-          <span className="text-sm font-bold text-white bg-yellow-600 px-3 py-1 rounded-lg">
-            {isOpen ? "Hide" : "Show"}
-          </span>
-
-          <span
-            className={`text-yellow-300 text-2xl transition-transform duration-200 ${
-              isOpen ? "rotate-180" : "rotate-0"
-            }`}
-            aria-hidden="true"
-          >
-            ▾
-          </span>
-        </div>
-      </summary>
-
-      <div className="p-4 bg-gray-700">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Court 1 */}
-          <div>
-            <div className="bg-blue-100 text-blue-900 font-bold px-3 py-2 rounded mb-2 text-center">
-              🎾 Court 1
-            </div>
-            <div className="space-y-2">
-              {courtMatches.court1.length === 0 ? (
-                <p className="text-gray-300 text-sm italic">No matches</p>
-              ) : (
-                courtMatches.court1.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300"
-                  >
-                    <div className="text-blue-600 font-semibold mb-1">
-                      Division {m.division}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-                      <div className="text-center">
-                        <div className="font-bold text-base text-gray-700">
-                          {m.players.slice(0, 2).map((id) => getPlayerNameFromId(id)).join(" & ")}
-                        </div>
-                        <div className="text-3xl font-extrabold text-yellow-600 mt-1">
-                          {m.scores?.team1 ?? "���"}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-bold text-base text-gray-700">
-                          {m.players.slice(2, 4).map((id) => getPlayerNameFromId(id)).join(" & ")}
-                        </div>
-                        <div className="text-3xl font-extrabold text-yellow-600 mt-1">
-                          {m.scores?.team2 ?? "—"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Court 2 */}
-          <div>
-            <div className="bg-purple-100 text-purple-900 font-bold px-3 py-2 rounded mb-2 text-center">
-              🎾 Court 2
-            </div>
-            <div className="space-y-2">
-              {courtMatches.court2.length === 0 ? (
-                <p className="text-gray-300 text-sm italic">No matches</p>
-              ) : (
-                courtMatches.court2.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300"
-                  >
-                    <div className="text-purple-600 font-semibold mb-1">
-                      Division {m.division}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-                      <div className="text-center">
-                        <div className="font-bold text-base text-gray-700">
-                          {m.players.slice(0, 2).map((id) => getPlayerNameFromId(id)).join(" & ")}
-                        </div>
-                        <div className="text-3xl font-extrabold text-yellow-600 mt-1">
-                          {m.scores?.team1 ?? "—"}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-bold text-base text-gray-700">
-                          {m.players.slice(2, 4).map((id) => getPlayerNameFromId(id)).join(" & ")}
-                        </div>
-                        <div className="text-3xl font-extrabold text-yellow-600 mt-1">
-                          {m.scores?.team2 ?? "—"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </details>
-})}
-                </div>
-              </div>
-
-              {/* Court 2 */}
-              <div>
-                <div className="bg-purple-100 text-purple-900 font-bold px-3 py-2 rounded mb-2 text-center">
-                  🎾 Court 2
-                </div>
-                <div className="space-y-2">
-                  {courtMatches.court2.length === 0 ? (
-                    <p className="text-gray-300 text-sm italic">No matches</p>
-                  ) : (
-                    courtMatches.court2.map((m, idx) => (
-                      <div key={idx} className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300">
-                        <div className="text-purple-600 font-semibold mb-1">
-                          Division {m.division}
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-                          <div className="text-center">
-                            <div className="font-bold text-base text-gray-700">
-                              {m.players.slice(0,2).map(id => getPlayerNameFromId(id)).join(" & ")}
-                            </div>
-                            <div className="text-3xl font-extrabold text-yellow-600 mt-1">
-                              {m.scores?.team1 ?? "—"}
+                  return (
+                    <details
+                      key={date}
+                      open={isOpen}
+                      onToggle={(e) => {
+                        if (e.currentTarget.open) {
+                          setOpenDates((prev) => (prev.includes(date) ? prev : [...prev, date]));
+                        } else {
+                          setOpenDates((prev) => prev.filter((d) => d !== date));
+                        }
+                      }}
+                      className="mb-3 rounded-xl border border-gray-600 bg-gray-800 overflow-hidden"
+                    >
+                      <summary className="list-none cursor-pointer select-none px-4 py-4 flex items-center justify-between gap-4 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-xl">📅</span>
+                          <div className="min-w-0">
+                            <div className="font-extrabold text-yellow-300 truncate">{date}</div>
+                            <div className="text-xs font-semibold text-gray-300">
+                              Click to {isOpen ? "hide" : "show"} matches
                             </div>
                           </div>
-                          <div className="text-center">
-                            <div className="font-bold text-base text-gray-700">
-                              {m.players.slice(2,4).map(id => getPlayerNameFromId(id)).join(" & ")}
+                          <span className="shrink-0 text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">
+                            {totalMatches} match{totalMatches === 1 ? "" : "es"}
+                          </span>
+                        </div>
+
+                        <div className="shrink-0 flex items-center gap-2">
+                          <span className="text-sm font-bold text-white bg-yellow-600 px-3 py-1 rounded-lg">
+                            {isOpen ? "Hide" : "Show"}
+                          </span>
+                          <span
+                            className={`text-yellow-300 text-2xl transition-transform duration-200 ${
+                              isOpen ? "rotate-180" : "rotate-0"
+                            }`}
+                            aria-hidden="true"
+                          >
+                            ▾
+                          </span>
+                        </div>
+                      </summary>
+
+                      <div className="p-4 bg-gray-700">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Court 1 */}
+                          <div>
+                            <div className="bg-blue-100 text-blue-900 font-bold px-3 py-2 rounded mb-2 text-center">
+                              🎾 Court 1
                             </div>
-                            <div className="text-3xl font-extrabold text-yellow-600 mt-1">
-                              {m.scores?.team2 ?? "—"}
+                            <div className="space-y-2">
+                              {courtMatches.court1.length === 0 ? (
+                                <p className="text-gray-300 text-sm italic">No matches</p>
+                              ) : (
+                                courtMatches.court1.map((m, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300"
+                                  >
+                                    <div className="text-blue-600 font-semibold mb-1">Division {m.division}</div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                                      <div className="text-center">
+                                        <div className="font-bold text-base text-gray-700">
+                                          {m.players
+                                            .slice(0, 2)
+                                            .map((id) => getPlayerNameFromId(id))
+                                            .join(" & ")}
+                                        </div>
+                                        <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                                          {m.scores?.team1 ?? "—"}
+                                        </div>
+                                      </div>
+                                      <div className="text-center">
+                                        <div className="font-bold text-base text-gray-700">
+                                          {m.players
+                                            .slice(2, 4)
+                                            .map((id) => getPlayerNameFromId(id))
+                                            .join(" & ")}
+                                        </div>
+                                        <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                                          {m.scores?.team2 ?? "—"}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Court 2 */}
+                          <div>
+                            <div className="bg-purple-100 text-purple-900 font-bold px-3 py-2 rounded mb-2 text-center">
+                              🎾 Court 2
+                            </div>
+                            <div className="space-y-2">
+                              {courtMatches.court2.length === 0 ? (
+                                <p className="text-gray-300 text-sm italic">No matches</p>
+                              ) : (
+                                courtMatches.court2.map((m, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300"
+                                  >
+                                    <div className="text-purple-600 font-semibold mb-1">Division {m.division}</div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                                      <div className="text-center">
+                                        <div className="font-bold text-base text-gray-700">
+                                          {m.players
+                                            .slice(0, 2)
+                                            .map((id) => getPlayerNameFromId(id))
+                                            .join(" & ")}
+                                        </div>
+                                        <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                                          {m.scores?.team1 ?? "—"}
+                                        </div>
+                                      </div>
+                                      <div className="text-center">
+                                        <div className="font-bold text-base text-gray-700">
+                                          {m.players
+                                            .slice(2, 4)
+                                            .map((id) => getPlayerNameFromId(id))
+                                            .join(" & ")}
+                                        </div>
+                                        <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                                          {m.scores?.team2 ?? "—"}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
                             </div>
                           </div>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
+                    </details>
+                  );
+                })}
               </div>
-            </div>
             )}
           </div>
-        ))}
-      </div>
-    )}
-  </div>
-)}
+        )}
       </section>
       {showAdminModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-    <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
-      <h2 className="text-lg font-bold text-yellow-400 mb-4 text-center">
-        Admin Access
-      </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
+            <h2 className="text-lg font-bold text-yellow-400 mb-4 text-center">
+              Admin Access
+            </h2>
 
-      <input
-        type="password"
-        value={adminCode}
-        onChange={(e) => {
-          setAdminCode(e.target.value);
-          setAdminError("");
-        }}
-        placeholder="Enter passcode"
-        className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
-      />
+            <input
+              type="password"
+              value={adminCode}
+              onChange={(e) => {
+                setAdminCode(e.target.value);
+                setAdminError("");
+              }}
+              placeholder="Enter passcode"
+              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
+            />
 
-      {adminError && (
-        <p className="text-red-400 text-sm mt-2 text-center">
-          {adminError}
-        </p>
+            {adminError && (
+              <p className="text-red-400 text-sm mt-2 text-center">
+                {adminError}
+              </p>
+            )}
+
+            <div className="flex justify-between mt-5">
+              <button
+                onClick={() => {
+                  setShowAdminModal(false);
+                  setAdminCode("");
+                  setAdminError("");
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={verifyAdminCode}
+                className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Unlock
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-
-      <div className="flex justify-between mt-5">
-        <button
-          onClick={() => {
-            setShowAdminModal(false);
-            setAdminCode("");
-            setAdminError("");
-          }}
-          className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={verifyAdminCode}
-          className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm"
-        >
-          Unlock
-        </button>
-      </div>
-    </div>
-  </div>
-)}
 
       {showRecalculateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
