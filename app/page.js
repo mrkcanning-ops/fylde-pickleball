@@ -1783,7 +1783,6 @@ const hasGeneratedFixtures = court1Matches.length > 0 || court2Matches.length > 
         </div>
       </div>
     </details>
-  );
 })}
                 </div>
               </div>
