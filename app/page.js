@@ -49,6 +49,13 @@ const [showAddMatchPasscodeModal, setShowAddMatchPasscodeModal] = useState(false
 const [addMatchPasscode, setAddMatchPasscode] = useState("");
 const [addMatchPasscodeError, setAddMatchPasscodeError] = useState("");
 const [addMatchError, setAddMatchError] = useState("");
+const [showEditMatchPasscodeModal, setShowEditMatchPasscodeModal] = useState(false);
+const [editMatchPasscode, setEditMatchPasscode] = useState("");
+const [editMatchPasscodeError, setEditMatchPasscodeError] = useState("");
+const [pendingEditMatch, setPendingEditMatch] = useState(null);
+const [showEditMatchModal, setShowEditMatchModal] = useState(false);
+const [editMatchError, setEditMatchError] = useState("");
+const [editingMatchId, setEditingMatchId] = useState(null);
 const [allDivisionPlayers, setAllDivisionPlayers] = useState([]);
 const [addMatchData, setAddMatchData] = useState({
   date: new Date().toISOString().split('T')[0],
@@ -56,6 +63,14 @@ const [addMatchData, setAddMatchData] = useState({
   team1Name: "",
   team2Players: [],
   team2Name: "",
+  team1Score: "",
+  team2Score: "",
+  court: "court1",
+});
+const [editMatchData, setEditMatchData] = useState({
+  date: new Date().toISOString().split('T')[0],
+  team1Players: [],
+  team2Players: [],
   team1Score: "",
   team2Score: "",
   court: "court1",
@@ -529,7 +544,7 @@ const fetchPreviousMatches = async () => {
   onClick: toggleDivision,
   renderCustom: () => (
     <div className="flex flex-col items-center gap-2 select-none">
-      <span className="bg-yellow-500 text-gray-950 font-extrabold text-lg px-4 py-1 rounded-full">
+      <span className="bg-yellow-500 text-gray-950 font-extrabold text-2xl px-5 py-2 rounded-full leading-none">
         Division {division}
       </span>
       <span className="bg-gray-700 text-gray-300 font-semibold text-xs px-3 py-1 rounded-full border border-gray-500">
@@ -1054,6 +1069,124 @@ const verifyAddMatchPasscode = async () => {
   setShowAddMatchPasscodeModal(false);
   await fetchAllDivisionPlayers();
   setShowAddMatchModal(true);
+};
+
+const buildSelectedPlayers = (ids) => {
+  return (ids || []).map((id) => {
+    const player = allDivisionPlayers.find((p) => p.id === id) || players.find((p) => p.id === id);
+    return player || { id, name: getPlayerNameFromId(id) };
+  });
+};
+
+const setEditTeamPlayer = (teamKey, playerIndex, playerId) => {
+  const selected = allDivisionPlayers.find((p) => String(p.id) === String(playerId));
+  setEditMatchData((prev) => {
+    const nextTeam = [...(prev[teamKey] || [])];
+    nextTeam[playerIndex] = selected || { id: playerId, name: getPlayerNameFromId(playerId) };
+    return { ...prev, [teamKey]: nextTeam };
+  });
+};
+
+const openEditMatchModal = async (match) => {
+  await fetchAllDivisionPlayers();
+
+  const playersArray = Array.isArray(match.players)
+    ? match.players
+    : JSON.parse(match.players || "[]");
+
+  setEditingMatchId(match.id);
+  setEditMatchError("");
+  setEditMatchData({
+    date: match.created_at ? String(match.created_at).split("T")[0] : new Date().toISOString().split("T")[0],
+    team1Players: buildSelectedPlayers(playersArray.slice(0, 2)),
+    team2Players: buildSelectedPlayers(playersArray.slice(2, 4)),
+    team1Score: String(match?.scores?.team1 ?? ""),
+    team2Score: String(match?.scores?.team2 ?? ""),
+    court: match.court === "court2" || match.court === "Court 2" ? "court2" : "court1",
+  });
+  setShowEditMatchModal(true);
+};
+
+const requestEditMatch = async (match) => {
+  if (isAdmin) {
+    await openEditMatchModal(match);
+    return;
+  }
+
+  setPendingEditMatch(match);
+  setEditMatchPasscode("");
+  setEditMatchPasscodeError("");
+  setShowEditMatchPasscodeModal(true);
+};
+
+const verifyEditMatchPasscode = async () => {
+  const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
+  if (editMatchPasscode.trim() !== correctPasscode?.trim()) {
+    setEditMatchPasscodeError("Incorrect passcode");
+    return;
+  }
+
+  setIsAdmin(true);
+  setShowEditMatchPasscodeModal(false);
+  setEditMatchPasscode("");
+  setEditMatchPasscodeError("");
+
+  if (pendingEditMatch) {
+    const selectedMatch = pendingEditMatch;
+    setPendingEditMatch(null);
+    await openEditMatchModal(selectedMatch);
+  }
+};
+
+const saveEditedMatch = async () => {
+  if (!editingMatchId) return;
+
+  const team1Ids = editMatchData.team1Players.map((p) => p.id);
+  const team2Ids = editMatchData.team2Players.map((p) => p.id);
+  const allIds = [...team1Ids, ...team2Ids];
+
+  if (team1Ids.length !== 2 || team2Ids.length !== 2) {
+    setEditMatchError("Each team must have exactly 2 players");
+    return;
+  }
+
+  if (new Set(allIds).size !== 4) {
+    setEditMatchError("A player can only appear once in a match");
+    return;
+  }
+
+  if (editMatchData.team1Score === "" || editMatchData.team2Score === "") {
+    setEditMatchError("Please enter both scores");
+    return;
+  }
+
+  const { error } = await supabase
+    .from("previous_matches")
+    .update({
+      created_at: `${editMatchData.date}T00:00:00Z`,
+      court: editMatchData.court,
+      players: allIds,
+      scores: {
+        team1: parseInt(editMatchData.team1Score, 10),
+        team2: parseInt(editMatchData.team2Score, 10),
+      },
+    })
+    .eq("id", editingMatchId);
+
+  if (error) {
+    console.error("Error updating match:", error);
+    setEditMatchError("Failed to update match. Check console.");
+    return;
+  }
+
+  setShowEditMatchModal(false);
+  setEditingMatchId(null);
+  setEditMatchError("");
+  setPendingEditMatch(null);
+
+  await recalculateStandings();
+  await fetchPlayers();
+  await fetchPreviousMatches();
 };
 
 const addMatch = async () => {
@@ -1725,7 +1858,15 @@ const activePlayerCount = players.filter((p) => p.active).length;
                                     key={idx}
                                     className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300"
                                   >
-                                    <div className="text-blue-600 font-semibold mb-1">Division {m.division}</div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="text-blue-600 font-semibold">Division {m.division}</div>
+                                      <button
+                                        onClick={() => requestEditMatch(m)}
+                                        className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 rounded border border-gray-500"
+                                      >
+                                        Edit
+                                      </button>
+                                    </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
                                       <div className="text-center">
                                         <div className="font-bold text-base text-gray-700">
@@ -1770,7 +1911,15 @@ const activePlayerCount = players.filter((p) => p.active).length;
                                     key={idx}
                                     className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300"
                                   >
-                                    <div className="text-purple-600 font-semibold mb-1">Division {m.division}</div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="text-purple-600 font-semibold">Division {m.division}</div>
+                                      <button
+                                        onClick={() => requestEditMatch(m)}
+                                        className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 rounded border border-gray-500"
+                                      >
+                                        Edit
+                                      </button>
+                                    </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
                                       <div className="text-center">
                                         <div className="font-bold text-base text-gray-700">
@@ -1997,6 +2146,187 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
               >
                 Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Match Passcode Modal */}
+      {showEditMatchPasscodeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
+            <h2 className="text-lg font-bold text-yellow-400 mb-4 text-center">Edit Match</h2>
+            <p className="text-gray-300 mb-4 text-center text-sm">
+              Enter the admin passcode to edit this match.
+            </p>
+
+            <input
+              type="password"
+              value={editMatchPasscode}
+              onChange={(e) => {
+                setEditMatchPasscode(e.target.value);
+                setEditMatchPasscodeError("");
+              }}
+              placeholder="Enter passcode"
+              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
+            />
+
+            {editMatchPasscodeError && (
+              <p className="text-red-400 text-sm mt-2 text-center">{editMatchPasscodeError}</p>
+            )}
+
+            <div className="flex justify-between mt-5">
+              <button
+                onClick={() => {
+                  setShowEditMatchPasscodeModal(false);
+                  setEditMatchPasscode("");
+                  setEditMatchPasscodeError("");
+                  setPendingEditMatch(null);
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={verifyEditMatchPasscode}
+                className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Match Modal */}
+      {showEditMatchModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-2xl border border-gray-700 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-yellow-400 mb-4">✏ Edit Match</h2>
+
+            <div className="mb-4">
+              <label className="text-gray-300 text-sm block mb-1">Match Date</label>
+              <input
+                type="date"
+                value={editMatchData.date}
+                onChange={(e) => setEditMatchData({ ...editMatchData, date: e.target.value })}
+                className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="text-gray-300 text-sm block mb-1">Court</label>
+              <select
+                value={editMatchData.court}
+                onChange={(e) => setEditMatchData({ ...editMatchData, court: e.target.value })}
+                className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
+              >
+                <option value="court1">Court 1</option>
+                <option value="court2">Court 2</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="text-gray-300 text-sm block mb-1">Team 1 Player 1</label>
+                <select
+                  value={editMatchData.team1Players[0]?.id || ""}
+                  onChange={(e) => setEditTeamPlayer("team1Players", 0, e.target.value)}
+                  className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
+                >
+                  <option value="">Select Player</option>
+                  {allDivisionPlayers.map((p) => (
+                    <option key={`edit-t1a-${p.id}`} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-gray-300 text-sm block mb-1">Team 1 Player 2</label>
+                <select
+                  value={editMatchData.team1Players[1]?.id || ""}
+                  onChange={(e) => setEditTeamPlayer("team1Players", 1, e.target.value)}
+                  className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
+                >
+                  <option value="">Select Player</option>
+                  {allDivisionPlayers.map((p) => (
+                    <option key={`edit-t1b-${p.id}`} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-gray-300 text-sm block mb-1">Team 2 Player 1</label>
+                <select
+                  value={editMatchData.team2Players[0]?.id || ""}
+                  onChange={(e) => setEditTeamPlayer("team2Players", 0, e.target.value)}
+                  className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
+                >
+                  <option value="">Select Player</option>
+                  {allDivisionPlayers.map((p) => (
+                    <option key={`edit-t2a-${p.id}`} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-gray-300 text-sm block mb-1">Team 2 Player 2</label>
+                <select
+                  value={editMatchData.team2Players[1]?.id || ""}
+                  onChange={(e) => setEditTeamPlayer("team2Players", 1, e.target.value)}
+                  className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
+                >
+                  <option value="">Select Player</option>
+                  {allDivisionPlayers.map((p) => (
+                    <option key={`edit-t2b-${p.id}`} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="text-gray-300 text-sm block mb-1">Team 1 Score</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editMatchData.team1Score}
+                  onChange={(e) => setEditMatchData({ ...editMatchData, team1Score: e.target.value })}
+                  className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
+                />
+              </div>
+              <div>
+                <label className="text-gray-300 text-sm block mb-1">Team 2 Score</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editMatchData.team2Score}
+                  onChange={(e) => setEditMatchData({ ...editMatchData, team2Score: e.target.value })}
+                  className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
+                />
+              </div>
+            </div>
+
+            {editMatchError && (
+              <p className="text-red-400 text-sm mb-4 text-center">{editMatchError}</p>
+            )}
+
+            <div className="flex justify-between gap-2">
+              <button
+                onClick={() => {
+                  setShowEditMatchModal(false);
+                  setEditingMatchId(null);
+                  setEditMatchError("");
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm flex-1"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={saveEditedMatch}
+                className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm flex-1"
+              >
+                Save Changes
               </button>
             </div>
           </div>
