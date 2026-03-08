@@ -694,10 +694,11 @@ const fetchPreviousMatches = async () => {
     return;
   }
 
-  // Split top-ranked for Court 1
+  // Keep smaller sessions on a single court so 5-7 players can still generate.
+  const shouldSplitAcrossCourts = available.length >= 8;
   const half = Math.ceil(available.length / 2);
-  const court1Group = available.slice(0, half);
-  const court2Group = available.slice(half);
+  const court1Group = shouldSplitAcrossCourts ? available.slice(0, half) : available;
+  const court2Group = shouldSplitAcrossCourts ? available.slice(half) : [];
 
   const buildCourt = (group) => {
     if (group.length < 4) {
@@ -1157,6 +1158,7 @@ useEffect(() => {
 }, [court1Scores, court2Scores, court1Matches, court2Matches, roundMatches, division]);
 
 const hasGeneratedFixtures = court1Matches.length > 0 || court2Matches.length > 0;
+const activePlayerCount = players.filter((p) => p.active).length;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
@@ -1211,26 +1213,31 @@ const hasGeneratedFixtures = court1Matches.length > 0 || court2Matches.length > 
         )}
 
         {activeTab === "Matches" && (
-  <div className="mt-4 flex justify-end">
-    {!isAdmin ? (
-      <button
-        onClick={() => setShowAdminModal(true)}
-        disabled={hasGeneratedFixtures}
-        className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        🔒 Generate Fixtures
-      </button>
-    ) : (
-      <button
-        onClick={generateMatches}
-        disabled={hasGeneratedFixtures}
-        className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        🔄 Generate Fixtures
-      </button>
-    )}
-  </div>
-)}
+          <div className="mt-4 flex flex-col items-end gap-2">
+            {!isAdmin ? (
+              <button
+                onClick={() => setShowAdminModal(true)}
+                disabled={hasGeneratedFixtures}
+                className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                🔒 Generate Fixtures
+              </button>
+            ) : (
+              <button
+                onClick={generateMatches}
+                disabled={hasGeneratedFixtures}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                🔄 Generate Fixtures
+              </button>
+            )}
+            {activePlayerCount >= 4 && activePlayerCount < 8 && (
+              <p className="text-xs text-gray-400 text-right">
+                Fewer than 8 active players: fixtures will be generated on Court 1 only.
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Content */}
@@ -1671,9 +1678,6 @@ const hasGeneratedFixtures = court1Matches.length > 0 || court2Matches.length > 
                           <span className="text-xl">📅</span>
                           <div className="min-w-0">
                             <div className="font-extrabold text-yellow-300 truncate">{date}</div>
-                            <div className="text-xs font-semibold text-gray-300">
-                              Click to {isOpen ? "hide" : "show"} matches
-                            </div>
                           </div>
                           <span className="shrink-0 text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">
                             {totalMatches} match{totalMatches === 1 ? "" : "es"}
