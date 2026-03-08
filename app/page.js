@@ -618,6 +618,11 @@ const fetchPreviousMatches = async () => {
   };
 
   const savePendingFixtures = async (nextCourt1Matches, nextCourt2Matches, nextCourt1Scores, nextCourt2Scores, nextRoundMatches) => {
+    if (!supabase) {
+      console.warn("Supabase client is not configured. Skipping live fixture sync.");
+      return;
+    }
+
     const payload = {
       division,
       court1_matches: (nextCourt1Matches || []).map((match) =>
@@ -633,15 +638,40 @@ const fetchPreviousMatches = async () => {
       status: "generated",
     };
 
-    await supabase.from("pending_fixtures").delete().eq("division", division);
-    const { error } = await supabase.from("pending_fixtures").insert(payload);
-    if (error) {
-      console.error("Error saving pending fixtures:", error);
-      alert("Fixtures generated locally, but could not be shared live.");
+    // Prefer upsert so hosted clients don't depend on delete permissions.
+    const { error: upsertError } = await supabase
+      .from("pending_fixtures")
+      .upsert(payload, { onConflict: "division" });
+
+    if (!upsertError) return;
+
+    // Fallback for tables without a unique constraint on division.
+    if (String(upsertError.message || "").toLowerCase().includes("on conflict")) {
+      const { error: deleteError } = await supabase
+        .from("pending_fixtures")
+        .delete()
+        .eq("division", division);
+
+      if (deleteError) {
+        console.error("Error deleting previous pending fixtures:", deleteError);
+        alert(`Fixtures generated locally, but could not be shared live: ${deleteError.message}`);
+        return;
+      }
+
+      const { error: insertError } = await supabase.from("pending_fixtures").insert(payload);
+      if (!insertError) return;
+
+      console.error("Error inserting pending fixtures:", insertError);
+      alert(`Fixtures generated locally, but could not be shared live: ${insertError.message}`);
+      return;
     }
+
+    console.error("Error saving pending fixtures:", upsertError);
+    alert(`Fixtures generated locally, but could not be shared live: ${upsertError.message}`);
   };
 
   const clearPendingFixtures = async () => {
+    if (!supabase) return;
     const { error } = await supabase.from("pending_fixtures").delete().eq("division", division);
     if (error) {
       console.error("Error clearing pending fixtures:", error);
