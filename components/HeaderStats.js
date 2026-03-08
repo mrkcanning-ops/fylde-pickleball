@@ -18,13 +18,17 @@ export default function HeaderStats({ stats }) {
                 : stat.highlight === "grayButton"
                 ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
                 : "bg-gray-700 text-gray-300"
-            } ${stat.cursorPointer ? "cursor-pointer" : ""} h-32 flex flex-col justify-center`}
+            } ${stat.onClick ? "cursor-pointer ring-2 ring-yellow-400/30 hover:ring-yellow-300" : ""} h-32 flex flex-col justify-center`}
         >
           <div className="text-sm">{stat.label}</div>
-          <div className="text-2xl mt-2 flex items-center gap-2">
-            {stat.label === "Current Leader" && <span className="text-2xl">🏆</span>}
-            {stat.value}
-          </div>
+          {stat.renderCustom ? (
+            <div className="mt-3">{stat.renderCustom()}</div>
+          ) : (
+            <div className="text-2xl mt-2 flex items-center gap-2">
+              {stat.label === "Current Leader" && <span className="text-2xl">🏆</span>}
+              {stat.value}
+            </div>
+          )}
 
           {/* Extra info for Highest Win Streak */}
           {stat.label === "Highest Win Streak" && stat.streak !== undefined && (

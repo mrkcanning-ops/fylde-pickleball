@@ -87,18 +87,28 @@ const [addMatchData, setAddMatchData] = useState({
   };
 
   const recalculateStandings = async () => {
-  // 1️⃣ Get all players
-  const { data: players } = await supabase
-    .from("players")
-    .select("*");
+    if (!supabase) return;
 
-  if (!players) return;
-
-  // 2️⃣ Reset all stats to zero
-  for (const player of players) {
-    await supabase
+    // 1) Get players for current division only.
+    const { data: players } = await supabase
       .from("players")
-      .update({
+      .select("*")
+      .eq("division", division);
+
+    if (!players || players.length === 0) return;
+
+    // 2) Get matches in deterministic chronological order for this division.
+    const { data: matches } = await supabase
+      .from("previous_matches")
+      .select("id,players,scores,created_at")
+      .eq("division", division)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
+
+    // 3) Initialize in-memory stats.
+    const playerStats = {};
+    players.forEach((p) => {
+      playerStats[p.id] = {
         wins: 0,
         losses: 0,
         draws: 0,
@@ -106,62 +116,12 @@ const [addMatchData, setAddMatchData] = useState({
         points_for: 0,
         points_against: 0,
         win_streak: 0,
-      })
-      .eq("id", player.id);
-  }
-
-  // 3️⃣ Get all matches in chronological order
-  const { data: matches } = await supabase
-    .from("previous_matches")
-    .select("*")
-    .order("created_at", { ascending: true });
-
-  if (!matches) return;
-
-  // 4️⃣ Initialize player stats tracking
-  const playerStats = {};
-  players.forEach((p) => {
-    playerStats[p.id] = {
-      wins: 0,
-      losses: 0,
-      draws: 0,
-      points: 0,
-      points_for: 0,
-      points_against: 0,
-      win_streak: 0,
-    };
-  });
-
-  // 5️⃣ Process matches in chronological order
-  for (const match of matches) {
-    console.log("Processing match:", match.players);
-    
-    const playersArray = Array.isArray(match.players)
-  ? match.players
-  : JSON.parse(match.players || "[]");
-
-const team1 = playersArray.slice(0, 2);
-const team2 = playersArray.slice(2, 4);
-    const score1 = Number(match.scores.team1);
-    const score2 = Number(match.scores.team2);
-
-    let result1, result2;
-
-    if (score1 > score2) {
-      result1 = "win";
-      result2 = "loss";
-    } else if (score1 < score2) {
-      result1 = "loss";
-      result2 = "win";
-    } else {
-      result1 = "draw";
-      result2 = "draw";
-    }
+      };
+    });
 
     const updatePlayerStats = (playerId, result, scored, conceded) => {
-      if (!playerStats[playerId]) return;
-
       const stats = playerStats[playerId];
+      if (!stats) return;
 
       if (result === "win") {
         stats.wins += 1;
@@ -180,28 +140,47 @@ const team2 = playersArray.slice(2, 4);
       stats.points_against += conceded;
     };
 
-    for (const p of team1) {
-      updatePlayerStats(p, result1, score1, score2);
+    // 4) Rebuild stats from matches oldest -> newest.
+    for (const match of matches || []) {
+      const playersArray = Array.isArray(match.players)
+        ? match.players
+        : JSON.parse(match.players || "[]");
+
+      if (!Array.isArray(playersArray) || playersArray.length < 4) continue;
+
+      const score1 = Number(match?.scores?.team1);
+      const score2 = Number(match?.scores?.team2);
+      if (Number.isNaN(score1) || Number.isNaN(score2)) continue;
+
+      const team1 = playersArray.slice(0, 2);
+      const team2 = playersArray.slice(2, 4);
+
+      let result1 = "draw";
+      let result2 = "draw";
+      if (score1 > score2) {
+        result1 = "win";
+        result2 = "loss";
+      } else if (score1 < score2) {
+        result1 = "loss";
+        result2 = "win";
+      }
+
+      team1.forEach((p) => updatePlayerStats(p, result1, score1, score2));
+      team2.forEach((p) => updatePlayerStats(p, result2, score2, score1));
     }
 
-    for (const p of team2) {
-      updatePlayerStats(p, result2, score2, score1);
-    }
-  }
+    // 5) Persist recalculated stats for each player.
+    for (const playerId in playerStats) {
+      const { error } = await supabase
+        .from("players")
+        .update(playerStats[playerId])
+        .eq("id", playerId);
 
-  // 6️⃣ Save all stats back to database
-  for (const playerId in playerStats) {
-    const stats = playerStats[playerId];
-    const { error } = await supabase
-      .from("players")
-      .update(stats)
-      .eq("id", playerId);
-
-    if (error) {
-      console.error(`Failed to update player ${playerId}:`, error);
+      if (error) {
+        console.error(`Failed to update player ${playerId}:`, error);
+      }
     }
-  }
-};
+  };
 
 const updatePlayerStatsFromMatches = async () => {
   const { data: matches } = await supabase
@@ -545,19 +524,24 @@ const fetchPreviousMatches = async () => {
   const stats = [
     {
   label: "Division",
-  value: division, // keep a value so HeaderStats shows the stat
+  value: division,
   highlight: "blue",
   onClick: toggleDivision,
   renderCustom: () => (
-    <div className="flex flex-col items-center cursor-pointer select-none">
-      {/* Current division */}
-      <span className="text-yellow-400 font-extrabold text-lg">
-        Division {division}
-      </span>
-      {/* Other division */}
-      <span className="text-gray-400 text-sm mt-1">
-        Division {division === 1 ? 2 : 1}
-      </span>
+    <div className="flex flex-col items-center gap-2 select-none">
+      <div className="flex items-center gap-2">
+        <span className="text-xs uppercase tracking-wide text-gray-400">Active</span>
+        <span className="bg-yellow-500 text-gray-950 font-extrabold text-sm px-3 py-1 rounded-full">
+          Division {division}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs uppercase tracking-wide text-gray-500">Other</span>
+        <span className="bg-gray-700 text-gray-300 font-semibold text-sm px-3 py-1 rounded-full border border-gray-500">
+          Division {division === 1 ? 2 : 1}
+        </span>
+      </div>
+      <span className="text-[11px] text-gray-400">Tap to switch</span>
     </div>
   ),
 },
@@ -1703,28 +1687,31 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       }}
                       className="mb-3 rounded-xl border border-gray-600 bg-gray-800 overflow-hidden"
                     >
-                      <summary className="list-none cursor-pointer select-none px-4 py-4 flex items-center justify-between gap-4 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-                        <div className="flex items-center gap-3 min-w-0">
+                      <summary className="list-none cursor-pointer select-none px-4 py-4 flex flex-col items-start gap-3 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
                           <span className="text-xl">📅</span>
                           <div className="min-w-0">
                             <div className="font-extrabold text-yellow-300 truncate">{date}</div>
                           </div>
+                        </div>
+
+                        <div className="w-full flex items-center justify-between sm:w-auto sm:justify-end sm:gap-2">
                           <span className="shrink-0 text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">
                             {totalMatches} match{totalMatches === 1 ? "" : "es"}
                           </span>
-                        </div>
 
-                        <div className="shrink-0 flex items-center gap-2">
-                          <span className="text-sm font-bold text-white bg-yellow-600 px-3 py-1 rounded-lg">
-                            {isOpen ? "Hide" : "Show"}
-                          </span>
-                          <span
-                            className={`text-yellow-300 text-2xl transition-transform duration-200 ${
-                              isOpen ? "rotate-180" : "rotate-0"
-                            }`}
-                            aria-hidden="true"
-                          >
-                            ▾
+                          <span className="shrink-0 flex items-center gap-2">
+                            <span className="text-sm font-bold text-white bg-yellow-600 px-3 py-1 rounded-lg">
+                              {isOpen ? "Hide" : "Show"}
+                            </span>
+                            <span
+                              className={`text-yellow-300 text-2xl transition-transform duration-200 ${
+                                isOpen ? "rotate-180" : "rotate-0"
+                              }`}
+                              aria-hidden="true"
+                            >
+                              ▾
+                            </span>
                           </span>
                         </div>
                       </summary>
