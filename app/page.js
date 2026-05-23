@@ -609,6 +609,45 @@ const fetchPreviousMatches = async () => {
     return player ? player.name : 'Unknown Player';
   };
 
+  // Compute last N results for a player from `previousMatches` (most recent first)
+  const computePlayerForm = (playerId, limit = 10) => {
+    const results = [];
+    if (!previousMatches || previousMatches.length === 0) return results;
+
+    for (const match of previousMatches) {
+      if (results.length >= limit) break;
+
+      const playersArray = Array.isArray(match.players)
+        ? match.players
+        : (() => {
+            try {
+              return JSON.parse(match.players || "[]");
+            } catch (e) {
+              return [];
+            }
+          })();
+
+      if (!playersArray || !playersArray.includes(playerId)) continue;
+
+      const team1 = playersArray.slice(0, 2).map(String);
+      const team2 = playersArray.slice(2, 4).map(String);
+
+      const score1 = Number(match.scores?.team1 ?? match.scores?.[0] ?? 0);
+      const score2 = Number(match.scores?.team2 ?? match.scores?.[1] ?? 0);
+
+      let res = "D";
+      if (score1 > score2) {
+        res = team1.includes(String(playerId)) ? "W" : "L";
+      } else if (score1 < score2) {
+        res = team1.includes(String(playerId)) ? "L" : "W";
+      }
+
+      results.push(res);
+    }
+
+    return results;
+  };
+
   const savePendingFixtures = async (nextCourt1Matches, nextCourt2Matches, nextCourt1Scores, nextCourt2Scores, nextRoundMatches) => {
     if (!supabase) {
       console.warn("Supabase client is not configured. Skipping live fixture sync.");
@@ -1407,6 +1446,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
     const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
     const diff = (p.points_for || 0) - (p.points_against || 0);
 
+    const form = computePlayerForm(p.id);
+
     return (
       <div
         key={p.id}
@@ -1441,6 +1482,18 @@ const activePlayerCount = players.filter((p) => p.active).length;
           <span className="text-gray-700">{diff}</span>
           <span className="text-cyan-600 font-black text-base">{winPct}</span>
         </div>
+        {/* Recent Form (last 10) */}
+        <div className="mt-3 flex items-center gap-1 justify-center">
+          {(form.length ? form : []).concat(Array( Math.max(0, 10 - (form.length||0)) ).fill(null)).slice(0,10).map((r, idx) => (
+            <span
+              key={idx}
+              className={`w-3 h-3 rounded-sm inline-block border ${
+                r === 'W' ? 'bg-green-500 border-green-600' : r === 'L' ? 'bg-red-500 border-red-600' : r === 'D' ? 'bg-yellow-400 border-yellow-500' : 'bg-gray-200 border-gray-300'
+              }`}
+              title={r === 'W' ? 'Win' : r === 'L' ? 'Loss' : r === 'D' ? 'Draw' : 'No match'}
+            />
+          ))}
+        </div>
       </div>
     );
   })}
@@ -1458,6 +1511,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
           <th className="p-2 text-yellow-500">D</th>
           <th className="p-2 text-center text-gray-700">Diff</th>
           <th className="p-2 text-center text-cyan-600 font-black">Win %</th>
+          <th className="p-2 text-center">Change</th>
+          <th className="p-2">Form</th>
           <th className="p-2 text-right">Points</th>
         </tr>
       </thead>
@@ -1493,6 +1548,47 @@ const activePlayerCount = players.filter((p) => p.active).length;
               <td className="p-2 text-yellow-500 text-center">{p.draws}</td>
               <td className="p-2 text-center text-gray-700">{diff}</td>
               <td className="p-2 text-center text-cyan-600 font-black text-base">{winPct}</td>
+              <td className="p-2 text-center">
+                {(() => {
+                  const change = p.positionChange || 0;
+                  if (change > 0) {
+                    return (
+                      <span className="text-green-600 font-semibold flex items-center justify-center gap-1">
+                        <span aria-hidden>▲</span>
+                        <span className="text-sm">{change}</span>
+                      </span>
+                    );
+                  }
+                  if (change < 0) {
+                    return (
+                      <span className="text-red-600 font-semibold flex items-center justify-center gap-1">
+                        <span aria-hidden>▼</span>
+                        <span className="text-sm">{Math.abs(change)}</span>
+                      </span>
+                    );
+                  }
+                  return <span className="text-gray-400">—</span>;
+                })()}
+              </td>
+
+              <td className="p-2">
+                <div className="flex gap-1 justify-start">
+                  {(() => {
+                    const form = computePlayerForm(p.id);
+                    const padded = (form.length ? form : []).concat(Array(Math.max(0,10 - (form.length||0))).fill(null)).slice(0,10);
+                    return padded.map((r, idx) => (
+                      <span
+                        key={idx}
+                        className={`w-3 h-3 rounded-sm inline-block border ${
+                          r === 'W' ? 'bg-green-500 border-green-600' : r === 'L' ? 'bg-red-500 border-red-600' : r === 'D' ? 'bg-yellow-400 border-yellow-500' : 'bg-gray-200 border-gray-300'
+                        }`}
+                        title={r === 'W' ? 'Win' : r === 'L' ? 'Loss' : r === 'D' ? 'Draw' : 'No match'}
+                      />
+                    ));
+                  })()}
+                </div>
+              </td>
+
               <td className="p-2 text-right font-semibold">{p.points}</td>
             </tr>
           );
