@@ -1469,6 +1469,27 @@ const activePlayerCount = players.filter((p) => p.active).length;
             {i === 1 && "🥈"}
             {i === 2 && "🥉"}
             #{i + 1} {p.name}
+            {/* Position change badge (mobile) */}
+            {(() => {
+              const change = p.positionChange || 0;
+              if (change > 0) {
+                return (
+                  <span className="ml-2 text-green-600 font-semibold flex items-center gap-1 text-sm">
+                    <span aria-hidden>▲</span>
+                    <span>{change}</span>
+                  </span>
+                );
+              }
+              if (change < 0) {
+                return (
+                  <span className="ml-2 text-red-600 font-semibold flex items-center gap-1 text-sm">
+                    <span aria-hidden>▼</span>
+                    <span>{Math.abs(change)}</span>
+                  </span>
+                );
+              }
+              return null;
+            })()}
           </span>
           <span className="font-bold text-gray-900">{p.points} pts</span>
         </div>
