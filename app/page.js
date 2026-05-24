@@ -1508,38 +1508,10 @@ const activePlayerCount = players.filter((p) => p.active).length;
           <span className="text-gray-700">{diff}</span>
           <span className="text-cyan-600 font-black text-base">{winPct}</span>
         </div>
-        {/* Bottom row: left = position change (under GP), right = recent form (right aligned) */}
-        <div className="grid grid-cols-2 items-center mt-3 gap-2">
-          <div className="flex flex-col items-start gap-1">
-            <span className="text-xs uppercase tracking-widest text-gray-400">Change</span>
-            {(() => {
-              const change = p.positionChange ?? 0;
-              const baseClass = "inline-flex items-center justify-center min-w-[42px] h-6 px-2 rounded text-sm font-semibold";
-              if (change > 0) {
-                return (
-                  <span className={baseClass + " text-green-700 bg-green-50 border border-green-100"}>
-                    <span aria-hidden className="mr-1">▲</span>
-                    <span>{change}</span>
-                  </span>
-                );
-              }
-              if (change < 0) {
-                return (
-                  <span className={baseClass + " text-red-700 bg-red-50 border border-red-100"}>
-                    <span aria-hidden className="mr-1">▼</span>
-                    <span>{Math.abs(change)}</span>
-                  </span>
-                );
-              }
-              return (
-                <span className={baseClass + " text-gray-500 bg-gray-100 border border-gray-200"}>
-                  —
-                </span>
-              );
-            })()}
-          </div>
-
-          <div className="flex justify-end">
+        {/* Bottom row: right = recent form */}
+        <div className="flex justify-end mt-3">
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-xs uppercase tracking-widest text-gray-400">Form</span>
             <div className="flex items-center gap-1 overflow-x-auto px-1">
               {(form.length ? form : []).concat(Array(Math.max(0, 10 - (form.length || 0))).fill(null)).slice(0, 10).map((r, idx) => (
                 <span
