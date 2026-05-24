@@ -1472,23 +1472,29 @@ const activePlayerCount = players.filter((p) => p.active).length;
             {/* Position change badge (mobile) */}
             {(() => {
               const change = p.positionChange || 0;
+              const baseClass = "ml-2 inline-flex items-center justify-center min-w-[36px] h-5 px-1 rounded text-sm font-semibold";
               if (change > 0) {
                 return (
-                  <span className="ml-2 text-green-600 font-semibold flex items-center gap-1 text-sm">
-                    <span aria-hidden>▲</span>
+                  <span className={baseClass + " text-green-700 bg-green-50 border border-green-100"}>
+                    <span aria-hidden className="mr-1">▲</span>
                     <span>{change}</span>
                   </span>
                 );
               }
               if (change < 0) {
                 return (
-                  <span className="ml-2 text-red-600 font-semibold flex items-center gap-1 text-sm">
-                    <span aria-hidden>▼</span>
+                  <span className={baseClass + " text-red-700 bg-red-50 border border-red-100"}>
+                    <span aria-hidden className="mr-1">▼</span>
                     <span>{Math.abs(change)}</span>
                   </span>
                 );
               }
-              return null;
+
+              return (
+                <span className={baseClass + " text-gray-500 bg-gray-100 border border-gray-200"}>
+                  —
+                </span>
+              );
             })()}
           </span>
           <span className="font-bold text-gray-900">{p.points} pts</span>
