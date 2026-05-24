@@ -1509,17 +1509,51 @@ const activePlayerCount = players.filter((p) => p.active).length;
           <span className="text-gray-700">{diff}</span>
           <span className="text-cyan-600 font-black text-base">{winPct}</span>
         </div>
-        {/* Recent Form (last 10) */}
-        <div className="mt-3 flex items-center gap-1 justify-center">
-          {(form.length ? form : []).concat(Array( Math.max(0, 10 - (form.length||0)) ).fill(null)).slice(0,10).map((r, idx) => (
-            <span
-              key={idx}
-              className={`w-3 h-3 rounded-sm inline-block border ${
-                r === 'W' ? 'bg-green-500 border-green-600' : r === 'L' ? 'bg-red-500 border-red-600' : r === 'D' ? 'bg-yellow-400 border-yellow-500' : 'bg-gray-200 border-gray-300'
-              }`}
-              title={r === 'W' ? 'Win' : r === 'L' ? 'Loss' : r === 'D' ? 'Draw' : 'No match'}
-            />
-          ))}
+        {/* Bottom row: left = position change (under GP), right = recent form (right aligned) */}
+        <div className="grid grid-cols-6 items-center mt-3">
+          <div className="col-span-1 flex justify-center">
+            {(() => {
+              const change = p.positionChange || 0;
+              const baseClass = "inline-flex items-center justify-center min-w-[36px] h-5 px-1 rounded text-sm font-semibold";
+              if (change > 0) {
+                return (
+                  <span className={baseClass + " text-green-700 bg-green-50 border border-green-100"}>
+                    <span aria-hidden className="mr-1">▲</span>
+                    <span>{change}</span>
+                  </span>
+                );
+              }
+              if (change < 0) {
+                return (
+                  <span className={baseClass + " text-red-700 bg-red-50 border border-red-100"}>
+                    <span aria-hidden className="mr-1">▼</span>
+                    <span>{Math.abs(change)}</span>
+                  </span>
+                );
+              }
+              return (
+                <span className={baseClass + " text-gray-500 bg-gray-100 border border-gray-200"}>
+                  —
+                </span>
+              );
+            })()}
+          </div>
+
+          <div className="col-span-4" />
+
+          <div className="col-span-1 flex justify-center">
+            <div className="flex items-center gap-1 overflow-x-auto px-1">
+              {(form.length ? form : []).concat(Array(Math.max(0, 10 - (form.length || 0))).fill(null)).slice(0, 10).map((r, idx) => (
+                <span
+                  key={idx}
+                  className={`w-3 h-3 rounded-sm inline-block border ${
+                    r === 'W' ? 'bg-green-500 border-green-600' : r === 'L' ? 'bg-red-500 border-red-600' : r === 'D' ? 'bg-yellow-400 border-yellow-500' : 'bg-gray-200 border-gray-300'
+                  }`}
+                  title={r === 'W' ? 'Win' : r === 'L' ? 'Loss' : r === 'D' ? 'Draw' : 'No match'}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
