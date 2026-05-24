@@ -113,12 +113,11 @@ const [editMatchData, setEditMatchData] = useState({
     if (!players || players.length === 0) return;
 
     // 2) Get matches in deterministic chronological order for this division.
-    const { data: matches } = await supabase
-      .from("previous_matches")
-      .select("id,players,scores,created_at")
-      .eq("division", division)
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true });
+      const { data: matches } = await supabase
+        .from("previous_matches")
+        .select("id,players,scores,created_at")
+        .eq("division", division)
+        .order("created_at", { ascending: true });
 
     // 3) Initialize in-memory stats.
     const playerStats = {};
