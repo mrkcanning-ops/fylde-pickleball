@@ -611,6 +611,7 @@ const fetchPreviousMatches = async () => {
   // Compute last N results for a player from `previousMatches` (most recent first)
   const computePlayerForm = (playerId, limit = 10) => {
     const results = [];
+    console.log('computePlayerForm called for', playerId, 'previousMatches length', (previousMatches || []).length);
     if (!previousMatches || previousMatches.length === 0) return results;
 
     for (const match of previousMatches) {
@@ -644,6 +645,7 @@ const fetchPreviousMatches = async () => {
       results.push(res);
     }
 
+    console.log('computePlayerForm results (pre-reverse):', results.slice());
     return results.reverse();
   };
 
