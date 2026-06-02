@@ -1800,8 +1800,9 @@ const activePlayerCount = players.filter((p) => p.active).length;
       ) : (
         <div className="overflow-x-auto">
           <svg
-            viewBox="0 0 900 420"
-            className="w-full min-w-[900px]"
+            viewBox={`0 0 ${Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180)} 420`}
+            className="w-full"
+            style={{ minWidth: `${Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180)}px` }}
             role="img"
             aria-label="Ranking bump chart"
           >
@@ -1811,17 +1812,21 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 <stop offset="100%" stopColor="#38bdf8" />
               </linearGradient>
             </defs>
-            <rect x="0" y="0" width="900" height="420" fill="#111827" rx="24" />
-            {bumpChartData.weeks.map((week, index) => {
-              const x = 100 + index * 120;
-              return (
-                <g key={week}>
-                  <line x1={x} y1={60} x2={x} y2={380} stroke="#334155" strokeDasharray="4 4" />
-                  <text x={x} y={395} fill="#cbd5e1" fontSize="12" textAnchor="middle">{index + 1}</text>
-                </g>
-              );
-            })}
-            <text x={100 + ((bumpChartData.weeks.length - 1) * 120) / 2} y={415} fill="#cbd5e1" fontSize="14" fontWeight="700" textAnchor="middle">
+            <rect x="0" y="0" width={Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180)} height="420" fill="#111827" rx="24" />
+            {(() => {
+              const stepX = bumpChartData.weeks.length > 1 ? Math.min(120, Math.max(70, 640 / (bumpChartData.weeks.length - 1))) : 0;
+              const chartWidth = Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * stepX + 180);
+              return bumpChartData.weeks.map((week, index) => {
+                const x = 100 + index * stepX;
+                return (
+                  <g key={week}>
+                    <line x1={x} y1={60} x2={x} y2={380} stroke="#334155" strokeDasharray="4 4" />
+                    <text x={x} y={395} fill="#cbd5e1" fontSize="12" textAnchor="middle">{index + 1}</text>
+                  </g>
+                );
+              });
+            })()}
+            <text x={Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180) / 2} y={415} fill="#cbd5e1" fontSize="14" fontWeight="700" textAnchor="middle">
               Week
             </text>
             {(() => {
@@ -1832,7 +1837,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
               const height = 320;
               const top = 60;
               const left = 100;
-              const stepX = bumpChartData.weeks.length > 1 ? 120 : 0;
+              const stepX = bumpChartData.weeks.length > 1 ? Math.min(120, Math.max(70, 640 / (bumpChartData.weeks.length - 1))) : 0;
+              const chartWidth = Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * stepX + 180);
               const yForRank = (rank) => top + ((rank - 1) / (maxRank - 1 || 1)) * height;
               return bumpChartData.lines.map((line) => {
                 const pathD = line.positions
@@ -1850,11 +1856,15 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       const x = left + pos.weekIndex * stepX;
                       const y = yForRank(pos.rank);
                       const isLast = index === line.positions.length - 1;
+                      const labelX = Math.min(x + 10, chartWidth - 60);
                       return (
                         <g key={`${line.id}-${index}`}>
-                          <circle cx={x} cy={y} r="5" fill={line.color} />
+                          <circle cx={x} cy={y} r="10" fill={line.color} />
+                          <text x={x} y={y + 4} fill="#111827" fontSize="9" fontWeight="700" textAnchor="middle">
+                            {pos.rank}
+                          </text>
                           {isLast && (
-                            <text x={x + 10} y={y + 4} fill="#f8fafc" fontSize="11" fontWeight="700" textAnchor="start">
+                            <text x={labelX} y={y + 4} fill="#f8fafc" fontSize="11" fontWeight="700" textAnchor="start">
                               {line.name}
                             </text>
                           )}
