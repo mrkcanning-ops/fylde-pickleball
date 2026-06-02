@@ -1483,31 +1483,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
         <div className="grid grid-cols-6 text-sm font-semibold gap-1 text-center">
           <div className="flex flex-col items-center gap-1">
             <span className="text-gray-700">{gp}</span>
-            {(() => {
-              const change = p.positionChange || 0;
-              const baseClass = "inline-flex items-center justify-center min-w-[36px] h-5 px-1 rounded text-sm font-semibold";
-              if (change > 0) {
-                return (
-                  <span className={baseClass + " text-green-700 bg-green-50 border border-green-100"}>
-                    <span aria-hidden className="mr-1">▲</span>
-                    <span>{change}</span>
-                  </span>
-                );
-              }
-              if (change < 0) {
-                return (
-                  <span className={baseClass + " text-red-700 bg-red-50 border border-red-100"}>
-                    <span aria-hidden className="mr-1">▼</span>
-                    <span>{Math.abs(change)}</span>
-                  </span>
-                );
-              }
-              return (
-                <span className={baseClass + " text-gray-500 bg-gray-100 border border-gray-200"}>
-                  —
-                </span>
-              );
-            })()}
           </div>
           <span className="text-green-600">{p.wins}</span>
           <span className="text-red-400">{p.losses}</span>
@@ -1515,8 +1490,39 @@ const activePlayerCount = players.filter((p) => p.active).length;
           <span className="text-gray-700">{diff}</span>
           <span className="text-cyan-600 font-black text-base">{winPct}</span>
         </div>
-        {/* Bottom row: right = recent form */}
-        <div className="flex justify-end mt-3">
+        {/* Bottom row: change + recent form */}
+        <div className="flex justify-end mt-3 items-end gap-4">
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-xs uppercase tracking-widest text-gray-400">Change</span>
+            <div>
+              {(() => {
+                const change = p.positionChange || 0;
+                const baseClass = "inline-flex items-center justify-center min-w-[36px] h-5 px-1 rounded text-sm font-semibold";
+                if (change > 0) {
+                  return (
+                    <span className={baseClass + " text-green-700 bg-green-50 border border-green-100"}>
+                      <span aria-hidden className="mr-1">▲</span>
+                      <span>{change}</span>
+                    </span>
+                  );
+                }
+                if (change < 0) {
+                  return (
+                    <span className={baseClass + " text-red-700 bg-red-50 border border-red-100"}>
+                      <span aria-hidden className="mr-1">▼</span>
+                      <span>{Math.abs(change)}</span>
+                    </span>
+                  );
+                }
+                return (
+                  <span className={baseClass + " text-gray-500 bg-gray-100 border border-gray-200"}>
+                    —
+                  </span>
+                );
+              })()}
+            </div>
+          </div>
+
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs uppercase tracking-widest text-gray-400">Form</span>
             <div className="flex items-center gap-1 overflow-x-auto px-1">
