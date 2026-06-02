@@ -615,10 +615,9 @@ const fetchPreviousMatches = async () => {
       weeks[weekIndex].push([entry.dateKey, entry.courtMatches]);
     });
 
-    // Convert to ordered array
-    return Object.keys(weeks)
-      .map((k) => ({ week: Number(k), groups: weeks[k] }))
-      .sort((a, b) => a.week - b.week);
+    // Convert to ordered array and remap week numbers to be sequential
+    const sortedWeekKeys = Object.keys(weeks).map(Number).sort((a, b) => a - b);
+    return sortedWeekKeys.map((origKey, idx) => ({ week: idx + 1, groups: weeks[origKey] }));
   };
 
   const matchesByWeek = groupMatchesByWeek();
