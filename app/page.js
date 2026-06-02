@@ -573,8 +573,8 @@ const fetchPreviousMatches = async () => {
 
   const tabs = ["Standings", "Matches", "Players", "Previous Matches"];
 
-  // Group matches into weekly buckets and by date within each week
-  const groupMatchesByWeek = () => {
+  // Group matches by saved date group and assign sequential Week numbers
+  const groupDateGroupsSequentialWeeks = () => {
     const groupedByDate = {};
 
     previousMatches.forEach((match) => {
@@ -601,26 +601,11 @@ const fetchPreviousMatches = async () => {
       .map(([dateKey, val]) => ({ dateKey, dateObj: new Date(val.dateObj), courtMatches: { court1: val.court1, court2: val.court2 } }))
       .sort((a, b) => a.dateObj - b.dateObj);
 
-    if (dateEntries.length === 0) return [];
-
-    const firstDate = new Date(dateEntries[0].dateObj);
-    const startOfFirst = new Date(firstDate.getFullYear(), firstDate.getMonth(), firstDate.getDate());
-
-    // Group date entries into week buckets (7-day periods starting from the first date)
-    const weeks = {};
-    dateEntries.forEach((entry) => {
-      const diffDays = Math.floor((entry.dateObj - startOfFirst) / (1000 * 60 * 60 * 24));
-      const weekIndex = Math.floor(diffDays / 7) + 1; // Week 1 = earliest
-      if (!weeks[weekIndex]) weeks[weekIndex] = [];
-      weeks[weekIndex].push([entry.dateKey, entry.courtMatches]);
-    });
-
-    // Convert to ordered array and remap week numbers to be sequential
-    const sortedWeekKeys = Object.keys(weeks).map(Number).sort((a, b) => a - b);
-    return sortedWeekKeys.map((origKey, idx) => ({ week: idx + 1, groups: weeks[origKey] }));
+    // Assign sequential week numbers per saved date group (Week 1..N)
+    return dateEntries.map((entry, idx) => ({ week: idx + 1, dateKey: entry.dateKey, courtMatches: entry.courtMatches }));
   };
 
-  const matchesByWeek = groupMatchesByWeek();
+  const matchesByWeek = groupDateGroupsSequentialWeeks();
 
   // Helper function to convert player IDs to names
   const getPlayerNameFromId = (playerId) => {
@@ -1944,170 +1929,168 @@ const activePlayerCount = players.filter((p) => p.active).length;
               <p className="text-gray-300 italic text-sm">No previous matches yet...</p>
             ) : (
               <div className="space-y-8">
-                {matchesByWeek.map(({ week, groups }) => (
-                  <div key={`week-${week}`} className="space-y-4">
-                    <div className="text-sm font-bold text-yellow-400">Week {week}</div>
-                    {groups.map(([date, courtMatches]) => {
-                      const isOpen = openDates.includes(date);
-                      const totalMatches =
-                        (courtMatches.court1?.length || 0) + (courtMatches.court2?.length || 0);
+                {matchesByWeek.map(({ week, dateKey, courtMatches }) => {
+                  const date = dateKey;
+                  const isOpen = openDates.includes(date);
+                  const totalMatches = (courtMatches.court1?.length || 0) + (courtMatches.court2?.length || 0);
 
-                      return (
-                        <details
-                          key={date}
-                          open={isOpen}
-                          onToggle={(e) => {
-                            if (e.currentTarget.open) {
-                              setOpenDates((prev) => (prev.includes(date) ? prev : [...prev, date]));
-                            } else {
-                              setOpenDates((prev) => prev.filter((d) => d !== date));
-                            }
-                          }}
-                          className="mb-3 rounded-xl border border-gray-600 bg-gray-800 overflow-hidden"
-                        >
-                          <summary className="list-none cursor-pointer select-none px-4 py-4 flex flex-col items-start gap-3 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-                              <span className="text-xl">📅</span>
-                              <div className="min-w-0">
-                                <div className="font-extrabold text-yellow-300 truncate">{date}</div>
+                  return (
+                    <div key={`week-${week}`} className="space-y-4">
+                      <div className="text-sm font-bold text-yellow-400">Week {week}</div>
+                      <details
+                        key={date}
+                        open={isOpen}
+                        onToggle={(e) => {
+                          if (e.currentTarget.open) {
+                            setOpenDates((prev) => (prev.includes(date) ? prev : [...prev, date]));
+                          } else {
+                            setOpenDates((prev) => prev.filter((d) => d !== date));
+                          }
+                        }}
+                        className="mb-3 rounded-xl border border-gray-600 bg-gray-800 overflow-hidden"
+                      >
+                        <summary className="list-none cursor-pointer select-none px-4 py-4 flex flex-col items-start gap-3 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+                            <span className="text-xl">📅</span>
+                            <div className="min-w-0">
+                              <div className="font-extrabold text-yellow-300 truncate">{date}</div>
+                            </div>
+                          </div>
+
+                          <div className="w-full flex items-center justify-between sm:w-auto sm:justify-end sm:gap-2">
+                            <span className="shrink-0 text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">
+                              {totalMatches} match{totalMatches === 1 ? "" : "es"}
+                            </span>
+
+                            <span className="shrink-0 flex items-center gap-2">
+                              <span className="text-sm font-bold text-white bg-yellow-600 px-3 py-1 rounded-lg">
+                                {isOpen ? "Hide" : "Show"}
+                              </span>
+                              <span
+                                className={`text-yellow-300 text-2xl transition-transform duration-200 ${
+                                  isOpen ? "rotate-180" : "rotate-0"
+                                }`}
+                                aria-hidden="true"
+                              >
+                                ▾
+                              </span>
+                            </span>
+                          </div>
+                        </summary>
+
+                        <div className="p-4 bg-gray-700">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Court 1 */}
+                            <div>
+                              <div className="bg-blue-100 text-blue-900 font-bold px-3 py-2 rounded mb-2 text-center">
+                                🎾 Court 1
                               </div>
-                            </div>
-
-                            <div className="w-full flex items-center justify-between sm:w-auto sm:justify-end sm:gap-2">
-                              <span className="shrink-0 text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">
-                                {totalMatches} match{totalMatches === 1 ? "" : "es"}
-                              </span>
-
-                              <span className="shrink-0 flex items-center gap-2">
-                                <span className="text-sm font-bold text-white bg-yellow-600 px-3 py-1 rounded-lg">
-                                  {isOpen ? "Hide" : "Show"}
-                                </span>
-                                <span
-                                  className={`text-yellow-300 text-2xl transition-transform duration-200 ${
-                                    isOpen ? "rotate-180" : "rotate-0"
-                                  }`}
-                                  aria-hidden="true"
-                                >
-                                  ▾
-                                </span>
-                              </span>
-                            </div>
-                          </summary>
-
-                          <div className="p-4 bg-gray-700">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {/* Court 1 */}
-                              <div>
-                                <div className="bg-blue-100 text-blue-900 font-bold px-3 py-2 rounded mb-2 text-center">
-                                  🎾 Court 1
-                                </div>
-                                <div className="space-y-2">
-                                  {courtMatches.court1.length === 0 ? (
-                                    <p className="text-gray-300 text-sm italic">No matches</p>
-                                  ) : (
-                                    courtMatches.court1.map((m, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300"
-                                      >
-                                        <div className="flex items-center justify-between mb-1">
-                                          <div className="text-blue-600 font-semibold">Division {m.division}</div>
-                                          <button
-                                            onClick={() => requestEditMatch(m)}
-                                            className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 rounded border border-gray-500"
-                                          >
-                                            Edit
-                                          </button>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-                                          <div className="text-center">
-                                            <div className="font-bold text-base text-gray-700">
-                                              {m.players
-                                                .slice(0, 2)
-                                                .map((id) => getPlayerNameFromId(id))
-                                                .join(" & ")}
-                                            </div>
-                                            <div className="text-3xl font-extrabold text-yellow-600 mt-1">
-                                              {m.scores?.team1 ?? "—"}
-                                            </div>
+                              <div className="space-y-2">
+                                {courtMatches.court1.length === 0 ? (
+                                  <p className="text-gray-300 text-sm italic">No matches</p>
+                                ) : (
+                                  courtMatches.court1.map((m, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300"
+                                    >
+                                      <div className="flex items-center justify-between mb-1">
+                                        <div className="text-blue-600 font-semibold">Division {m.division}</div>
+                                        <button
+                                          onClick={() => requestEditMatch(m)}
+                                          className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 rounded border border-gray-500"
+                                        >
+                                          Edit
+                                        </button>
+                                      </div>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                                        <div className="text-center">
+                                          <div className="font-bold text-base text-gray-700">
+                                            {m.players
+                                              .slice(0, 2)
+                                              .map((id) => getPlayerNameFromId(id))
+                                              .join(" & ")}
                                           </div>
-                                          <div className="text-center">
-                                            <div className="font-bold text-base text-gray-700">
-                                              {m.players
-                                                .slice(2, 4)
-                                                .map((id) => getPlayerNameFromId(id))
-                                                .join(" & ")}
-                                            </div>
-                                            <div className="text-3xl font-extrabold text-yellow-600 mt-1">
-                                              {m.scores?.team2 ?? "—"}
-                                            </div>
+                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                                            {m.scores?.team1 ?? "—"}
+                                          </div>
+                                        </div>
+                                        <div className="text-center">
+                                          <div className="font-bold text-base text-gray-700">
+                                            {m.players
+                                              .slice(2, 4)
+                                              .map((id) => getPlayerNameFromId(id))
+                                              .join(" & ")}
+                                          </div>
+                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                                            {m.scores?.team2 ?? "—"}
                                           </div>
                                         </div>
                                       </div>
-                                    ))
-                                  )}
-                                </div>
+                                    </div>
+                                  ))
+                                )}
                               </div>
+                            </div>
 
-                              {/* Court 2 */}
-                              <div>
-                                <div className="bg-purple-100 text-purple-900 font-bold px-3 py-2 rounded mb-2 text-center">
-                                  🎾 Court 2
-                                </div>
-                                <div className="space-y-2">
-                                  {courtMatches.court2.length === 0 ? (
-                                    <p className="text-gray-300 text-sm italic">No matches</p>
-                                  ) : (
-                                    courtMatches.court2.map((m, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300"
-                                      >
-                                        <div className="flex items-center justify-between mb-1">
-                                          <div className="text-purple-600 font-semibold">Division {m.division}</div>
-                                          <button
-                                            onClick={() => requestEditMatch(m)}
-                                            className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 rounded border border-gray-500"
-                                          >
-                                            Edit
-                                          </button>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-                                          <div className="text-center">
-                                            <div className="font-bold text-base text-gray-700">
-                                              {m.players
-                                                .slice(0, 2)
-                                                .map((id) => getPlayerNameFromId(id))
-                                                .join(" & ")}
-                                            </div>
-                                            <div className="text-3xl font-extrabold text-yellow-600 mt-1">
-                                              {m.scores?.team1 ?? "—"}
-                                            </div>
+                            {/* Court 2 */}
+                            <div>
+                              <div className="bg-purple-100 text-purple-900 font-bold px-3 py-2 rounded mb-2 text-center">
+                                🎾 Court 2
+                              </div>
+                              <div className="space-y-2">
+                                {courtMatches.court2.length === 0 ? (
+                                  <p className="text-gray-300 text-sm italic">No matches</p>
+                                ) : (
+                                  courtMatches.court2.map((m, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300"
+                                    >
+                                      <div className="flex items-center justify-between mb-1">
+                                        <div className="text-purple-600 font-semibold">Division {m.division}</div>
+                                        <button
+                                          onClick={() => requestEditMatch(m)}
+                                          className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 rounded border border-gray-500"
+                                        >
+                                          Edit
+                                        </button>
+                                      </div>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                                        <div className="text-center">
+                                          <div className="font-bold text-base text-gray-700">
+                                            {m.players
+                                              .slice(0, 2)
+                                              .map((id) => getPlayerNameFromId(id))
+                                              .join(" & ")}
                                           </div>
-                                          <div className="text-center">
-                                            <div className="font-bold text-base text-gray-700">
-                                              {m.players
-                                                .slice(2, 4)
-                                                .map((id) => getPlayerNameFromId(id))
-                                                .join(" & ")}
-                                            </div>
-                                            <div className="text-3xl font-extrabold text-yellow-600 mt-1">
-                                              {m.scores?.team2 ?? "—"}
-                                            </div>
+                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                                            {m.scores?.team1 ?? "—"}
+                                          </div>
+                                        </div>
+                                        <div className="text-center">
+                                          <div className="font-bold text-base text-gray-700">
+                                            {m.players
+                                              .slice(2, 4)
+                                              .map((id) => getPlayerNameFromId(id))
+                                              .join(" & ")}
+                                          </div>
+                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">
+                                            {m.scores?.team2 ?? "—"}
                                           </div>
                                         </div>
                                       </div>
-                                    ))
-                                  )}
-                                </div>
+                                    </div>
+                                  ))
+                                )}
                               </div>
                             </div>
                           </div>
-                        </details>
-                      );
-                    })}
-                  </div>
-                ))}
+                        </div>
+                      </details>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
