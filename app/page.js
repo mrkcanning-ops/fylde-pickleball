@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("Standings");
+  const [standingsView, setStandingsView] = useState("Leaderboard");
   const [division, setDivision] = useState(1); // 1 or 2
   const [players, setPlayers] = useState([]);
 
@@ -606,6 +607,124 @@ const fetchPreviousMatches = async () => {
   };
 
   const matchesByWeek = groupDateGroupsSequentialWeeks();
+
+  const getBumpChartData = () => {
+    if (!matchesByWeek.length || !players.length) {
+      return { weeks: [], lines: [] };
+    }
+
+    const statsById = {};
+    players.forEach((p) => {
+      statsById[p.id] = {
+        id: p.id,
+        name: p.name,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        points: 0,
+        points_for: 0,
+        points_against: 0,
+        win_streak: 0,
+      };
+    });
+
+    const history = players.reduce((acc, p) => {
+      acc[p.id] = { id: p.id, name: p.name, positions: [] };
+      return acc;
+    }, {});
+
+    const weeks = matchesByWeek.map((week) => `Week ${week.week}`);
+
+    const updateStats = (playerId, result, scored, conceded) => {
+      const stats = statsById[playerId];
+      if (!stats) return;
+      if (result === "win") {
+        stats.wins += 1;
+        stats.points += 3;
+        stats.win_streak += 1;
+      } else if (result === "loss") {
+        stats.losses += 1;
+        stats.win_streak = 0;
+      } else {
+        stats.draws += 1;
+        stats.points += 1;
+        stats.win_streak = 0;
+      }
+      stats.points_for += scored;
+      stats.points_against += conceded;
+    };
+
+    matchesByWeek.forEach((week, weekIndex) => {
+      const matches = [...(week.courtMatches.court1 || []), ...(week.courtMatches.court2 || [])];
+      matches.forEach((match) => {
+        const playersArray = Array.isArray(match.players)
+          ? match.players
+          : (() => {
+              try {
+                return JSON.parse(match.players || "[]");
+              } catch {
+                return [];
+              }
+            })();
+
+        const team1 = playersArray.slice(0, 2).map(String);
+        const team2 = playersArray.slice(2, 4).map(String);
+        const score1 = Number(match.scores?.team1 ?? match.scores?.[0] ?? 0);
+        const score2 = Number(match.scores?.team2 ?? match.scores?.[1] ?? 0);
+
+        let result1 = "draw";
+        let result2 = "draw";
+        if (score1 > score2) {
+          result1 = "win";
+          result2 = "loss";
+        } else if (score1 < score2) {
+          result1 = "loss";
+          result2 = "win";
+        }
+
+        team1.forEach((playerId) => updateStats(playerId, result1, score1, score2));
+        team2.forEach((playerId) => updateStats(playerId, result2, score2, score1));
+      });
+
+      const activePlayers = Object.values(statsById).filter((stats) => {
+        const gp = (stats.wins || 0) + (stats.losses || 0) + (stats.draws || 0);
+        return gp > 0;
+      });
+
+      if (!activePlayers.length) {
+        return;
+      }
+
+      const ranked = sortPlayersByStats(activePlayers);
+      ranked.forEach((p, index) => {
+        if (history[p.id]) {
+          history[p.id].positions.push({ weekIndex, rank: index + 1 });
+        }
+      });
+    });
+
+    const lines = Object.values(history)
+      .filter((entry) => entry.positions.length > 0)
+      .map((entry, index) => ({
+        ...entry,
+        color: [
+          "#f59e0b",
+          "#34d399",
+          "#60a5fa",
+          "#818cf8",
+          "#fb7185",
+          "#a855f7",
+          "#f97316",
+          "#22c55e",
+          "#38bdf8",
+          "#f43f5e",
+        ][index % 10],
+      }));
+
+    return { weeks, lines };
+  };
+
+  const bumpChartData = getBumpChartData();
 
   // Helper function to convert player IDs to names
   const getPlayerNameFromId = (playerId) => {
@@ -1431,11 +1550,37 @@ const activePlayerCount = players.filter((p) => p.active).length;
         {/* Standings */}
 {activeTab === "Standings" && (
   <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden">
-    <div className="px-6 py-4 border-b border-gray-200 font-bold bg-gray-50 text-yellow-500">
-      🏆 Leaderboard
+    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="font-bold text-yellow-500 text-lg sm:text-xl">🏆 Standings</div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setStandingsView("Leaderboard")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+              standingsView === "Leaderboard"
+                ? "bg-white text-gray-900 shadow"
+                : "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
+            }`}
+          >
+            Leaderboard
+          </button>
+          <button
+            onClick={() => setStandingsView("Tracker")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+              standingsView === "Tracker"
+                ? "bg-white text-gray-900 shadow"
+                : "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
+            }`}
+          >
+            Tracker
+          </button>
+        </div>
+      </div>
     </div>
 
-    {/* Mobile Cards */}
+    {standingsView === "Leaderboard" ? (
+      <>
+        {/* Mobile Cards */}
 <div className="sm:hidden p-4 space-y-2 bg-gray-50">
   {/* Header Row */}
   <div className="grid grid-cols-6 text-xs font-bold text-gray-400 text-center mb-1">
@@ -1639,6 +1784,93 @@ const activePlayerCount = players.filter((p) => p.active).length;
         })}
       </tbody>
     </table>
+  </>
+) : (
+  <div className="p-6 bg-gray-50">
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Tracker</h2>
+          <p className="text-sm text-gray-500">A bump chart showing player ranking position each week.</p>
+        </div>
+      </div>
+
+      {bumpChartData.weeks.length === 0 ? (
+        <p className="text-gray-500">No tracker data yet. Save a week of matches to build the chart.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <svg
+            viewBox="0 0 900 420"
+            className="w-full min-w-[900px]"
+            role="img"
+            aria-label="Ranking bump chart"
+          >
+            <defs>
+              <linearGradient id="chartGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#facc15" />
+                <stop offset="100%" stopColor="#38bdf8" />
+              </linearGradient>
+            </defs>
+            <rect x="0" y="0" width="900" height="420" fill="#111827" rx="24" />
+            {bumpChartData.weeks.map((week, index) => {
+              const x = 100 + index * 120;
+              return (
+                <g key={week}>
+                  <line x1={x} y1={60} x2={x} y2={380} stroke="#334155" strokeDasharray="4 4" />
+                  <text x={x} y={395} fill="#cbd5e1" fontSize="12" textAnchor="middle">{index + 1}</text>
+                </g>
+              );
+            })}
+            <text x={100 + ((bumpChartData.weeks.length - 1) * 120) / 2} y={415} fill="#cbd5e1" fontSize="14" fontWeight="700" textAnchor="middle">
+              Week
+            </text>
+            {(() => {
+              const maxRank = Math.max(
+                1,
+                ...bumpChartData.lines.flatMap((line) => line.positions.map((pos) => pos.rank))
+              );
+              const height = 320;
+              const top = 60;
+              const left = 100;
+              const stepX = bumpChartData.weeks.length > 1 ? 120 : 0;
+              const yForRank = (rank) => top + ((rank - 1) / (maxRank - 1 || 1)) * height;
+              return bumpChartData.lines.map((line) => {
+                const pathD = line.positions
+                  .map((pos, index) => {
+                    const x = left + pos.weekIndex * stepX;
+                    const y = yForRank(pos.rank);
+                    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+                  })
+                  .join(' ');
+
+                return (
+                  <g key={line.id}>
+                    <path d={pathD} fill="none" stroke={line.color} strokeWidth="2.5" />
+                    {line.positions.map((pos, index) => {
+                      const x = left + pos.weekIndex * stepX;
+                      const y = yForRank(pos.rank);
+                      const isLast = index === line.positions.length - 1;
+                      return (
+                        <g key={`${line.id}-${index}`}>
+                          <circle cx={x} cy={y} r="5" fill={line.color} />
+                          {isLast && (
+                            <text x={x + 10} y={y + 4} fill="#f8fafc" fontSize="11" fontWeight="700" textAnchor="start">
+                              {line.name}
+                            </text>
+                          )}
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              });
+            })()}
+          </svg>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
     <div className="mt-8 px-6 py-6 flex justify-center gap-4 border-t border-gray-200 bg-red-50">
       <button
