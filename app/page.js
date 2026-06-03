@@ -1558,8 +1558,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
             onClick={() => setStandingsView("Leaderboard")}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
               standingsView === "Leaderboard"
-                ? "bg-white text-gray-900 shadow"
-                : "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
+                ? "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
+                : "bg-white text-gray-900 shadow"
             }`}
           >
             Leaderboard
@@ -1568,8 +1568,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
             onClick={() => setStandingsView("Tracker")}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
               standingsView === "Tracker"
-                ? "bg-white text-gray-900 shadow"
-                : "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
+                ? "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
+                : "bg-white text-gray-900 shadow"
             }`}
           >
             Tracker
@@ -1671,7 +1671,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs uppercase tracking-widest text-gray-400">Form</span>
             <div className="flex items-center gap-1 overflow-x-auto px-1">
-              {[(form.length ? form : []).concat(Array(Math.max(0, 10 - (form.length || 0))).fill(null)).slice(0, 10)].flat().map((r, idx) => (
+              {[Array(Math.max(0, 10 - (form.length || 0))).fill(null).concat(form.length ? form : []).slice(0, 10)].flat().map((r, idx) => (
                 <span
                   key={idx}
                   className={`w-3 h-3 rounded-sm inline-block border ${
@@ -1764,7 +1764,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 <div className="flex gap-1 justify-start">
                   {(() => {
                     const form = computePlayerForm(p.id);
-                    const padded = (form.length ? form : []).concat(Array(Math.max(0,10 - (form.length||0))).fill(null)).slice(0,10);
+                    const padded = Array(Math.max(0,10 - (form.length||0))).fill(null).concat(form.length ? form : []).slice(0,10);
                     return padded.map((r, idx) => (
                       <span
                         key={idx}
