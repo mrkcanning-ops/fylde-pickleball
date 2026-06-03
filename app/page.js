@@ -1631,7 +1631,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         )}
 
         {activeTab === "Matches" && (
-          <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="mt-4 flex flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <label htmlFor="numCourts" className="text-xs text-gray-300 uppercase tracking-wide">
                 Courts
@@ -1649,7 +1649,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               </select>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-row items-center gap-2">
               {!isAdmin ? (
                 <button
                   onClick={() => setShowAdminModal(true)}
