@@ -1631,7 +1631,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         )}
 
         {activeTab === "Matches" && (
-          <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <label htmlFor="numCourts" className="text-xs text-gray-300 uppercase tracking-wide">
                 Courts
@@ -1649,28 +1649,30 @@ const activePlayerCount = players.filter((p) => p.active).length;
               </select>
             </div>
 
-            {!isAdmin ? (
-              <button
-                onClick={() => setShowAdminModal(true)}
-                disabled={hasGeneratedFixtures}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                🔒 Generate Fixtures
-              </button>
-            ) : (
-              <button
-                onClick={generateMatches}
-                disabled={hasGeneratedFixtures}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                🔄 Generate Fixtures
-              </button>
-            )}
-            {activePlayerCount >= 4 && activePlayerCount < 8 && (
-              <p className="text-xs text-gray-400 text-right w-full sm:w-auto">
-                Fewer than 8 active players: fixtures will be generated on Court 1 only.
-              </p>
-            )}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+              {!isAdmin ? (
+                <button
+                  onClick={() => setShowAdminModal(true)}
+                  disabled={hasGeneratedFixtures}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  🔒 Generate Fixtures
+                </button>
+              ) : (
+                <button
+                  onClick={generateMatches}
+                  disabled={hasGeneratedFixtures}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  🔄 Generate Fixtures
+                </button>
+              )}
+              {activePlayerCount >= 4 && activePlayerCount < 8 && (
+                <p className="text-xs text-gray-400 w-full sm:w-auto">
+                  Fewer than 8 active players: fixtures will be generated on Court 1 only.
+                </p>
+              )}
+            </div>
           </div>
         )}
       </section>
