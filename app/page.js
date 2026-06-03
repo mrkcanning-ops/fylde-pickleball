@@ -76,6 +76,10 @@ const [editMatchData, setEditMatchData] = useState({
   team2Score: "",
   court: "court1",
 });
+const [showRemovePlayerModal, setShowRemovePlayerModal] = useState(false);
+const [removePlayerPasscode, setRemovePlayerPasscode] = useState("");
+const [removePlayerPasscodeError, setRemovePlayerPasscodeError] = useState("");
+const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState(null);
 
   // Load leaderboard from localStorage if needed
   useEffect(() => {
@@ -503,6 +507,11 @@ const fetchPreviousMatches = async () => {
       .select();
 
     if (!error) setPlayers((prev) => [...prev, data[0]]);
+  };
+
+  const handleRemovePlayer = (player) => {
+    setSelectedPlayerToRemove(player);
+    setShowRemovePlayerModal(true);
   };
 
   const toggleAvailability = async (id) => {
@@ -1235,6 +1244,34 @@ const verifyAddMatchPasscode = async () => {
   setShowAddMatchModal(true);
 };
 
+const verifyRemovePlayerPasscode = async () => {
+  const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
+  if (removePlayerPasscode.trim() !== correctPasscode?.trim()) {
+    setRemovePlayerPasscodeError("Incorrect passcode");
+    return;
+  }
+  setRemovePlayerPasscodeError("");
+  setShowRemovePlayerModal(false);
+  
+  if (selectedPlayerToRemove) {
+    const { error } = await supabase
+      .from("players")
+      .delete()
+      .eq("id", selectedPlayerToRemove.id);
+    
+    if (!error) {
+      setPlayers((prev) => prev.filter((p) => p.id !== selectedPlayerToRemove.id));
+      setAllDivisionPlayers((prev) => prev.filter((p) => p.id !== selectedPlayerToRemove.id));
+      alert(`${selectedPlayerToRemove.name} has been removed ✅`);
+    } else {
+      alert("Error removing player");
+    }
+  }
+  
+  setRemovePlayerPasscode("");
+  setSelectedPlayerToRemove(null);
+};
+
 const buildSelectedPlayers = (ids) => {
   return (ids || []).map((id) => {
     const player = allDivisionPlayers.find((p) => p.id === id) || players.find((p) => p.id === id);
@@ -1506,12 +1543,21 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </div>
 
         {activeTab === "Players" && (
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex justify-end gap-2">
             <button
               onClick={handleAddPlayer}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded"
             >
               👤 Add Player
+            </button>
+            <button
+              onClick={() => {
+                const toRemove = players[0];
+                if (toRemove) handleRemovePlayer(toRemove);
+              }}
+              className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded"
+            >
+              🗑️ Remove Player
             </button>
           </div>
         )}
@@ -1522,7 +1568,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               <button
                 onClick={() => setShowAdminModal(true)}
                 disabled={hasGeneratedFixtures}
-                className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 🔒 Generate Fixtures
               </button>
@@ -1530,7 +1576,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               <button
                 onClick={generateMatches}
                 disabled={hasGeneratedFixtures}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 🔄 Generate Fixtures
               </button>
@@ -2712,6 +2758,61 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm flex-1"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Player Passcode Modal */}
+      {showRemovePlayerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
+            <h2 className="text-lg font-bold text-red-400 mb-4 text-center">
+              Remove Player
+            </h2>
+            <p className="text-gray-300 mb-2 text-center text-sm">
+              Remove <span className="font-semibold">{selectedPlayerToRemove?.name}</span>?
+            </p>
+            <p className="text-gray-400 mb-4 text-center text-xs">
+              Enter the admin passcode to confirm.
+            </p>
+
+            <input
+              type="password"
+              value={removePlayerPasscode}
+              onChange={(e) => {
+                setRemovePlayerPasscode(e.target.value);
+                setRemovePlayerPasscodeError("");
+              }}
+              placeholder="Enter passcode"
+              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-red-400"
+            />
+
+            {removePlayerPasscodeError && (
+              <p className="text-red-400 text-sm mt-2 text-center">
+                {removePlayerPasscodeError}
+              </p>
+            )}
+
+            <div className="flex justify-between mt-5">
+              <button
+                onClick={() => {
+                  setShowRemovePlayerModal(false);
+                  setRemovePlayerPasscode("");
+                  setRemovePlayerPasscodeError("");
+                  setSelectedPlayerToRemove(null);
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={verifyRemovePlayerPasscode}
+                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Remove
               </button>
             </div>
           </div>
