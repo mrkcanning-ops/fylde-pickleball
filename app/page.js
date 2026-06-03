@@ -9,18 +9,25 @@ export default function HomePage() {
   const [standingsView, setStandingsView] = useState("Leaderboard");
   const [division, setDivision] = useState(1); // 1 or 2
   const [players, setPlayers] = useState([]);
+  const [numCourts, setNumCourts] = useState(2);
 
   const [court1Matches, setCourt1Matches] = useState([]);
   const [court2Matches, setCourt2Matches] = useState([]);
+  const [court3Matches, setCourt3Matches] = useState([]);
+  const [court4Matches, setCourt4Matches] = useState([]);
 
   const [court1Scores, setCourt1Scores] = useState([]);
   const [court2Scores, setCourt2Scores] = useState([]);
+  const [court3Scores, setCourt3Scores] = useState([]);
+  const [court4Scores, setCourt4Scores] = useState([]);
 
   const [court1Round, setCourt1Round] = useState(0);
-const [court2Round, setCourt2Round] = useState(0);
+  const [court2Round, setCourt2Round] = useState(0);
+  const [court3Round, setCourt3Round] = useState(0);
+  const [court4Round, setCourt4Round] = useState(0);
 
   const [currentRound, setCurrentRound] = useState(0);
-const [roundMatches, setRoundMatches] = useState([]); // flattened all matches by round
+  const [roundMatches, setRoundMatches] = useState([]); // flattened all matches by round
 
 const [isAdmin, setIsAdmin] = useState(false);
 const [showAdminModal, setShowAdminModal] = useState(false);
@@ -80,6 +87,7 @@ const [showRemovePlayerModal, setShowRemovePlayerModal] = useState(false);
 const [removePlayerPasscode, setRemovePlayerPasscode] = useState("");
 const [removePlayerPasscodeError, setRemovePlayerPasscodeError] = useState("");
 const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState(null);
+const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
 
   // Load leaderboard from localStorage if needed
   useEffect(() => {
@@ -509,8 +517,13 @@ const fetchPreviousMatches = async () => {
     if (!error) setPlayers((prev) => [...prev, data[0]]);
   };
 
-  const handleRemovePlayer = (player) => {
+  const handleRemovePlayer = () => {
+    setShowSelectPlayerModal(true);
+  };
+
+  const handleSelectPlayerForRemoval = (player) => {
     setSelectedPlayerToRemove(player);
+    setShowSelectPlayerModal(false);
     setShowRemovePlayerModal(true);
   };
 
@@ -1112,23 +1125,45 @@ const fetchPreviousMatches = async () => {
     return { matches, byes };
   };
 
-  const court1 = buildCourt(court1Group);
-  const court2 = buildCourt(court2Group);
+  const buildGroups = (players, courts) => {
+    const groups = Array.from({ length: courts }, () => []);
+    const baseSize = Math.floor(players.length / courts);
+    const extra = players.length % courts;
+    let index = 0;
 
-  console.log("Court1 matches preview:", court1.matches);
-console.log("Court2 matches preview:", court2.matches);
+    for (let i = 0; i < courts; i += 1) {
+      const size = baseSize + (i < extra ? 1 : 0);
+      groups[i] = players.slice(index, index + size);
+      index += size;
+    }
 
-  setCourt1Matches(court1.matches);
-  setCourt1Scores(court1.matches.map(() => ({ team1: "", team2: "" })));
+    return groups;
+  };
+
+  const courtGroups = buildGroups(available, numCourts);
+  const courts = courtGroups.map(buildCourt);
+
+  setCourt1Matches(courts[0]?.matches || []);
+  setCourt1Scores((courts[0]?.matches || []).map(() => ({ team1: "", team2: "" })));
   setCourt1Round(0);
 
-  setCourt2Matches(court2.matches);
-  setCourt2Scores(court2.matches.map(() => ({ team1: "", team2: "" })));
+  setCourt2Matches(courts[1]?.matches || []);
+  setCourt2Scores((courts[1]?.matches || []).map(() => ({ team1: "", team2: "" })));
   setCourt2Round(0);
 
+  setCourt3Matches(courts[2]?.matches || []);
+  setCourt3Scores((courts[2]?.matches || []).map(() => ({ team1: "", team2: "" })));
+  setCourt3Round(0);
+
+  setCourt4Matches(courts[3]?.matches || []);
+  setCourt4Scores((courts[3]?.matches || []).map(() => ({ team1: "", team2: "" })));
+  setCourt4Round(0);
+
   setRoundMatches({
-    court1: court1.byes,
-    court2: court2.byes,
+    court1: courts[0]?.byes || [],
+    court2: courts[1]?.byes || [],
+    court3: courts[2]?.byes || [],
+    court4: courts[3]?.byes || [],
   });
 
   await savePendingFixtures(
@@ -1146,11 +1181,21 @@ console.log("Court2 matches preview:", court2.matches);
     if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
     newScores[idx][team] = value; // keep as string
     setCourt1Scores(newScores);
-  } else {
+  } else if (court === "court2") {
     const newScores = [...court2Scores];
     if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
-    newScores[idx][team] = value; // keep as string
+    newScores[idx][team] = value;
     setCourt2Scores(newScores);
+  } else if (court === "court3") {
+    const newScores = [...court3Scores];
+    if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
+    newScores[idx][team] = value;
+    setCourt3Scores(newScores);
+  } else if (court === "court4") {
+    const newScores = [...court4Scores];
+    if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
+    newScores[idx][team] = value;
+    setCourt4Scores(newScores);
   }
 };
 
@@ -1169,8 +1214,10 @@ const saveMatches = async () => {
 
     const court1Data = formatMatches(court1Matches, court1Scores, "court1");
     const court2Data = formatMatches(court2Matches, court2Scores, "court2");
+    const court3Data = formatMatches(court3Matches, court3Scores, "court3");
+    const court4Data = formatMatches(court4Matches, court4Scores, "court4");
 
-    const allMatches = [...court1Data, ...court2Data];
+    const allMatches = [...court1Data, ...court2Data, ...court3Data, ...court4Data];
 
     // DEBUG: confirm IDs are being saved
     console.log("Saving matches with player IDs:", allMatches);
@@ -1190,11 +1237,17 @@ const saveMatches = async () => {
       // Reset current matches for next round
       setCourt1Matches([]);
       setCourt2Matches([]);
+      setCourt3Matches([]);
+      setCourt4Matches([]);
       setCourt1Scores([]);
       setCourt2Scores([]);
+      setCourt3Scores([]);
+      setCourt4Scores([]);
       setRoundMatches([]);
       setCourt1Round(0);
       setCourt2Round(0);
+      setCourt3Round(0);
+      setCourt4Round(0);
 
       await clearPendingFixtures();
 
@@ -1211,7 +1264,11 @@ const saveMatches = async () => {
 };
 
 const clearGeneratedMatches = async () => {
-  const hasGeneratedMatches = court1Matches.length > 0 || court2Matches.length > 0;
+  const hasGeneratedMatches =
+    court1Matches.length > 0 ||
+    court2Matches.length > 0 ||
+    court3Matches.length > 0 ||
+    court4Matches.length > 0;
   if (!hasGeneratedMatches) {
     alert("No generated matches to clear.");
     return;
@@ -1222,11 +1279,17 @@ const clearGeneratedMatches = async () => {
 
   setCourt1Matches([]);
   setCourt2Matches([]);
+  setCourt3Matches([]);
+  setCourt4Matches([]);
   setCourt1Scores([]);
   setCourt2Scores([]);
+  setCourt3Scores([]);
+  setCourt4Scores([]);
   setRoundMatches([]);
   setCourt1Round(0);
   setCourt2Round(0);
+  setCourt3Round(0);
+  setCourt4Round(0);
 
   await clearPendingFixtures();
   alert("Generated matches cleared ✅");
@@ -1483,7 +1546,11 @@ const handleRecalculateStandings = async () => {
 
 useEffect(() => {
   const syncPendingScores = async () => {
-    const hasPendingFixtures = court1Matches.length > 0 || court2Matches.length > 0;
+    const hasPendingFixtures =
+      court1Matches.length > 0 ||
+      court2Matches.length > 0 ||
+      court3Matches.length > 0 ||
+      court4Matches.length > 0;
     if (!hasPendingFixtures) return;
 
     await savePendingFixtures(
@@ -1496,9 +1563,13 @@ useEffect(() => {
   };
 
   syncPendingScores();
-}, [court1Scores, court2Scores, court1Matches, court2Matches, roundMatches, division]);
+}, [court1Scores, court2Scores, court3Scores, court4Scores, court1Matches, court2Matches, court3Matches, court4Matches, roundMatches, division]);
 
-const hasGeneratedFixtures = court1Matches.length > 0 || court2Matches.length > 0;
+const hasGeneratedFixtures =
+  court1Matches.length > 0 ||
+  court2Matches.length > 0 ||
+  court3Matches.length > 0 ||
+  court4Matches.length > 0;
 const activePlayerCount = players.filter((p) => p.active).length;
 
   return (
@@ -1551,10 +1622,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               👤 Add Player
             </button>
             <button
-              onClick={() => {
-                const toRemove = players[0];
-                if (toRemove) handleRemovePlayer(toRemove);
-              }}
+              onClick={handleRemovePlayer}
               className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded"
             >
               🗑️ Remove Player
@@ -1563,7 +1631,24 @@ const activePlayerCount = players.filter((p) => p.active).length;
         )}
 
         {activeTab === "Matches" && (
-          <div className="mt-4 flex flex-col items-end gap-2">
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+            <div className="flex items-center gap-2">
+              <label htmlFor="numCourts" className="text-xs text-gray-300 uppercase tracking-wide">
+                Courts
+              </label>
+              <select
+                id="numCourts"
+                value={numCourts}
+                onChange={(e) => setNumCourts(Number(e.target.value))}
+                className="bg-gray-800 text-white border border-gray-600 rounded px-4 py-2 outline-none focus:border-yellow-400"
+              >
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+                <option value={3}>3</option>
+                <option value={4}>4</option>
+              </select>
+            </div>
+
             {!isAdmin ? (
               <button
                 onClick={() => setShowAdminModal(true)}
@@ -1582,7 +1667,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               </button>
             )}
             {activePlayerCount >= 4 && activePlayerCount < 8 && (
-              <p className="text-xs text-gray-400 text-right">
+              <p className="text-xs text-gray-400 text-right w-full sm:w-auto">
                 Fewer than 8 active players: fixtures will be generated on Court 1 only.
               </p>
             )}
@@ -2191,6 +2276,144 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 </div>
 
+{numCourts >= 3 && (
+  <div className="bg-gray-700 rounded shadow p-4">
+    <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">Court 3</h2>
+    {court3Matches[court3Round] ? (
+      <>
+        <div className="mb-2 bg-white rounded-2xl shadow-xl p-6 text-gray-900">
+          <div className="text-center text-xs uppercase tracking-widest text-yellow-500 font-bold mb-4">
+            Round {court3Round + 1} of {court3Matches.length}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+            <div className="text-center">
+              <div className="font-bold text-lg mb-3 text-gray-700">
+                {court3Matches[court3Round][0].map((p) => p.name).join(" & ")}
+              </div>
+              <input
+                type="number"
+                min={0}
+                value={court3Scores[court3Round]?.team1 ?? ""}
+                onChange={(e) =>
+                  updateScore(court3Round, "team1", e.target.value, "court3")
+                }
+                className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
+              />
+            </div>
+            <div className="text-center">
+              <div className="font-bold text-lg mb-3 text-gray-700">
+                {court3Matches[court3Round][1].map((p) => p.name).join(" & ")}
+              </div>
+              <input
+                type="number"
+                min={0}
+                value={court3Scores[court3Round]?.team2 ?? ""}
+                onChange={(e) =>
+                  updateScore(court3Round, "team2", e.target.value, "court3")
+                }
+                className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
+              />
+            </div>
+          </div>
+          <div className="text-center text-gray-400 font-bold mt-6 text-lg tracking-widest">VS</div>
+          {roundMatches?.court3?.[court3Round]?.length > 0 && (
+            <div className="mt-2 text-gray-400 text-sm italic text-center">
+              Resting: {roundMatches.court3[court3Round].map((p) => p.name).join(", ")}
+            </div>
+          )}
+        </div>
+        <div className="flex justify-between mt-4">
+          <button
+            onClick={() => setCourt3Round((prev) => Math.max(prev - 1, 0))}
+            disabled={court3Round === 0}
+            className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded disabled:opacity-50"
+          >
+            ◀ Previous Round
+          </button>
+          <button
+            onClick={() => setCourt3Round((prev) => Math.min(prev + 1, court3Matches.length - 1))}
+            disabled={court3Round >= court3Matches.length - 1}
+            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
+          >
+            Next Round ▶
+          </button>
+        </div>
+      </>
+    ) : (
+      <p className="text-gray-300 italic">No matches scheduled for this court.</p>
+    )}
+  </div>
+)}
+
+{numCourts >= 4 && (
+  <div className="bg-gray-700 rounded shadow p-4">
+    <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">Court 4</h2>
+    {court4Matches[court4Round] ? (
+      <>
+        <div className="mb-2 bg-white rounded-2xl shadow-xl p-6 text-gray-900">
+          <div className="text-center text-xs uppercase tracking-widest text-yellow-500 font-bold mb-4">
+            Round {court4Round + 1} of {court4Matches.length}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+            <div className="text-center">
+              <div className="font-bold text-lg mb-3 text-gray-700">
+                {court4Matches[court4Round][0].map((p) => p.name).join(" & ")}
+              </div>
+              <input
+                type="number"
+                min={0}
+                value={court4Scores[court4Round]?.team1 ?? ""}
+                onChange={(e) =>
+                  updateScore(court4Round, "team1", e.target.value, "court4")
+                }
+                className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
+              />
+            </div>
+            <div className="text-center">
+              <div className="font-bold text-lg mb-3 text-gray-700">
+                {court4Matches[court4Round][1].map((p) => p.name).join(" & ")}
+              </div>
+              <input
+                type="number"
+                min={0}
+                value={court4Scores[court4Round]?.team2 ?? ""}
+                onChange={(e) =>
+                  updateScore(court4Round, "team2", e.target.value, "court4")
+                }
+                className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
+              />
+            </div>
+          </div>
+          <div className="text-center text-gray-400 font-bold mt-6 text-lg tracking-widest">VS</div>
+          {roundMatches?.court4?.[court4Round]?.length > 0 && (
+            <div className="mt-2 text-gray-400 text-sm italic text-center">
+              Resting: {roundMatches.court4[court4Round].map((p) => p.name).join(", ")}
+            </div>
+          )}
+        </div>
+        <div className="flex justify-between mt-4">
+          <button
+            onClick={() => setCourt4Round((prev) => Math.max(prev - 1, 0))}
+            disabled={court4Round === 0}
+            className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded disabled:opacity-50"
+          >
+            ◀ Previous Round
+          </button>
+          <button
+            onClick={() => setCourt4Round((prev) => Math.min(prev + 1, court4Matches.length - 1))}
+            disabled={court4Round >= court4Matches.length - 1}
+            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
+          >
+            Next Round ▶
+          </button>
+        </div>
+      </>
+    ) : (
+      <p className="text-gray-300 italic">No matches scheduled for this court.</p>
+    )}
+  </div>
+)}
+
     {/* Save All Matches */}
     <div className="col-span-1 md:col-span-2 flex justify-center gap-3 mt-4">
       <button onClick={saveMatches} className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded">
@@ -2760,6 +2983,38 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 Save Changes
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Select Player Modal */}
+      {showSelectPlayerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-96 border border-gray-700 max-h-96 overflow-auto">
+            <h2 className="text-lg font-bold text-red-400 mb-4 text-center">
+              Select Player to Remove
+            </h2>
+            <div className="space-y-2 mb-5">
+              {players.length === 0 ? (
+                <p className="text-gray-400 text-center text-sm">No players to remove</p>
+              ) : (
+                players.map((player) => (
+                  <button
+                    key={player.id}
+                    onClick={() => handleSelectPlayerForRemoval(player)}
+                    className="w-full text-left px-4 py-3 rounded bg-gray-800 hover:bg-gray-700 text-white transition border border-gray-600"
+                  >
+                    {player.name}
+                  </button>
+                ))
+              )}
+            </div>
+            <button
+              onClick={() => setShowSelectPlayerModal(false)}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
