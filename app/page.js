@@ -99,12 +99,42 @@ const [removePlayerPasscodeError, setRemovePlayerPasscodeError] = useState("");
 const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState(null);
 const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
 
-  // Load leaderboard from localStorage if needed
+  // Load leaderboard and persisted divisions from localStorage on startup
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("leaderboard")) || [];
-    setLeaderboard(saved);
-    fetchAllDivisionPlayers();
+    try {
+      const saved = JSON.parse(localStorage.getItem("leaderboard")) || [];
+      setLeaderboard(saved);
+
+      const savedDivisions = JSON.parse(localStorage.getItem("divisions"));
+      const savedDivisionId = Number(localStorage.getItem("division"));
+
+      if (Array.isArray(savedDivisions) && savedDivisions.length > 0) {
+        setDivisions(savedDivisions);
+        const initialDivision = savedDivisionId || savedDivisions[0].id;
+        setDivision(initialDivision);
+        fetchAllDivisionPlayers(initialDivision);
+      } else {
+        // fallback: use defaults and fetch for current `division`
+        fetchAllDivisionPlayers();
+      }
+    } catch (e) {
+      // If localStorage has invalid JSON, fallback gracefully
+      console.warn("Error reading saved divisions/leaderboard:", e);
+      const saved = JSON.parse(localStorage.getItem("leaderboard")) || [];
+      setLeaderboard(saved);
+      fetchAllDivisionPlayers();
+    }
   }, []);
+
+  // Persist divisions and selected division to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("divisions", JSON.stringify(divisions));
+      localStorage.setItem("division", String(division));
+    } catch (e) {
+      console.warn("Failed to persist divisions:", e);
+    }
+  }, [divisions, division]);
 
   const resetLeaderboard = () => {
     const code = prompt("Enter admin passcode to reset leaderboard:");
