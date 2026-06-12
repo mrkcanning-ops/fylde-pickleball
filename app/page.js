@@ -15,6 +15,9 @@ export default function HomePage() {
   ]);
   const [showAddDivisionModal, setShowAddDivisionModal] = useState(false);
   const [newDivisionName, setNewDivisionName] = useState("");
+  const [showAddDivisionPasscodeModal, setShowAddDivisionPasscodeModal] = useState(false);
+  const [addDivisionPasscode, setAddDivisionPasscode] = useState("");
+  const [addDivisionPasscodeError, setAddDivisionPasscodeError] = useState("");
   const [players, setPlayers] = useState([]);
   const [numCourts, setNumCourts] = useState(2);
 
@@ -588,7 +591,7 @@ const fetchPreviousMatches = async () => {
           })()}
         </span>
         <button
-          onClick={() => setShowAddDivisionModal(true)}
+          onClick={() => setShowAddDivisionPasscodeModal(true)}
           className="text-xs bg-gray-800 text-white px-2 py-1 rounded border border-gray-600 hover:bg-gray-700"
         >
           ➕ Add
@@ -1327,6 +1330,18 @@ const verifyAddMatchPasscode = async () => {
   setShowAddMatchPasscodeModal(false);
   await fetchAllDivisionPlayers();
   setShowAddMatchModal(true);
+};
+
+const verifyAddDivisionPasscode = async () => {
+  const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
+  if (addDivisionPasscode.trim() !== correctPasscode?.trim()) {
+    setAddDivisionPasscodeError("Incorrect passcode");
+    return;
+  }
+  setAddDivisionPasscodeError("");
+  setShowAddDivisionPasscodeModal(false);
+  setAddDivisionPasscode("");
+  setShowAddDivisionModal(true);
 };
 
 const verifyRemovePlayerPasscode = async () => {
@@ -3057,6 +3072,50 @@ const activePlayerCount = players.filter((p) => p.active).length;
       )}
 
       {/* Add Division Modal */}
+      {/* Add Division Passcode Modal */}
+      {showAddDivisionPasscodeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
+            <h2 className="text-lg font-bold text-blue-400 mb-4 text-center">Add Division</h2>
+            <p className="text-gray-300 mb-4 text-center text-sm">Enter the admin passcode to add a division.</p>
+
+            <input
+              type="password"
+              value={addDivisionPasscode}
+              onChange={(e) => {
+                setAddDivisionPasscode(e.target.value);
+                setAddDivisionPasscodeError("");
+              }}
+              placeholder="Enter passcode"
+              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
+            />
+
+            {addDivisionPasscodeError && (
+              <p className="text-red-400 text-sm mt-2 text-center">{addDivisionPasscodeError}</p>
+            )}
+
+            <div className="flex justify-between mt-5">
+              <button
+                onClick={() => {
+                  setShowAddDivisionPasscodeModal(false);
+                  setAddDivisionPasscode("");
+                  setAddDivisionPasscodeError("");
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={verifyAddDivisionPasscode}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showAddDivisionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
           <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
