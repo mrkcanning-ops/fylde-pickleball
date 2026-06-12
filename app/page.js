@@ -23,6 +23,7 @@ export default function HomePage() {
   const [removeDivisionPasscodeError, setRemoveDivisionPasscodeError] = useState("");
   const [showSelectDivisionModal, setShowSelectDivisionModal] = useState(false);
   const [selectedDivisionToRemove, setSelectedDivisionToRemove] = useState(null);
+  const [showConfirmRemoveDivisionModal, setShowConfirmRemoveDivisionModal] = useState(false);
   const [players, setPlayers] = useState([]);
   const [numCourts, setNumCourts] = useState(2);
 
@@ -3327,10 +3328,39 @@ const activePlayerCount = players.filter((p) => p.active).length;
               </button>
 
               <button
-                onClick={handleConfirmRemoveDivision}
+                onClick={() => setShowConfirmRemoveDivisionModal(true)}
                 className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Deletion Modal */}
+      {showConfirmRemoveDivisionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-60">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-96 border border-gray-700">
+            <h2 className="text-lg font-bold text-red-400 mb-4 text-center">Confirm Deletion</h2>
+            <p className="text-gray-300 mb-4 text-center">Are you sure you want to permanently delete the selected division and all its players and matches? This action cannot be undone.</p>
+
+            <div className="flex justify-between mt-5">
+              <button
+                onClick={() => setShowConfirmRemoveDivisionModal(false)}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowConfirmRemoveDivisionModal(false);
+                  handleConfirmRemoveDivision();
+                }}
+                className="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Confirm
               </button>
             </div>
           </div>
