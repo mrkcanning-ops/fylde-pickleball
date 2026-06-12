@@ -7,7 +7,14 @@ import { supabase } from "../lib/supabase";
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("Standings");
   const [standingsView, setStandingsView] = useState("Leaderboard");
-  const [division, setDivision] = useState(1); // 1 or 2
+  const [division, setDivision] = useState(1); // numeric id of current division
+  // division list with display names; new divisions can be added at runtime
+  const [divisions, setDivisions] = useState([
+    { id: 1, name: "Division 1" },
+    { id: 2, name: "Division 2" },
+  ]);
+  const [showAddDivisionModal, setShowAddDivisionModal] = useState(false);
+  const [newDivisionName, setNewDivisionName] = useState("");
   const [players, setPlayers] = useState([]);
   const [numCourts, setNumCourts] = useState(2);
 
@@ -488,7 +495,10 @@ const fetchPreviousMatches = async () => {
   };
 
   const toggleDivision = () => {
-    const newDivision = division === 1 ? 2 : 1;
+    // Cycle through available divisions defined in `divisions`
+    const idx = divisions.findIndex((d) => d.id === division);
+    const nextIdx = (idx + 1) % divisions.length;
+    const newDivision = divisions[nextIdx].id;
     setDivision(newDivision);
     fetchAllDivisionPlayers(newDivision);
   };
@@ -567,11 +577,23 @@ const fetchPreviousMatches = async () => {
   renderCustom: () => (
     <div className="flex flex-col items-center gap-2 select-none">
       <span className="bg-yellow-500 text-gray-950 font-extrabold text-2xl px-5 py-2 rounded-full leading-none">
-        Division {division}
+        {divisions.find((d) => d.id === division)?.name || `Division ${division}`}
       </span>
-      <span className="bg-gray-700 text-gray-300 font-semibold text-xs px-3 py-1 rounded-full border border-gray-500">
-        Division {division === 1 ? 2 : 1}
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="bg-gray-700 text-gray-300 font-semibold text-xs px-3 py-1 rounded-full border border-gray-500">
+          {(() => {
+            const idx = divisions.findIndex((d) => d.id === division);
+            const next = divisions[(idx + 1) % divisions.length];
+            return next ? next.name : "—";
+          })()}
+        </span>
+        <button
+          onClick={() => setShowAddDivisionModal(true)}
+          className="text-xs bg-gray-800 text-white px-2 py-1 rounded border border-gray-600 hover:bg-gray-700"
+        >
+          ➕ Add
+        </button>
+      </div>
     </div>
   ),
 },
@@ -1333,6 +1355,19 @@ const verifyRemovePlayerPasscode = async () => {
   
   setRemovePlayerPasscode("");
   setSelectedPlayerToRemove(null);
+};
+
+const addDivision = (name) => {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return;
+  const maxId = divisions.length ? Math.max(...divisions.map((d) => d.id)) : 0;
+  const newId = maxId + 1;
+  const newDiv = { id: newId, name: trimmed };
+  setDivisions((prev) => [...prev, newDiv]);
+  setDivision(newId);
+  fetchAllDivisionPlayers(newId);
+  setShowAddDivisionModal(false);
+  setNewDivisionName("");
 };
 
 const buildSelectedPlayers = (ids) => {
@@ -3017,6 +3052,43 @@ const activePlayerCount = players.filter((p) => p.active).length;
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add Division Modal */}
+      {showAddDivisionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
+            <h2 className="text-lg font-bold text-blue-400 mb-4 text-center">Add Division</h2>
+            <p className="text-gray-300 mb-4 text-center text-sm">Enter a name for the new division.</p>
+
+            <input
+              type="text"
+              value={newDivisionName}
+              onChange={(e) => setNewDivisionName(e.target.value)}
+              placeholder="Division name"
+              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
+            />
+
+            <div className="flex justify-between mt-5">
+              <button
+                onClick={() => {
+                  setShowAddDivisionModal(false);
+                  setNewDivisionName("");
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => addDivision(newDivisionName)}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Add
+              </button>
+            </div>
           </div>
         </div>
       )}
