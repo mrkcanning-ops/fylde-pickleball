@@ -3328,7 +3328,10 @@ const activePlayerCount = players.filter((p) => p.active).length;
               </button>
 
               <button
-                onClick={() => setShowConfirmRemoveDivisionModal(true)}
+                onClick={() => {
+                  setShowSelectDivisionModal(false);
+                  setShowConfirmRemoveDivisionModal(true);
+                }}
                 className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
               >
                 Delete
@@ -3340,14 +3343,17 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
       {/* Confirm Deletion Modal */}
       {showConfirmRemoveDivisionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-60">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
           <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-96 border border-gray-700">
             <h2 className="text-lg font-bold text-red-400 mb-4 text-center">Confirm Deletion</h2>
             <p className="text-gray-300 mb-4 text-center">Are you sure you want to permanently delete the selected division and all its players and matches? This action cannot be undone.</p>
 
             <div className="flex justify-between mt-5">
               <button
-                onClick={() => setShowConfirmRemoveDivisionModal(false)}
+                onClick={() => {
+                  setShowConfirmRemoveDivisionModal(false);
+                  setShowSelectDivisionModal(true);
+                }}
                 className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
               >
                 Cancel
