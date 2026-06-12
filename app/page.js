@@ -1399,28 +1399,44 @@ const verifyRemoveDivisionPasscode = async () => {
 };
 
 const handleConfirmRemoveDivision = () => {
-  if (!selectedDivisionToRemove) return;
-  if (divisions.length <= 1) {
-    alert("Cannot remove the last division.");
-    setShowSelectDivisionModal(false);
-    setSelectedDivisionToRemove(null);
-    return;
-  }
+  (async () => {
+    if (!selectedDivisionToRemove) return;
+    if (divisions.length <= 1) {
+      alert("Cannot remove the last division.");
+      setShowSelectDivisionModal(false);
+      setSelectedDivisionToRemove(null);
+      return;
+    }
 
-  const idToRemove = selectedDivisionToRemove;
-  const nextDivisions = divisions.filter((d) => d.id !== idToRemove);
-  setDivisions(nextDivisions);
+    const idToRemove = selectedDivisionToRemove;
 
-  // If current division was removed, switch to the first remaining division
-  if (division === idToRemove) {
-    const first = nextDivisions[0];
-    setDivision(first ? first.id : 1);
-    if (first) fetchAllDivisionPlayers(first.id);
-  }
+    try {
+      // Call server-side RPC to delete division and related rows
+      const { data, error } = await supabase.rpc("delete_division_and_children", { old_id: idToRemove });
+      if (error) {
+        console.error("Failed to delete division server-side:", error);
+        alert("Failed to remove division on server. Check console.");
+        return;
+      }
 
-  setShowSelectDivisionModal(false);
-  setSelectedDivisionToRemove(null);
-  alert("Division removed ✅");
+      // Update local UI state after successful server deletion
+      const nextDivisions = divisions.filter((d) => d.id !== idToRemove);
+      setDivisions(nextDivisions);
+
+      if (division === idToRemove) {
+        const first = nextDivisions[0];
+        setDivision(first ? first.id : 1);
+        if (first) fetchAllDivisionPlayers(first.id);
+      }
+
+      setShowSelectDivisionModal(false);
+      setSelectedDivisionToRemove(null);
+      alert("Division removed ✅");
+    } catch (err) {
+      console.error("Unexpected error removing division:", err);
+      alert("Error removing division. See console.");
+    }
+  })();
 };
 
 const verifyRemovePlayerPasscode = async () => {
