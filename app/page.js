@@ -18,6 +18,11 @@ export default function HomePage() {
   const [showAddDivisionPasscodeModal, setShowAddDivisionPasscodeModal] = useState(false);
   const [addDivisionPasscode, setAddDivisionPasscode] = useState("");
   const [addDivisionPasscodeError, setAddDivisionPasscodeError] = useState("");
+  const [showRemoveDivisionPasscodeModal, setShowRemoveDivisionPasscodeModal] = useState(false);
+  const [removeDivisionPasscode, setRemoveDivisionPasscode] = useState("");
+  const [removeDivisionPasscodeError, setRemoveDivisionPasscodeError] = useState("");
+  const [showSelectDivisionModal, setShowSelectDivisionModal] = useState(false);
+  const [selectedDivisionToRemove, setSelectedDivisionToRemove] = useState(null);
   const [players, setPlayers] = useState([]);
   const [numCourts, setNumCourts] = useState(2);
 
@@ -625,6 +630,12 @@ const fetchPreviousMatches = async () => {
           className="text-xs bg-gray-800 text-white px-2 py-1 rounded border border-gray-600 hover:bg-gray-700"
         >
           ➕ Add
+        </button>
+        <button
+          onClick={() => setShowRemoveDivisionPasscodeModal(true)}
+          className="text-xs bg-red-600 text-white px-2 py-1 rounded border border-red-700 hover:bg-red-700"
+        >
+          🗑 Remove
         </button>
       </div>
     </div>
@@ -1372,6 +1383,44 @@ const verifyAddDivisionPasscode = async () => {
   setShowAddDivisionPasscodeModal(false);
   setAddDivisionPasscode("");
   setShowAddDivisionModal(true);
+};
+
+const verifyRemoveDivisionPasscode = async () => {
+  const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
+  if (removeDivisionPasscode.trim() !== correctPasscode?.trim()) {
+    setRemoveDivisionPasscodeError("Incorrect passcode");
+    return;
+  }
+  setRemoveDivisionPasscodeError("");
+  setShowRemoveDivisionPasscodeModal(false);
+  setRemoveDivisionPasscode("");
+  // Open selection modal to choose which division to remove
+  setShowSelectDivisionModal(true);
+};
+
+const handleConfirmRemoveDivision = () => {
+  if (!selectedDivisionToRemove) return;
+  if (divisions.length <= 1) {
+    alert("Cannot remove the last division.");
+    setShowSelectDivisionModal(false);
+    setSelectedDivisionToRemove(null);
+    return;
+  }
+
+  const idToRemove = selectedDivisionToRemove;
+  const nextDivisions = divisions.filter((d) => d.id !== idToRemove);
+  setDivisions(nextDivisions);
+
+  // If current division was removed, switch to the first remaining division
+  if (division === idToRemove) {
+    const first = nextDivisions[0];
+    setDivision(first ? first.id : 1);
+    if (first) fetchAllDivisionPlayers(first.id);
+  }
+
+  setShowSelectDivisionModal(false);
+  setSelectedDivisionToRemove(null);
+  alert("Division removed ✅");
 };
 
 const verifyRemovePlayerPasscode = async () => {
@@ -3176,6 +3225,95 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm"
               >
                 Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Remove Division Passcode Modal */}
+      {showRemoveDivisionPasscodeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
+            <h2 className="text-lg font-bold text-red-400 mb-4 text-center">Remove Division</h2>
+            <p className="text-gray-300 mb-4 text-center text-sm">Enter the admin passcode to remove a division.</p>
+
+            <input
+              type="password"
+              value={removeDivisionPasscode}
+              onChange={(e) => {
+                setRemoveDivisionPasscode(e.target.value);
+                setRemoveDivisionPasscodeError("");
+              }}
+              placeholder="Enter passcode"
+              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-red-400"
+            />
+
+            {removeDivisionPasscodeError && (
+              <p className="text-red-400 text-sm mt-2 text-center">{removeDivisionPasscodeError}</p>
+            )}
+
+            <div className="flex justify-between mt-5">
+              <button
+                onClick={() => {
+                  setShowRemoveDivisionPasscodeModal(false);
+                  setRemoveDivisionPasscode("");
+                  setRemoveDivisionPasscodeError("");
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={verifyRemoveDivisionPasscode}
+                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Select Division To Remove Modal */}
+      {showSelectDivisionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-96 border border-gray-700">
+            <h2 className="text-lg font-bold text-red-400 mb-4 text-center">Select Division to Remove</h2>
+            <p className="text-gray-300 mb-4 text-center text-sm">Choose which division to delete. This will remove the division from the local UI.</p>
+
+            <div className="mb-4 max-h-48 overflow-auto">
+              {divisions.map((d) => (
+                <label key={d.id} className="flex items-center gap-2 mb-2">
+                  <input
+                    type="radio"
+                    name="removeDivision"
+                    value={d.id}
+                    checked={selectedDivisionToRemove === d.id}
+                    onChange={() => setSelectedDivisionToRemove(d.id)}
+                    className="accent-red-500"
+                  />
+                  <span className="text-gray-200">{d.name}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex justify-between mt-5">
+              <button
+                onClick={() => {
+                  setShowSelectDivisionModal(false);
+                  setSelectedDivisionToRemove(null);
+                }}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleConfirmRemoveDivision}
+                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
+              >
+                Delete
               </button>
             </div>
           </div>
