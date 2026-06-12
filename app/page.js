@@ -1415,7 +1415,8 @@ const handleConfirmRemoveDivision = () => {
       const { data, error } = await supabase.rpc("delete_division_and_children", { old_id: idToRemove });
       if (error) {
         console.error("Failed to delete division server-side:", error);
-        alert("Failed to remove division on server. Check console.");
+        const msg = error.message || JSON.stringify(error);
+        alert(`Failed to remove division on server: ${msg}`);
         return;
       }
 
