@@ -55,6 +55,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
 
   const [leaderboard, setLeaderboard] = useState([]);
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
+  const [hydrated, setHydrated] = useState(false);
 
   const toggleDate = (date) => {
     setOpenDates((prev) =>
@@ -125,12 +126,15 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
         // fallback: use defaults and fetch for current `division`
         fetchAllDivisionPlayers();
       }
+      // mark hydration complete so UI renders consistently
+      setHydrated(true);
     } catch (e) {
       // If localStorage has invalid JSON, fallback gracefully
       console.warn("Error reading saved divisions/leaderboard:", e);
       const saved = JSON.parse(localStorage.getItem("leaderboard")) || [];
       setLeaderboard(saved);
       fetchAllDivisionPlayers();
+      setHydrated(true);
     }
   }, []);
 
@@ -1703,6 +1707,10 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
+      {!hydrated && (
+        <div className="p-6 text-center text-gray-300">Loading…</div>
+      )}
+      {hydrated && (
       
       {/* Header */}
       <header className="mb-8 sm:mb-10 relative">
