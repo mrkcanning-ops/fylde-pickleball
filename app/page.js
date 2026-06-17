@@ -57,6 +57,20 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
   const [hydrated, setHydrated] = useState(false);
 
+  // Dev-only debug: log and expose divisions state to diagnose mobile/desktop mismatch
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!hydrated) return;
+    console.debug("[debug] divisions (state):", divisions);
+    console.debug("[debug] division (state):", division);
+    try {
+      console.debug("[debug] divisions (localStorage):", JSON.parse(localStorage.getItem("divisions") || "null"));
+      console.debug("[debug] division (localStorage):", localStorage.getItem("division"));
+    } catch (e) {
+      console.debug("[debug] localStorage parse error", e);
+    }
+  }, [hydrated, divisions, division]);
+
   const toggleDate = (date) => {
     setOpenDates((prev) =>
       prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date]
@@ -1727,6 +1741,14 @@ const activePlayerCount = players.filter((p) => p.active).length;
       </header>
 
       <HeaderStats stats={stats} />
+
+      {process.env.NODE_ENV === "development" && hydrated && (
+        <div className="fixed bottom-4 right-4 z-50 p-2 text-xs bg-black bg-opacity-60 text-gray-200 rounded">
+          <div className="font-semibold">Debug</div>
+          <div>division: {String(division)}</div>
+          <div className="truncate">divisions: {JSON.stringify(divisions)}</div>
+        </div>
+      )}
 
       {/* Tabs */}
       <section className="bg-gray-900 rounded-t-lg shadow px-4 py-4 mb-4">
