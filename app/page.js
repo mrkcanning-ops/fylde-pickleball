@@ -131,15 +131,39 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
       const savedDivisions = JSON.parse(localStorage.getItem("divisions"));
       const savedDivisionId = Number(localStorage.getItem("division"));
 
-      if (Array.isArray(savedDivisions) && savedDivisions.length > 0) {
-        setDivisions(savedDivisions);
-        const initialDivision = savedDivisionId || savedDivisions[0].id;
-        setDivision(initialDivision);
-        fetchAllDivisionPlayers(initialDivision);
-      } else {
-        // fallback: use defaults and fetch for current `division`
+      // Server-first: attempt to load canonical divisions from Supabase
+      // so all clients (different origins) see the same data.
+      (async () => {
+        try {
+          const { data: dbDivs, error: dbErr } = await supabase
+            .from("divisions")
+            .select("id,name")
+            .order("id", { ascending: true });
+
+          if (!dbErr && Array.isArray(dbDivs) && dbDivs.length > 0) {
+            const mapped = dbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}` }));
+            setDivisions(mapped);
+            const initialDivision = savedDivisionId || mapped[0].id;
+            setDivision(initialDivision);
+            await fetchAllDivisionPlayers(initialDivision);
+            return;
+          }
+        } catch (e) {
+          console.warn("Failed to fetch divisions from server:", e);
+        }
+
+        // If server has none, fall back to saved local divisions (if any)
+        if (Array.isArray(savedDivisions) && savedDivisions.length > 0) {
+          setDivisions(savedDivisions);
+          const initialDivision = savedDivisionId || savedDivisions[0].id;
+          setDivision(initialDivision);
+          fetchAllDivisionPlayers(initialDivision);
+          return;
+        }
+
+        // fallback to defaults
         fetchAllDivisionPlayers();
-      }
+      })();
       // mark hydration complete so UI renders consistently
       setHydrated(true);
     } catch (e) {
@@ -284,58 +308,56 @@ const updatePlayerStatsFromMatches = async () => {
   for (const match of matches) {
     const playersArray = JSON.parse(match.players);
 
-const team1 = playersArray.slice(0, 2);
-const team2 = playersArray.slice(2, 4);
-    const score1 = Number(match.scores.team1);
-    const score2 = Number(match.scores.team2);
+    const team1 = playersArray.slice(0, 2).map((id) => String(id));
+    const team2 = playersArray.slice(2, 4).map((id) => String(id));
 
-    // Determine result
-    let resultTeam1, resultTeam2;
+    const score1 = Number((match.scores && (match.scores.team1 ?? match.scores[0])) || 0);
+    const score2 = Number((match.scores && (match.scores.team2 ?? match.scores[1])) || 0);
+
+    // Determine result for each team
+    let resultTeam1 = "draw";
+    let resultTeam2 = "draw";
     if (score1 > score2) {
       resultTeam1 = "win";
       resultTeam2 = "loss";
     } else if (score1 < score2) {
       resultTeam1 = "loss";
       resultTeam2 = "win";
-    } else {
-      resultTeam1 = "draw";
-      resultTeam2 = "draw";
     }
 
-    // Helper to update stats
-    const updateStats = async (playerName, result, scored, conceded) => {
-      const { data: player } = await supabase
+    // Helper to update stats by player id
+    const updateStats = async (playerId, result, scored, conceded) => {
+      const { data: player, error } = await supabase
         .from("players")
         .select("*")
         .eq("id", playerId)
         .single();
 
-        console.log("Looking for:", name);
-  console.log("Found:", player);
+      console.log("Looking for player id:", playerId);
+      console.log("Found player:", player, "error:", error);
 
       if (!player) return;
 
       const updated = {
-        wins: player.wins,
-        losses: player.losses,
-        draws: player.draws,
-        points: player.points,
+        wins: player.wins || 0,
+        losses: player.losses || 0,
+        draws: player.draws || 0,
+        points: player.points || 0,
         points_for: player.points_for || 0,
         points_against: player.points_against || 0,
         win_streak: player.win_streak || 0,
       };
 
-      // Increment result
       if (result === "win") {
         updated.wins += 1;
-        updated.points += 3; // 3 points per win
+        updated.points += 3;
         updated.win_streak += 1;
       } else if (result === "loss") {
         updated.losses += 1;
         updated.win_streak = 0;
       } else {
         updated.draws += 1;
-        updated.points += 1; // 1 point per draw
+        updated.points += 1;
         updated.win_streak = 0;
       }
 
@@ -631,6 +653,13 @@ const fetchPreviousMatches = async () => {
           className="text-xs bg-gray-800 text-white px-2 py-1 rounded border border-gray-600 hover:bg-gray-700"
         >
           ➕ Add
+        </button>
+        <button
+          onClick={syncDivisions}
+          className="text-xs bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 hover:bg-gray-600"
+          title="Sync divisions from server"
+        >
+          🔄 Sync
         </button>
         <button
           onClick={() => setShowRemoveDivisionPasscodeModal(true)}
@@ -1399,6 +1428,60 @@ const verifyRemoveDivisionPasscode = async () => {
   setShowSelectDivisionModal(true);
 };
 
+const syncDivisions = async () => {
+  try {
+    console.debug("syncDivisions: env url", process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.debug("syncDivisions: anon key present", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+    const { data: dbDivs, error } = await supabase
+      .from("divisions")
+      .select("id,name")
+      .order("id", { ascending: true });
+
+    console.debug("syncDivisions: supabase response", { dbDivs, error });
+
+    if (error) {
+      console.error("Failed to fetch divisions via supabase client:", error);
+      // Try a direct REST fetch to help debug CORS/permission issues
+      try {
+        const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/+$/,'')}/rest/v1/divisions`;
+        const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        console.debug("syncDivisions: attempting direct REST fetch", { url });
+        const resp = await fetch(url, {
+          headers: {
+            apikey: key,
+            Authorization: `Bearer ${key}`,
+            Accept: "application/json",
+          },
+        });
+        const text = await resp.text();
+        console.debug("syncDivisions: rest fetch raw response", { status: resp.status, text });
+      } catch (restErr) {
+        console.error("syncDivisions: REST fetch failed:", restErr);
+      }
+
+      alert(`Failed to sync divisions: ${error.message || JSON.stringify(error)}`);
+      return;
+    }
+
+    if (!Array.isArray(dbDivs) || dbDivs.length === 0) {
+      console.warn("syncDivisions: server returned empty divisions array", dbDivs);
+      alert("No divisions found on server.");
+      return;
+    }
+
+    const mapped = dbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}` }));
+    setDivisions(mapped);
+    const sel = mapped.find((d) => d.id === division) ? division : mapped[0].id;
+    setDivision(sel);
+    await fetchAllDivisionPlayers(sel);
+    alert("Divisions synced ✅");
+  } catch (e) {
+    console.error("Unexpected error syncing divisions:", e);
+    alert("Failed to sync divisions. See console for details.");
+  }
+};
+
 const handleConfirmRemoveDivision = () => {
   (async () => {
     if (!selectedDivisionToRemove) return;
@@ -1422,13 +1505,31 @@ const handleConfirmRemoveDivision = () => {
       }
 
       // Update local UI state after successful server deletion
-      const nextDivisions = divisions.filter((d) => d.id !== idToRemove);
-      setDivisions(nextDivisions);
+      // Re-fetch canonical divisions from server to ensure consistency
+      try {
+        const { data: dbDivs, error: dbErr } = await supabase
+          .from("divisions")
+          .select("id,name")
+          .order("id", { ascending: true });
 
-      if (division === idToRemove) {
-        const first = nextDivisions[0];
-        setDivision(first ? first.id : 1);
-        if (first) fetchAllDivisionPlayers(first.id);
+        if (!dbErr && Array.isArray(dbDivs)) {
+          const mapped = dbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}` }));
+          setDivisions(mapped);
+          const first = mapped.find((d) => d.id !== idToRemove) || mapped[0];
+          const newSel = division === idToRemove ? (first ? first.id : (mapped[0]?.id || 1)) : division;
+          setDivision(newSel);
+          if (newSel) fetchAllDivisionPlayers(newSel);
+        } else {
+          const nextDivisions = divisions.filter((d) => d.id !== idToRemove);
+          setDivisions(nextDivisions);
+          if (division === idToRemove) {
+            const first = nextDivisions[0];
+            setDivision(first ? first.id : 1);
+            if (first) fetchAllDivisionPlayers(first.id);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to re-fetch divisions after delete:", e);
       }
 
       setShowSelectDivisionModal(false);
@@ -1469,17 +1570,46 @@ const verifyRemovePlayerPasscode = async () => {
   setSelectedPlayerToRemove(null);
 };
 
-const addDivision = (name) => {
+const addDivision = async (name) => {
   const trimmed = (name || "").trim();
   if (!trimmed) return;
-  const maxId = divisions.length ? Math.max(...divisions.map((d) => d.id)) : 0;
-  const newId = maxId + 1;
-  const newDiv = { id: newId, name: trimmed };
-  setDivisions((prev) => [...prev, newDiv]);
-  setDivision(newId);
-  fetchAllDivisionPlayers(newId);
-  setShowAddDivisionModal(false);
-  setNewDivisionName("");
+
+  try {
+    // Persist on server first
+    const { data, error } = await supabase
+      .from("divisions")
+      .insert([{ name: trimmed }])
+      .select();
+
+    if (error) {
+      console.error("Failed to create division on server:", error);
+      alert(`Failed to create division: ${error.message || JSON.stringify(error)}`);
+      return;
+    }
+
+    const created = Array.isArray(data) && data[0] ? data[0] : null;
+    const newDiv = created ? { id: created.id, name: created.name || trimmed } : null;
+
+    if (newDiv) {
+      setDivisions((prev) => [...prev, newDiv]);
+      setDivision(newDiv.id);
+      await fetchAllDivisionPlayers(newDiv.id);
+    } else {
+      // Fallback to local-only addition if server didn't return an id
+      const maxId = divisions.length ? Math.max(...divisions.map((d) => d.id)) : 0;
+      const newId = maxId + 1;
+      const localDiv = { id: newId, name: trimmed };
+      setDivisions((prev) => [...prev, localDiv]);
+      setDivision(newId);
+      fetchAllDivisionPlayers(newId);
+    }
+
+    setShowAddDivisionModal(false);
+    setNewDivisionName("");
+  } catch (e) {
+    console.error("Unexpected error creating division:", e);
+    alert("Error creating division. See console.");
+  }
 };
 
 const buildSelectedPlayers = (ids) => {
