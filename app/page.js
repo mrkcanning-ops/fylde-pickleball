@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 import HeaderStats from "../components/HeaderStats";
 import { supabase } from "../lib/supabase";
@@ -108,7 +108,7 @@ const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState(null);
 const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
 
   // Load leaderboard and persisted divisions from localStorage on startup
-  useEffect(() => {
+  useLayoutEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("leaderboard")) || [];
       setLeaderboard(saved);
