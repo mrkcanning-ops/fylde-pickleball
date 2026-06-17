@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 
+// Backwards-compatibility fallback for builds that reference `summariesIndex`.
+// Some older compiled code may still expect this variable; define it harmlessly.
+/* eslint-disable no-unused-vars */
+const summariesIndex = undefined;
+/* eslint-enable no-unused-vars */
+
 export default function SeasonSummariesPage() {
   const [summariesList, setSummariesList] = useState([]);
   const [selected, setSelected] = useState(null);
