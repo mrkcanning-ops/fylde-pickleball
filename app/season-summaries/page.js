@@ -47,7 +47,7 @@ export default function SeasonSummariesPage() {
     setSelected(JSON.parse(raw));
   };
 
-  if (!summariesIndex || summariesIndex.length === 0) {
+  if (!summariesList || summariesList.length === 0) {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold text-yellow-400 mb-4">Season Summaries</h1>
@@ -90,8 +90,8 @@ export default function SeasonSummariesPage() {
                 <div className="p-3 bg-gray-900 rounded">
                   <h4 className="font-semibold text-gray-200">Top By Points</h4>
                   <ol className="text-gray-300 mt-2">
-                    {selected.topByPoints.map((p) => (
-                      <li key={p.id}>{p.name} — {p.points}</li>
+                    {(selected.topByPoints || selected.top_by_points || []).map((p) => (
+                      <li key={p.id}>{p.name} — {p.points ?? p.points}</li>
                     ))}
                   </ol>
                 </div>
@@ -99,8 +99,8 @@ export default function SeasonSummariesPage() {
                 <div className="p-3 bg-gray-900 rounded">
                   <h4 className="font-semibold text-gray-200">Top By Wins</h4>
                   <ol className="text-gray-300 mt-2">
-                    {selected.topByWins.map((p) => (
-                      <li key={p.id}>{p.name} — {p.wins}</li>
+                    {(selected.topByWins || selected.top_by_wins || []).map((p) => (
+                      <li key={p.id}>{p.name} — {p.wins ?? p.wins}</li>
                     ))}
                   </ol>
                 </div>
