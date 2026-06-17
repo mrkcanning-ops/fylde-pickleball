@@ -3711,6 +3711,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </div>
       )}
 
+      )}
+
     </main>
   );
 }
