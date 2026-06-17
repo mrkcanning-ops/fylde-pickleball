@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import HeaderStats from "../components/HeaderStats";
 import { supabase } from "../lib/supabase";
 
@@ -64,6 +65,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const [showResetModal, setShowResetModal] = useState(false);
 const [resetPasswordInput, setResetPasswordInput] = useState("");
 const [resetError, setResetError] = useState("");
+  const router = useRouter();
 const [showRecalculateModal, setShowRecalculateModal] = useState(false);
 const [recalculatePasswordInput, setRecalculatePasswordInput] = useState("");
 const [recalculateError, setRecalculateError] = useState("");
@@ -143,18 +145,18 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
   }, [divisions, division]);
 
   const resetLeaderboard = () => {
-    const code = prompt("Enter admin passcode to reset leaderboard:");
+    const code = prompt("Enter admin passcode to end season:");
     if (!code) return;
 
     const envPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
 
     if (code.trim() === envPasscode?.trim()) {
-      const confirmed = confirm("Are you sure you want to reset the leaderboard?");
+      const confirmed = confirm("Are you sure you want to end the season and reset the leaderboard?");
       if (!confirmed) return;
 
       setLeaderboard([]);
       localStorage.removeItem("leaderboard");
-      alert("Leaderboard reset ✅");
+      alert("Season ended ✅");
     } else {
       alert("Incorrect passcode ❌");
     }
@@ -2173,7 +2175,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         onClick={() => setShowResetModal(true)}
         className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-8 py-3 rounded font-semibold transition"
       >
-        🔄 Reset Leaderboard
+        🏁 End Season
       </button>
     </div>
   </div>
@@ -2862,11 +2864,11 @@ const activePlayerCount = players.filter((p) => p.active).length;
       {showResetModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
           <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
-            <h2 className="text-lg font-bold text-red-400 mb-4 text-center">
-              Reset Leaderboard
+            <h2 className="text-lg font-bold text-yellow-400 mb-4 text-center">
+              End Season
             </h2>
             <p className="text-gray-300 mb-4 text-center text-sm">
-              Enter the reset passcode to reset the leaderboard.
+              Enter the passcode to end this season and archive a summary.
             </p>
 
             <input
@@ -2902,16 +2904,102 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 onClick={async () => {
                   const resetPasscode = process.env.NEXT_PUBLIC_RESET_PASSCODE;
                   if (resetPasswordInput === resetPasscode) {
-                    const confirmed = confirm("Are you sure you want to reset the leaderboard? This cannot be undone.");
+                    const confirmed = confirm("Are you sure you want to end the season? This will archive a summary and reset the leaderboard for the division.");
                     if (confirmed) {
                       try {
-                        // Reset all players in Supabase
-                        const { data: allPlayers } = await supabase
+                        // 1) Fetch players and matches for the current division
+                        const { data: divisionPlayers } = await supabase
                           .from("players")
-                          .select("*");
+                          .select("*")
+                          .eq("division", division);
 
-                        if (allPlayers) {
-                          for (const player of allPlayers) {
+                        const { data: divisionMatches } = await supabase
+                          .from("previous_matches")
+                          .select("*")
+                          .eq("division", division)
+                          .order("created_at", { ascending: true });
+
+                        const playersForSummary = divisionPlayers || [];
+                        const matchesForSummary = divisionMatches || [];
+
+                        // 2) Compute highlights
+                        const topByPoints = [...playersForSummary]
+                          .sort((a, b) => (b.points || 0) - (a.points || 0))
+                          .slice(0, 5)
+                          .map((p) => ({ id: p.id, name: p.name, points: p.points }));
+
+                        const topByWins = [...playersForSummary]
+                          .sort((a, b) => (b.wins || 0) - (a.wins || 0))
+                          .slice(0, 5)
+                          .map((p) => ({ id: p.id, name: p.name, wins: p.wins }));
+
+                        const matchSummaries = matchesForSummary.map((m) => {
+                          const t1 = Number(m.scores?.team1 || 0);
+                          const t2 = Number(m.scores?.team2 || 0);
+                          return { ...m, total: t1 + t2 };
+                        });
+
+                        const highestScoringMatch = matchSummaries.slice().sort((a, b) => b.total - a.total)[0] || null;
+
+                        const avgPoints = matchSummaries.length
+                          ? Math.round(matchSummaries.reduce((s, m) => s + (m.total || 0), 0) / matchSummaries.length)
+                          : 0;
+
+                        // most active player (count occurrences in matches)
+                        const appearances = {};
+                        for (const m of matchesForSummary) {
+                          (m.players || []).forEach((pl) => {
+                            appearances[pl] = (appearances[pl] || 0) + 1;
+                          });
+                        }
+                        const mostActive = Object.entries(appearances)
+                          .sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+
+                        const summary = {
+                          id: `season_summary_${division}_${Date.now()}`,
+                          division,
+                          timestamp: new Date().toISOString(),
+                          topByPoints,
+                          topByWins,
+                          highestScoringMatch,
+                          avgPoints,
+                          mostActive,
+                          players: playersForSummary,
+                          matches: matchesForSummary,
+                        };
+
+                        // 3) Persist summary to Supabase (fall back to localStorage on error)
+                        try {
+                          const { data: insertData, error: insertError } = await supabase
+                            .from("season_summaries")
+                            .insert([
+                              {
+                                id: summary.id,
+                                division: summary.division,
+                                timestamp: summary.timestamp,
+                                top_by_points: summary.topByPoints,
+                                top_by_wins: summary.topByWins,
+                                highest_scoring_match: summary.highestScoringMatch,
+                                avg_points: summary.avgPoints,
+                                most_active: summary.mostActive,
+                                players: summary.players,
+                                matches: summary.matches,
+                              },
+                            ]);
+
+                          if (insertError) throw insertError;
+                        } catch (dbErr) {
+                          console.error("Failed to persist season summary to Supabase, falling back to localStorage:", dbErr);
+                          const idxKey = "season_summaries_index";
+                          const existingIndex = JSON.parse(localStorage.getItem(idxKey) || "[]");
+                          existingIndex.unshift(summary.id);
+                          localStorage.setItem(idxKey, JSON.stringify(existingIndex));
+                          localStorage.setItem(summary.id, JSON.stringify(summary));
+                        }
+
+                        // 4) Reset players for this division (prepare for next season)
+                        if (playersForSummary.length > 0) {
+                          for (const player of playersForSummary) {
                             await supabase
                               .from("players")
                               .update({
@@ -2927,19 +3015,22 @@ const activePlayerCount = players.filter((p) => p.active).length;
                           }
                         }
 
-                        // Refresh the players list
+                        // Refresh players list
                         await fetchPlayers();
 
-                        // Clear localStorage
+                        // Clear local leaderboard cache for UI
                         localStorage.removeItem("leaderboard");
                         setLeaderboard([]);
 
-                        alert("Leaderboard reset ✅");
+                        alert("Season ended and archived ✅");
                         setShowResetModal(false);
                         setResetPasswordInput("");
+
+                        // navigate to summaries page
+                        router.push("/season-summaries");
                       } catch (err) {
-                        console.error("Error resetting leaderboard:", err);
-                        setResetError("Error resetting leaderboard");
+                        console.error("Error ending season:", err);
+                        setResetError("Error ending season");
                       }
                     }
                   } else {
@@ -2948,7 +3039,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 }}
                 className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
               >
-                Reset
+                End Season
               </button>
             </div>
           </div>
