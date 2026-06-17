@@ -1711,7 +1711,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         <div className="p-6 text-center text-gray-300">Loading…</div>
       )}
       {hydrated && (
-      
+        <>
       {/* Header */}
       <header className="mb-8 sm:mb-10 relative">
         <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
@@ -3711,7 +3711,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </div>
       )}
 
-      )}
+      </>)}
 
     </main>
   );
