@@ -2380,9 +2380,12 @@ const activePlayerCount = players.filter((p) => p.active).length;
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setShowNqModalFor(p.id); } }}
                     title={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
                     aria-label={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
-                    className="px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 rounded cursor-pointer select-none"
+                    className="inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded cursor-pointer select-none hover:bg-red-50 active:scale-95 transition-transform shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-200"
                   >
-                    NQ
+                    <span>NQ</span>
+                    <svg aria-hidden="true" className="w-3 h-3 text-red-700" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" d="M18 10A8 8 0 11.999 10 8 8 0 0118 10zm-9-1a1 1 0 112 0v5a1 1 0 11-2 0V9zm1-4a1.25 1.25 0 100 2.5A1.25 1.25 0 0010 5z" clipRule="evenodd" />
+                    </svg>
                   </span>
                 </span>
               )}
@@ -2510,9 +2513,12 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setShowNqModalFor(p.id); } }}
                       title={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
                       aria-label={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
-                      className="px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 rounded cursor-pointer select-none"
+                      className="inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded cursor-pointer select-none hover:bg-red-50 active:scale-95 transition-transform shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-200"
                     >
-                      NQ
+                      <span>NQ</span>
+                      <svg aria-hidden="true" className="w-3 h-3 text-red-700" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M18 10A8 8 0 11.999 10 8 8 0 0118 10zm-9-1a1 1 0 112 0v5a1 1 0 11-2 0V9zm1-4a1.25 1.25 0 100 2.5A1.25 1.25 0 0010 5z" clipRule="evenodd" />
+                      </svg>
                     </span>
                   </span>
                 )}
