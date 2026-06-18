@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import HeaderStats from "../components/HeaderStats";
 import { supabase } from "../lib/supabase";
 
+// Minimum games required to qualify for ranked positions. Configure via env var
+// NEXT_PUBLIC_MIN_QUALIFY_GAMES (build-time). Defaults to 10.
+const MIN_QUALIFY_GAMES = parseInt(process.env.NEXT_PUBLIC_MIN_QUALIFY_GAMES ?? "10", 10) || 10;
+
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("Standings");
   const [standingsView, setStandingsView] = useState("Leaderboard");
@@ -690,8 +694,6 @@ const fetchPreviousMatches = async () => {
   };
 
   const sortPlayersByStats = (players) => {
-    const MIN_QUALIFY_GAMES = 10;
-
     // Separate eligible (played >= MIN_QUALIFY_GAMES) from ineligible
     const eligible = [];
     const ineligible = [];
@@ -2439,7 +2441,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
       </thead>
       <tbody>
         {(() => {
-          const MIN_QUALIFY_GAMES = 10;
           const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= MIN_QUALIFY_GAMES);
           return players.map((p, i) => {
           const gp = p.wins + p.losses + p.draws;
