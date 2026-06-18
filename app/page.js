@@ -2698,7 +2698,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
                       <div className="p-3 bg-white rounded">
                         <h4 className="font-semibold text-gray-700">Most Active Player</h4>
-                        <div className="text-gray-700 mt-2">{s.mostActive ?? s.most_active || '—'}</div>
+                        <div className="text-gray-700 mt-2">{(s.mostActive ?? s.most_active) || '—'}</div>
                       </div>
 
                       <div className="md:col-span-2 mt-4">
