@@ -2520,6 +2520,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               <td className="p-2 text-right font-semibold">{p.points}</td>
             </tr>
           );
+        });
         })()}
       </tbody>
     </table>
