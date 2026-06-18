@@ -3562,6 +3562,35 @@ const activePlayerCount = players.filter((p) => p.active).length;
                             }
                           }
 
+                          // remove previous matches and pending fixtures for this division
+                          try {
+                            await supabase.from("previous_matches").delete().eq("division", division);
+                          } catch (delErr) {
+                            console.warn("Failed to delete previous_matches for division:", delErr);
+                          }
+                          try {
+                            await supabase.from("pending_fixtures").delete().eq("division", division);
+                          } catch (pfErr) {
+                            console.warn("Failed to delete pending_fixtures for division:", pfErr);
+                          }
+
+                          // Clear client-side match and leaderboard state so Change/Form data resets
+                          setPreviousMatches([]);
+                          setCourt1Matches([]);
+                          setCourt2Matches([]);
+                          setCourt3Matches([]);
+                          setCourt4Matches([]);
+                          setCourt1Scores([]);
+                          setCourt2Scores([]);
+                          setCourt3Scores([]);
+                          setCourt4Scores([]);
+                          setCourt1Round(0);
+                          setCourt2Round(0);
+                          setCourt3Round(0);
+                          setCourt4Round(0);
+                          setRoundMatches([]);
+                          setCurrentRound(0);
+
                           // Refresh players list
                           await fetchPlayers();
 
