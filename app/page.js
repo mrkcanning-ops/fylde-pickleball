@@ -564,6 +564,15 @@ const fetchPreviousMatches = async () => {
     fetchAllDivisionPlayers(newDivision);
   };
 
+  const prevDivision = () => {
+    if (!divisions || divisions.length === 0) return;
+    const idx = divisions.findIndex((d) => d.id === division);
+    const prevIdx = (idx - 1 + divisions.length) % divisions.length;
+    const newDivision = divisions[prevIdx].id;
+    setDivision(newDivision);
+    fetchAllDivisionPlayers(newDivision);
+  };
+
   const fetchAllDivisionPlayers = async (divisionNum = division) => {
     const { data, error } = await supabase
       .from("players")
@@ -636,43 +645,34 @@ const fetchPreviousMatches = async () => {
   highlight: "blue",
   onClick: toggleDivision,
   renderCustom: () => (
-      <div className="relative w-full select-none">
-        {/* Left arrow positioned at the far left edge */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            const idx = divisions.findIndex((d) => d.id === division);
-            const prevIdx = (idx - 1 + divisions.length) % divisions.length;
-            const prev = divisions[prevIdx];
-            if (prev) {
-              setDivision(prev.id);
-              fetchAllDivisionPlayers(prev.id);
-            }
-          }}
-          className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-gray-700 text-white border border-gray-600 hover:bg-gray-600"
-          title="Previous division"
-        >
-          ◀
-        </button>
+      <div className="w-full select-none">
+        <div className="flex items-center justify-between px-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              prevDivision();
+            }}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-700 text-white border border-gray-600 hover:bg-gray-600"
+            title="Previous division"
+          >
+            ◀
+          </button>
 
-        {/* Division label centered */}
-        <div className="flex justify-center">
-          <span className="bg-yellow-500 text-gray-950 font-extrabold text-2xl px-5 py-2 rounded-full leading-none">
+          <span className="mx-4 flex-1 text-center bg-yellow-500 text-gray-950 font-extrabold text-2xl px-5 py-2 rounded-full leading-none inline-block max-w-full overflow-hidden text-ellipsis">
             {divisions.find((d) => d.id === division)?.name || `Division ${division}`}
           </span>
-        </div>
 
-        {/* Right arrow positioned at the far right edge */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleDivision();
-          }}
-          className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-gray-700 text-white border border-gray-600 hover:bg-gray-600"
-          title="Next division"
-        >
-          ▶
-        </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleDivision();
+            }}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-700 text-white border border-gray-600 hover:bg-gray-600"
+            title="Next division"
+          >
+            ▶
+          </button>
+        </div>
 
         <div className="flex items-center gap-3 mt-3 justify-center">
           <button
