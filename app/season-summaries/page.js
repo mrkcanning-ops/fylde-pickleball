@@ -25,6 +25,29 @@ export default function SeasonSummariesPage() {
         if (!error && data && data.length > 0) {
           setSummariesList(data);
           setSelected(data[0]);
+
+          // Attempt to repair missing columns (`final_standings`, `tracker`) from localStorage backups
+          (async () => {
+            for (const row of data) {
+              const hasFinal = row.final_standings || row.finalStandings;
+              const hasTracker = row.tracker || row.tracker;
+              if (hasFinal && hasTracker) continue;
+              try {
+                const raw = localStorage.getItem(row.id);
+                if (!raw) continue;
+                const local = JSON.parse(raw);
+                const payload = {};
+                if (!hasFinal && (local.finalStandings || local.final_standings)) payload.final_standings = local.finalStandings || local.final_standings;
+                if (!hasTracker && (local.tracker)) payload.tracker = local.tracker;
+                if (Object.keys(payload).length === 0) continue;
+                const { error: updErr } = await supabase.from('season_summaries').update(payload).eq('id', row.id);
+                if (updErr) console.warn('Failed to repair season_summaries row', row.id, updErr.message || updErr);
+                else console.info('Repaired season_summaries row from localStorage', row.id);
+              } catch (e) {
+                console.warn('Repair check error for', row.id, e);
+              }
+            }
+          })();
           return;
         }
       } catch (e) {
