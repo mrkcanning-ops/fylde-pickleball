@@ -123,6 +123,9 @@ const [previousMatches, setPreviousMatches] = useState([]);
   }; 
 
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showEndSeasonChoiceModal, setShowEndSeasonChoiceModal] = useState(false);
+  const [endSummaryContext, setEndSummaryContext] = useState(null);
+  const [newSeasonName, setNewSeasonName] = useState("");
 const [resetPasswordInput, setResetPasswordInput] = useState("");
 const [resetError, setResetError] = useState("");
   const router = useRouter();
@@ -575,6 +578,109 @@ const fetchPreviousMatches = async () => {
     } catch (e) {
       console.error("Failed to create new season:", e);
       alert("Failed to create new season.");
+    }
+  };
+
+  const handleStartNewSeasonFromSummary = async () => {
+    if (!endSummaryContext) return;
+    const divisionNum = endSummaryContext.division;
+    const playersForSummary = endSummaryContext.players || [];
+    const name = (newSeasonName && newSeasonName.trim()) || `Season ${new Date().toLocaleDateString()}`;
+
+    try {
+      // Reset player stats
+      if (playersForSummary.length > 0) {
+        for (const player of playersForSummary) {
+          await supabase
+            .from("players")
+            .update({ wins: 0, losses: 0, draws: 0, points: 0, points_for: 0, points_against: 0, win_streak: 0 })
+            .eq("id", player.id);
+        }
+      }
+
+      // remove previous matches and pending fixtures
+      try { await supabase.from("previous_matches").delete().eq("division", divisionNum); } catch (e) {}
+      try { await supabase.from("pending_fixtures").delete().eq("division", divisionNum); } catch (e) {}
+
+      // Clear client-side match and leaderboard state
+      setPreviousMatches([]);
+      setCourt1Matches([]);
+      setCourt2Matches([]);
+      setCourt3Matches([]);
+      setCourt4Matches([]);
+      setCourt1Scores([]);
+      setCourt2Scores([]);
+      setCourt3Scores([]);
+      setCourt4Scores([]);
+      setCourt1Round(0);
+      setCourt2Round(0);
+      setCourt3Round(0);
+      setCourt4Round(0);
+      setRoundMatches([]);
+      setCurrentRound(0);
+
+      // Refresh players list
+      await fetchPlayers();
+
+      // Clear local leaderboard cache
+      localStorage.removeItem("leaderboard");
+      setLeaderboard([]);
+
+      // Persist running season to DB if possible
+      const running = { id: `season_${Date.now()}`, name, started_at: new Date().toISOString(), division: divisionNum };
+      try {
+        const { data: ins, error: insErr } = await supabase.from("running_seasons").insert([running]);
+        if (!insErr) {
+          const dbRec = Array.isArray(ins) ? ins[0] : ins;
+          localStorage.setItem("current_season", JSON.stringify(dbRec));
+          setCurrentSeason(dbRec);
+        } else {
+          localStorage.setItem("current_season", JSON.stringify(running));
+          setCurrentSeason(running);
+        }
+      } catch (e) {
+        localStorage.setItem("current_season", JSON.stringify(running));
+        setCurrentSeason(running);
+      }
+
+      alert("New season started with players reset.");
+      setShowEndSeasonChoiceModal(false);
+      setEndSummaryContext(null);
+      setNewSeasonName("");
+      router.push("/season-summaries");
+    } catch (err) {
+      console.error("Failed to start new season:", err);
+      alert("Failed to start new season.");
+    }
+  };
+
+  const handleClearPlayersFromSummary = async () => {
+    if (!endSummaryContext) return;
+    const divisionNum = endSummaryContext.division;
+    try {
+      // delete players for division
+      try { await supabase.from("players").delete().eq("division", divisionNum); } catch (e) { console.warn(e); }
+
+      // remove running season row if exists
+      try { await supabase.from("running_seasons").delete().eq("division", divisionNum); } catch (e) {}
+
+      // Clear client state
+      setPlayers([]);
+      setAllDivisionPlayers([]);
+      setPreviousMatches([]);
+      localStorage.removeItem("leaderboard");
+      setLeaderboard([]);
+
+      try { localStorage.removeItem("current_season"); } catch (e) {}
+      setCurrentSeason(null);
+
+      alert("Players cleared for division.");
+      setShowEndSeasonChoiceModal(false);
+      setEndSummaryContext(null);
+      router.push("/season-summaries");
+    } catch (err) {
+      console.error("Failed to clear players:", err);
+      alert("Failed to clear players.");
     }
   };
 
@@ -3532,148 +3638,16 @@ const activePlayerCount = players.filter((p) => p.active).length;
                           localStorage.setItem(summary.id, JSON.stringify(summary));
                         }
 
-                        // Ask whether user wants to start a new season with the same players
-                        let createNext = confirm(
-                          "Do you want to start a new season with the same players (stats reset)? Click OK to create, Cancel to clear players."
-                        );
-
-                        if (createNext) {
-                          // prompt for a season name
-                          let newName = prompt("Enter a name for the new season:", `Season ${new Date().toLocaleDateString()}`);
-                          if (!newName || !newName.trim()) {
-                            newName = `Season ${new Date().toLocaleDateString()}`;
-                          }
-
-                          // 4a) Reset players for this division (prepare for next season)
-                          if (playersForSummary.length > 0) {
-                            for (const player of playersForSummary) {
-                              await supabase
-                                .from("players")
-                                .update({
-                                  wins: 0,
-                                  losses: 0,
-                                  draws: 0,
-                                  points: 0,
-                                  points_for: 0,
-                                  points_against: 0,
-                                  win_streak: 0,
-                                })
-                                .eq("id", player.id);
-                            }
-                          }
-
-                          // remove previous matches and pending fixtures for this division
-                          try {
-                            await supabase.from("previous_matches").delete().eq("division", division);
-                          } catch (delErr) {
-                            console.warn("Failed to delete previous_matches for division:", delErr);
-                          }
-                          try {
-                            await supabase.from("pending_fixtures").delete().eq("division", division);
-                          } catch (pfErr) {
-                            console.warn("Failed to delete pending_fixtures for division:", pfErr);
-                          }
-
-                          // Clear client-side match and leaderboard state so Change/Form data resets
-                          setPreviousMatches([]);
-                          setCourt1Matches([]);
-                          setCourt2Matches([]);
-                          setCourt3Matches([]);
-                          setCourt4Matches([]);
-                          setCourt1Scores([]);
-                          setCourt2Scores([]);
-                          setCourt3Scores([]);
-                          setCourt4Scores([]);
-                          setCourt1Round(0);
-                          setCourt2Round(0);
-                          setCourt3Round(0);
-                          setCourt4Round(0);
-                          setRoundMatches([]);
-                          setCurrentRound(0);
-
-                          // Refresh players list
-                          await fetchPlayers();
-
-                          // Clear local leaderboard cache for UI
-                          localStorage.removeItem("leaderboard");
-                          setLeaderboard([]);
-
-                          // Create and persist running season marker
-                          const running = {
-                            id: `season_${Date.now()}`,
-                            name: newName,
-                            started_at: new Date().toISOString(),
-                            division,
-                          };
-                          try {
-                            // attempt to persist running season to Supabase
-                            try {
-                              const { data: ins, error: insErr } = await supabase
-                                .from("running_seasons")
-                                .insert([
-                                  {
-                                    id: running.id,
-                                    name: running.name,
-                                    started_at: running.started_at,
-                                    division: running.division,
-                                  },
-                                ]);
-
-                              if (!insErr) {
-                                const dbRec = Array.isArray(ins) ? ins[0] : ins;
-                                localStorage.setItem("current_season", JSON.stringify(dbRec));
-                                setCurrentSeason(dbRec);
-                              } else {
-                                // fallback to localStorage
-                                localStorage.setItem("current_season", JSON.stringify(running));
-                                setCurrentSeason(running);
-                              }
-                            } catch (dbErr) {
-                              localStorage.setItem("current_season", JSON.stringify(running));
-                              setCurrentSeason(running);
-                            }
-                          } catch (e) {
-                            console.error("Failed to persist running season:", e);
-                          }
-
-                          alert("Season ended and new season started ✅");
+                        // Persisted summary; open confirmation modal to choose next action (start new season or clear players)
+                        try {
+                          setEndSummaryContext(summary);
                           setShowResetModal(false);
+                          setShowEndSeasonChoiceModal(true);
                           setResetPasswordInput("");
-                        } else {
-                          // 4b) Clear all players from this division (leave division blank)
-                          try {
-                            await supabase.from("players").delete().eq("division", division);
-                          } catch (delErr) {
-                            console.warn("Failed to delete players from DB, clearing local state:", delErr);
-                          }
-
-                          // Clear local UI state
-                          setPlayers([]);
-                          setAllDivisionPlayers([]);
-                          localStorage.removeItem("leaderboard");
-                          setLeaderboard([]);
-
-                          // Clear running season marker locally and in DB (if available)
-                          try {
-                            // try delete from DB
-                            try {
-                              await supabase.from("running_seasons").delete().eq("division", division);
-                            } catch (dbDelErr) {
-                              // ignore
-                            }
-                            localStorage.removeItem("current_season");
-                          } catch (e) {
-                            /* ignore */
-                          }
-                          setCurrentSeason(null);
-
-                          alert("Season ended and players cleared ✅");
-                          setShowResetModal(false);
-                          setResetPasswordInput("");
+                        } catch (e) {
+                          console.error("Error opening post-end modal:", e);
+                          router.push("/season-summaries");
                         }
-
-                        // navigate to summaries page
-                        router.push("/season-summaries");
                       } catch (err) {
                         console.error("Error ending season:", err);
                         setResetError("Error ending season");
@@ -3687,6 +3661,29 @@ const activePlayerCount = players.filter((p) => p.active).length;
               >
                 End Season
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEndSeasonChoiceModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-96 border border-gray-700">
+            <h2 className="text-lg font-bold text-yellow-400 mb-4 text-center">Season Finished</h2>
+            <p className="text-gray-300 mb-4">A season summary has been archived. What would you like to do next for Division {endSummaryContext?.division}?</p>
+
+            <div className="mb-3">
+              <label className="text-sm text-gray-300">New season name (if starting new)</label>
+              <input value={newSeasonName} onChange={(e) => setNewSeasonName(e.target.value)} placeholder={`Season ${new Date().toLocaleDateString()}`} className="w-full mt-2 px-3 py-2 rounded bg-gray-800 text-white border border-gray-600" />
+            </div>
+
+            <div className="flex justify-between gap-2">
+              <button onClick={handleStartNewSeasonFromSummary} className="flex-1 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded">Start New Season (reset stats)</button>
+              <button onClick={handleClearPlayersFromSummary} className="flex-1 bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded">Clear Players</button>
+            </div>
+
+            <div className="flex justify-end mt-4">
+              <button onClick={() => { setShowEndSeasonChoiceModal(false); setEndSummaryContext(null); }} className="text-sm text-gray-400 underline">Cancel</button>
             </div>
           </div>
         </div>
