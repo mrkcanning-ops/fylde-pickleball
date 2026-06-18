@@ -2597,9 +2597,9 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 <select
                   value={selectedSeasonId || ""}
                   onChange={(e) => {
-                    const id = Number(e.target.value);
+                    const id = e.target.value;
                     setSelectedSeasonId(id);
-                    const found = seasonSummaries.find((s) => s.id === id);
+                    const found = seasonSummaries.find((s) => String(s.id) === id);
                     setSelectedSeason(found || null);
                   }}
                   className="bg-white border border-gray-300 rounded px-3 py-2"
