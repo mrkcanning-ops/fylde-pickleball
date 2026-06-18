@@ -50,15 +50,8 @@ export default function HomePage() {
   const [currentRound, setCurrentRound] = useState(0);
   const [roundMatches, setRoundMatches] = useState([]); // flattened all matches by round
 
-  // Tooltip control for NQ pills (mobile-friendly tap to show)
-  const [nqTooltipId, setNqTooltipId] = useState(null);
-
-  // Close NQ tooltip when clicking anywhere else
-  useEffect(() => {
-    const handler = () => setNqTooltipId(null);
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
+  // Mobile bottom-sheet modal control for NQ explanation
+  const [showNqModalFor, setShowNqModalFor] = useState(null);
 
 const [isAdmin, setIsAdmin] = useState(false);
 const [showAdminModal, setShowAdminModal] = useState(false);
@@ -2383,19 +2376,14 @@ const activePlayerCount = players.filter((p) => p.active).length;
                   <span
                     role="button"
                     tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); setNqTooltipId(nqTooltipId === p.id ? null : p.id); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setNqTooltipId(nqTooltipId === p.id ? null : p.id); } }}
+                    onClick={(e) => { e.stopPropagation(); setShowNqModalFor(p.id); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setShowNqModalFor(p.id); } }}
                     title={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
                     aria-label={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
                     className="px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 rounded cursor-pointer select-none"
                   >
                     NQ
                   </span>
-                  {nqTooltipId === p.id && (
-                    <div className="absolute z-50 mt-2 left-1/2 transform -translate-x-1/2 w-max px-3 py-2 text-xs text-white bg-gray-800 rounded shadow-lg">
-                      {`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
-                    </div>
-                  )}
                 </span>
               )}
             </span>
@@ -2518,19 +2506,14 @@ const activePlayerCount = players.filter((p) => p.active).length;
                     <span
                       role="button"
                       tabIndex={0}
-                      onClick={(e) => { e.stopPropagation(); setNqTooltipId(nqTooltipId === p.id ? null : p.id); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setNqTooltipId(nqTooltipId === p.id ? null : p.id); } }}
+                      onClick={(e) => { e.stopPropagation(); setShowNqModalFor(p.id); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setShowNqModalFor(p.id); } }}
                       title={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
                       aria-label={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
                       className="px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 rounded cursor-pointer select-none"
                     >
                       NQ
                     </span>
-                    {nqTooltipId === p.id && (
-                      <div className="absolute z-50 mt-2 left-1/2 transform -translate-x-1/2 w-max px-3 py-2 text-xs text-white bg-gray-800 rounded shadow-lg">
-                        {`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
-                      </div>
-                    )}
                   </span>
                 )}
               </td>
@@ -2588,6 +2571,25 @@ const activePlayerCount = players.filter((p) => p.active).length;
         })()}
       </tbody>
     </table>
+
+    {/* NQ bottom-sheet modal (mobile-friendly). Renders at end of Leaderboard view */}
+    {showNqModalFor && (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+        <div className="absolute inset-0 bg-black/40" onClick={() => setShowNqModalFor(null)} />
+        <div className="relative w-full sm:max-w-md bg-white rounded-t-xl sm:rounded-xl p-4 sm:p-6 shadow-xl">
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Not Qualified</h3>
+              <p className="text-sm text-gray-600 mt-1">{`Requires ${MIN_QUALIFY_GAMES} games to qualify for ranked positions.`}</p>
+            </div>
+            <button onClick={() => setShowNqModalFor(null)} className="text-gray-600 ml-4">Close</button>
+          </div>
+          <div className="mt-3 text-sm text-gray-700">
+            Players who have not reached the minimum games are still shown, but are not counted in the ranked positions until they reach the required number of games.
+          </div>
+        </div>
+      </div>
+    )}
   </>
 ) : (
   <div className="p-6 bg-gray-50">
