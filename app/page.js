@@ -52,7 +52,16 @@ export default function HomePage() {
 
   // Mobile bottom-sheet modal control for NQ explanation
   const [showNqModalFor, setShowNqModalFor] = useState(null);
-  // Editable minimum games to qualify (UI-controlled, persisted to localStorage)
+  // Editable minimum games to qualify (per-division, persisted to localStorage)
+  const [minQualifyByDivision, setMinQualifyByDivision] = useState(() => {
+    try {
+      const raw = localStorage.getItem("min_qualify_by_division");
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+  // current division value (kept in sync)
   const [minQualifyGames, setMinQualifyGames] = useState(() => {
     try {
       const v = localStorage.getItem("min_qualify_games");
@@ -63,6 +72,10 @@ export default function HomePage() {
   });
   const [showEditMinModal, setShowEditMinModal] = useState(false);
   const [minQualifyInput, setMinQualifyInput] = useState(String(minQualifyGames));
+  const [showVerifyMinPasscodeModal, setShowVerifyMinPasscodeModal] = useState(false);
+  const [pendingMinSave, setPendingMinSave] = useState(null); // { division, value }
+  const [verifyMinPasscode, setVerifyMinPasscode] = useState("");
+  const [verifyMinError, setVerifyMinError] = useState("");
 
 const [isAdmin, setIsAdmin] = useState(false);
 const [showAdminModal, setShowAdminModal] = useState(false);
@@ -713,7 +726,9 @@ const fetchPreviousMatches = async () => {
     const ineligible = [];
     for (const p of players) {
       const gp = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
-      if (gp >= minQualifyGames) eligible.push(p);
+      // use per-division runtime value
+      const runtimeMin = minQualifyByDivision[division] ?? minQualifyGames ?? MIN_QUALIFY_GAMES;
+      if (gp >= runtimeMin) eligible.push(p);
       else ineligible.push(p);
     }
 
@@ -2335,9 +2350,10 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </button>
           <button
             onClick={() => {
-              setMinQualifyInput(String(minQualifyGames));
-              setShowEditMinModal(true);
-            }}
+                const current = minQualifyByDivision[division] ?? minQualifyGames ?? MIN_QUALIFY_GAMES;
+                setMinQualifyInput(String(current));
+                setShowEditMinModal(true);
+              }}
             className="px-3 py-2 rounded-lg text-sm font-semibold bg-white text-gray-900 border border-gray-200 shadow"
             title="Edit minimum games to qualify"
           >
@@ -2362,7 +2378,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 
   {(() => {
-    const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= minQualifyGames);
+          const runtimeMin = minQualifyByDivision[division] ?? minQualifyGames ?? MIN_QUALIFY_GAMES;
+          const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= runtimeMin);
     return players.map((p, i) => {
       const gp = p.wins + p.losses + p.draws;
       const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
@@ -2399,8 +2416,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                     tabIndex={0}
                     onClick={(e) => { e.stopPropagation(); setShowNqModalFor(p.id); }}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setShowNqModalFor(p.id); } }}
-                    title={`Requires ${minQualifyGames} games to qualify`}
-                    aria-label={`Requires ${minQualifyGames} games to qualify`}
+                      title={`Requires ${runtimeMin} games to qualify`}
+                      aria-label={`Requires ${runtimeMin} games to qualify`}
                     className="inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded cursor-pointer select-none hover:bg-red-50 active:scale-95 transition-transform shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-200"
                   >
                     <span>NQ</span>
@@ -2498,7 +2515,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
       </thead>
       <tbody>
         {(() => {
-          const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= minQualifyGames);
+          const runtimeMin = minQualifyByDivision[division] ?? minQualifyGames ?? MIN_QUALIFY_GAMES;
+          const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= runtimeMin);
           return players.map((p, i) => {
           const gp = p.wins + p.losses + p.draws;
           const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
@@ -2532,8 +2550,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); setShowNqModalFor(p.id); }}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setShowNqModalFor(p.id); } }}
-                      title={`Requires ${minQualifyGames} games to qualify`}
-                      aria-label={`Requires ${minQualifyGames} games to qualify`}
+                      title={`Requires ${runtimeMin} games to qualify`}
+                      aria-label={`Requires ${runtimeMin} games to qualify`}
                       className="inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded cursor-pointer select-none hover:bg-red-50 active:scale-95 transition-transform shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-200"
                     >
                       <span>NQ</span>
@@ -2639,12 +2657,52 @@ const activePlayerCount = players.filter((p) => p.active).length;
             <button
               onClick={() => {
                 const v = parseInt(minQualifyInput || "0", 10) || 0;
-                setMinQualifyGames(v);
-                try { localStorage.setItem("min_qualify_games", String(v)); } catch (e) {}
+                // require admin passcode to actually save per-division
+                setPendingMinSave({ division, value: v });
+                setVerifyMinPasscode("");
+                setVerifyMinError("");
                 setShowEditMinModal(false);
+                setShowVerifyMinPasscodeModal(true);
               }}
               className="px-4 py-2 rounded bg-blue-600 text-white"
             >Save</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {showVerifyMinPasscodeModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/40" onClick={() => setShowVerifyMinPasscodeModal(false)} />
+        <div className="relative w-full max-w-sm bg-white rounded-xl p-6 shadow-xl">
+          <h3 className="text-lg font-semibold">Admin passcode required</h3>
+          <p className="text-sm text-gray-600 mt-1">Enter admin passcode to save the minimum games for this division.</p>
+          <div className="mt-4">
+            <input type="password" value={verifyMinPasscode} onChange={(e) => setVerifyMinPasscode(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
+            {verifyMinError && <p className="text-red-600 text-sm mt-2">{verifyMinError}</p>}
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <button onClick={() => { setShowVerifyMinPasscodeModal(false); setPendingMinSave(null); }} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
+            <button
+              onClick={async () => {
+                const correct = process.env.NEXT_PUBLIC_ADMIN_PASSCODE || "";
+                if (verifyMinPasscode.trim() !== correct.trim()) {
+                  setVerifyMinError("Incorrect passcode.");
+                  return;
+                }
+                // save pending value
+                if (pendingMinSave) {
+                  const next = { ...(minQualifyByDivision || {}) };
+                  next[String(pendingMinSave.division)] = pendingMinSave.value;
+                  setMinQualifyByDivision(next);
+                  try { localStorage.setItem("min_qualify_by_division", JSON.stringify(next)); } catch (e) {}
+                  // update current displayed value
+                  setMinQualifyGames(pendingMinSave.value);
+                }
+                setPendingMinSave(null);
+                setShowVerifyMinPasscodeModal(false);
+              }}
+              className="px-4 py-2 rounded bg-blue-600 text-white"
+            >Verify & Save</button>
           </div>
         </div>
       </div>
