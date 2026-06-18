@@ -488,6 +488,8 @@ const fetchPreviousMatches = async () => {
           .select("*")
           .order("timestamp", { ascending: false });
 
+        console.debug("[seasons] supabase response:", { data, error });
+
         if (!error && Array.isArray(data)) {
           setSeasonSummaries(data);
           if (data.length > 0) {
@@ -503,10 +505,13 @@ const fetchPreviousMatches = async () => {
       // fallback to localStorage index
       try {
         const idx = JSON.parse(localStorage.getItem("season_summaries_index") || "[]");
+        console.debug("[seasons] local index:", idx);
         const items = idx.map((id) => {
           const raw = localStorage.getItem(id);
+          console.debug("[seasons] local item", id, raw ? 'present' : 'missing');
           return raw ? JSON.parse(raw) : null;
         }).filter(Boolean);
+        console.debug("[seasons] local items loaded:", items.length);
         setSeasonSummaries(items);
         if (items.length > 0) {
           setSelectedSeasonId(items[0].id);
