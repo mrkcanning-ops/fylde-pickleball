@@ -690,7 +690,18 @@ const fetchPreviousMatches = async () => {
   };
 
   const sortPlayersByStats = (players) => {
-    return [...players].sort((a, b) => {
+    const MIN_QUALIFY_GAMES = 10;
+
+    // Separate eligible (played >= MIN_QUALIFY_GAMES) from ineligible
+    const eligible = [];
+    const ineligible = [];
+    for (const p of players) {
+      const gp = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
+      if (gp >= MIN_QUALIFY_GAMES) eligible.push(p);
+      else ineligible.push(p);
+    }
+
+    const sortFn = (a, b) => {
       // Calculate stats for sorting
       const aGP = (a.wins || 0) + (a.losses || 0) + (a.draws || 0);
       const bGP = (b.wins || 0) + (b.losses || 0) + (b.draws || 0);
@@ -711,7 +722,18 @@ const fetchPreviousMatches = async () => {
       if (bGP !== aGP) return bGP - aGP;
       // 4. Alphabetically (ascending)
       return (a.name || "").localeCompare(b.name || "");
+    };
+
+    // Sort eligible by competitive criteria, ineligible by GP desc then name
+    eligible.sort(sortFn);
+    ineligible.sort((a, b) => {
+      const aGP = (a.wins || 0) + (a.losses || 0) + (a.draws || 0);
+      const bGP = (b.wins || 0) + (b.losses || 0) + (b.draws || 0);
+      if (bGP !== aGP) return bGP - aGP;
+      return (a.name || "").localeCompare(b.name || "");
     });
+
+    return [...eligible, ...ineligible];
   };
 
   const fetchPlayers = async () => {
@@ -2416,10 +2438,16 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </tr>
       </thead>
       <tbody>
-        {players.map((p, i) => {
+        {(() => {
+          const MIN_QUALIFY_GAMES = 10;
+          const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= MIN_QUALIFY_GAMES);
+          return players.map((p, i) => {
           const gp = p.wins + p.losses + p.draws;
           const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
           const diff = (p.points_for || 0) - (p.points_against || 0);
+          const eligibleIndex = eligiblePlayers.findIndex((ep) => ep.id === p.id);
+          const positionDisplay = eligibleIndex >= 0 ? String(eligibleIndex + 1) : "NQ";
+
           return (
             <tr
               key={p.id}
@@ -2434,12 +2462,12 @@ const activePlayerCount = players.filter((p) => p.active).length;
                     : "even:bg-yellow-50"
                 }`}
             >
-              <td className="p-2">{i + 1}</td>
+              <td className="p-2">{positionDisplay}</td>
               <td className="p-2 font-semibold flex items-center gap-2">
                 {i === 0 && <span>🥇</span>}
                 {i === 1 && <span>🥈</span>}
                 {i === 2 && <span>🥉</span>}
-                {p.name}
+                {p.name} {positionDisplay === "NQ" && <span className="text-xs text-gray-400">(NQ)</span>}
               </td>
               <td className="p-2 text-center text-gray-700">{gp}</td>
               <td className="p-2 text-green-600 text-center">{p.wins}</td>
