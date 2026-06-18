@@ -52,6 +52,17 @@ export default function HomePage() {
 
   // Mobile bottom-sheet modal control for NQ explanation
   const [showNqModalFor, setShowNqModalFor] = useState(null);
+  // Editable minimum games to qualify (UI-controlled, persisted to localStorage)
+  const [minQualifyGames, setMinQualifyGames] = useState(() => {
+    try {
+      const v = localStorage.getItem("min_qualify_games");
+      return v ? parseInt(v, 10) || MIN_QUALIFY_GAMES : MIN_QUALIFY_GAMES;
+    } catch (e) {
+      return MIN_QUALIFY_GAMES;
+    }
+  });
+  const [showEditMinModal, setShowEditMinModal] = useState(false);
+  const [minQualifyInput, setMinQualifyInput] = useState(String(minQualifyGames));
 
 const [isAdmin, setIsAdmin] = useState(false);
 const [showAdminModal, setShowAdminModal] = useState(false);
@@ -697,12 +708,12 @@ const fetchPreviousMatches = async () => {
   };
 
   const sortPlayersByStats = (players) => {
-    // Separate eligible (played >= MIN_QUALIFY_GAMES) from ineligible
+    // Separate eligible (played >= minQualifyGames) from ineligible
     const eligible = [];
     const ineligible = [];
     for (const p of players) {
       const gp = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
-      if (gp >= MIN_QUALIFY_GAMES) eligible.push(p);
+      if (gp >= minQualifyGames) eligible.push(p);
       else ineligible.push(p);
     }
 
@@ -2322,6 +2333,16 @@ const activePlayerCount = players.filter((p) => p.active).length;
           >
             Tracker
           </button>
+          <button
+            onClick={() => {
+              setMinQualifyInput(String(minQualifyGames));
+              setShowEditMinModal(true);
+            }}
+            className="px-3 py-2 rounded-lg text-sm font-semibold bg-white text-gray-900 border border-gray-200 shadow"
+            title="Edit minimum games to qualify"
+          >
+            Min games: {minQualifyGames}
+          </button>
         </div>
       </div>
     </div>
@@ -2341,7 +2362,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 
   {(() => {
-    const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= MIN_QUALIFY_GAMES);
+    const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= minQualifyGames);
     return players.map((p, i) => {
       const gp = p.wins + p.losses + p.draws;
       const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
@@ -2378,8 +2399,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                     tabIndex={0}
                     onClick={(e) => { e.stopPropagation(); setShowNqModalFor(p.id); }}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setShowNqModalFor(p.id); } }}
-                    title={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
-                    aria-label={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
+                    title={`Requires ${minQualifyGames} games to qualify`}
+                    aria-label={`Requires ${minQualifyGames} games to qualify`}
                     className="inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded cursor-pointer select-none hover:bg-red-50 active:scale-95 transition-transform shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-200"
                   >
                     <span>NQ</span>
@@ -2477,7 +2498,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
       </thead>
       <tbody>
         {(() => {
-          const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= MIN_QUALIFY_GAMES);
+          const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= minQualifyGames);
           return players.map((p, i) => {
           const gp = p.wins + p.losses + p.draws;
           const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
@@ -2511,8 +2532,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); setShowNqModalFor(p.id); }}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setShowNqModalFor(p.id); } }}
-                      title={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
-                      aria-label={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
+                      title={`Requires ${minQualifyGames} games to qualify`}
+                      aria-label={`Requires ${minQualifyGames} games to qualify`}
                       className="inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 border border-red-200 rounded cursor-pointer select-none hover:bg-red-50 active:scale-95 transition-transform shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-200"
                     >
                       <span>NQ</span>
@@ -2586,12 +2607,44 @@ const activePlayerCount = players.filter((p) => p.active).length;
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-lg font-semibold">Not Qualified</h3>
-              <p className="text-sm text-gray-600 mt-1">{`Requires ${MIN_QUALIFY_GAMES} games to qualify for ranked positions.`}</p>
+              <p className="text-sm text-gray-600 mt-1">{`Requires ${minQualifyGames} games to qualify for ranked positions.`}</p>
             </div>
             <button onClick={() => setShowNqModalFor(null)} className="text-gray-600 ml-4">Close</button>
           </div>
           <div className="mt-3 text-sm text-gray-700">
             Players who have not reached the minimum games are still shown, but are not counted in the ranked positions until they reach the required number of games.
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Edit Min Qualify Games modal */}
+    {showEditMinModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/40" onClick={() => setShowEditMinModal(false)} />
+        <div className="relative w-full max-w-md bg-white rounded-xl p-6 shadow-xl">
+          <h3 className="text-lg font-semibold">Minimum Games to Qualify</h3>
+          <p className="text-sm text-gray-600 mt-1">Set how many games a player must play before they qualify for ranked positions.</p>
+          <div className="mt-4">
+            <input
+              type="number"
+              min={0}
+              value={minQualifyInput}
+              onChange={(e) => setMinQualifyInput(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            />
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <button onClick={() => setShowEditMinModal(false)} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
+            <button
+              onClick={() => {
+                const v = parseInt(minQualifyInput || "0", 10) || 0;
+                setMinQualifyGames(v);
+                try { localStorage.setItem("min_qualify_games", String(v)); } catch (e) {}
+                setShowEditMinModal(false);
+              }}
+              className="px-4 py-2 rounded bg-blue-600 text-white"
+            >Save</button>
           </div>
         </div>
       </div>
