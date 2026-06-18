@@ -2525,6 +2525,31 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 <h3 className="text-xl font-bold text-yellow-500 mb-2">Division {selectedSeason.division} — {new Date(selectedSeason.timestamp).toLocaleString()}</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-3 bg-white rounded md:col-span-2">
+                  <h4 className="font-semibold text-gray-700">Final Standings</h4>
+                  <ol className="text-gray-700 mt-2">
+                    {(selectedSeason.finalStandings || []).map((p) => (
+                      <li key={p.id}>{p.position}. {p.name} — {p.points} pts ({p.wins}W {p.losses}L)</li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="p-3 bg-white rounded md:col-span-2">
+                  <h4 className="font-semibold text-gray-700">Tracker (positions after each match)</h4>
+                  <div className="text-gray-700 mt-2 space-y-2">
+                    {(selectedSeason.tracker || []).map((snap, i) => (
+                      <details key={i} className="bg-gray-50 p-2 rounded">
+                        <summary className="font-medium">Match {snap.matchIndex + 1} — {snap.timestamp ? new Date(snap.timestamp).toLocaleString() : 'unknown'}</summary>
+                        <ol className="mt-2 text-sm">
+                          {snap.positions.slice(0,10).map((pos) => (
+                            <li key={pos.id}>{pos.position}. {pos.name} — {pos.points} pts</li>
+                          ))}
+                        </ol>
+                      </details>
+                    ))}
+                  </div>
+                </div>
+
                   <div className="p-3 bg-white rounded">
                     <h4 className="font-semibold text-gray-700">Top By Points</h4>
                     <ol className="text-gray-700 mt-2">
@@ -3380,6 +3405,79 @@ const activePlayerCount = players.filter((p) => p.active).length;
                           ? Math.round(matchSummaries.reduce((s, m) => s + (m.total || 0), 0) / matchSummaries.length)
                           : 0;
 
+                        // Build final standings and a tracker (positions after each match)
+                        const playersById = {};
+                        (playersForSummary || []).forEach((p) => {
+                          playersById[p.id] = { ...p };
+                        });
+
+                        // Initialize running stats per player
+                        const running = {};
+                        (playersForSummary || []).forEach((p) => {
+                          running[p.id] = {
+                            id: p.id,
+                            name: p.name,
+                            wins: 0,
+                            losses: 0,
+                            draws: 0,
+                            points: 0,
+                            points_for: 0,
+                            points_against: 0,
+                            win_streak: 0,
+                          };
+                        });
+
+                        // Ensure matches are chronological
+                        const chronMatches = (matchesForSummary || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+                        const tracker = [];
+
+                        const snapshotPositions = () => {
+                          const arr = Object.values(running).map((s) => ({ ...s }));
+                          const ranked = sortPlayersByStats(arr);
+                          return ranked.map((p, idx) => ({ id: p.id, name: p.name, position: idx + 1, points: p.points, wins: p.wins }));
+                        };
+
+                        // Process matches one-by-one updating running stats and recording snapshots
+                        for (let i = 0; i < chronMatches.length; i++) {
+                          const m = chronMatches[i];
+                          const playersArray = Array.isArray(m.players) ? m.players : JSON.parse(m.players || '[]');
+                          if (!Array.isArray(playersArray) || playersArray.length < 4) {
+                            tracker.push({ matchIndex: i, timestamp: m.created_at || null, positions: snapshotPositions() });
+                            continue;
+                          }
+
+                          const team1 = playersArray.slice(0, 2).map(String);
+                          const team2 = playersArray.slice(2, 4).map(String);
+                          const score1 = Number(m.scores?.team1 || 0);
+                          const score2 = Number(m.scores?.team2 || 0);
+
+                          let res1 = 'draw', res2 = 'draw';
+                          if (score1 > score2) { res1 = 'win'; res2 = 'loss'; }
+                          else if (score1 < score2) { res1 = 'loss'; res2 = 'win'; }
+
+                          const apply = (pid, result, scored, conceded) => {
+                            if (!running[pid]) {
+                              // if player not in list, create minimal entry
+                              running[pid] = { id: pid, name: playersById[pid]?.name || String(pid), wins:0, losses:0, draws:0, points:0, points_for:0, points_against:0, win_streak:0 };
+                            }
+                            const s = running[pid];
+                            if (result === 'win') { s.wins += 1; s.points += 3; s.win_streak += 1; }
+                            else if (result === 'loss') { s.losses += 1; s.win_streak = 0; }
+                            else { s.draws += 1; s.points += 1; s.win_streak = 0; }
+                            s.points_for += scored; s.points_against += conceded;
+                          };
+
+                          team1.forEach((p) => apply(p, res1, score1, score2));
+                          team2.forEach((p) => apply(p, res2, score2, score1));
+
+                          tracker.push({ matchIndex: i, timestamp: m.created_at || null, positions: snapshotPositions() });
+                        }
+
+                        // Final standings: ranked using sortPlayersByStats
+                        const finalArr = Object.values(running).map((s) => ({ ...s }));
+                        const finalRanked = sortPlayersByStats(finalArr).map((p, idx) => ({ position: idx + 1, id: p.id, name: p.name, wins: p.wins, losses: p.losses, draws: p.draws, points: p.points, points_for: p.points_for, points_against: p.points_against, win_streak: p.win_streak }));
+
                         // most active player (count occurrences in matches)
                         const appearances = {};
                         for (const m of matchesForSummary) {
@@ -3401,6 +3499,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                           mostActive,
                           players: playersForSummary,
                           matches: matchesForSummary,
+                          finalStandings: finalRanked,
+                          tracker,
                         };
 
                         // 3) Persist summary to Supabase (fall back to localStorage on error)
