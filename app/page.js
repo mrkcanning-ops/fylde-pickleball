@@ -55,6 +55,14 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const [seasonSummaries, setSeasonSummaries] = useState([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState(null);
   const [selectedSeason, setSelectedSeason] = useState(null);
+  const [currentSeason, setCurrentSeason] = useState(() => {
+    try {
+      const raw = localStorage.getItem("current_season");
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  });
 
   const [leaderboard, setLeaderboard] = useState([]);
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
@@ -474,6 +482,39 @@ const fetchPreviousMatches = async () => {
 
     load();
   }, [activeTab]);
+
+  const createNewSeason = async () => {
+    // Prevent creating a new season if one is already running
+    const running = currentSeason || (() => {
+      try { return JSON.parse(localStorage.getItem("current_season") || "null"); } catch (e) { return null; }
+    })();
+
+    if (running) {
+      alert(`A season is already running: ${running.name}. End it before creating a new one.`);
+      return;
+    }
+
+    const name = prompt("Enter a name for the new season:");
+    if (!name || !name.trim()) return;
+
+    const confirmCreate = confirm(`Create new season named "${name.trim()}"?`);
+    if (!confirmCreate) return;
+
+    const newSeason = {
+      id: `season_${Date.now()}`,
+      name: name.trim(),
+      started_at: new Date().toISOString(),
+    };
+
+    try {
+      localStorage.setItem("current_season", JSON.stringify(newSeason));
+      setCurrentSeason(newSeason);
+      alert(`New season "${newSeason.name}" started.`);
+    } catch (e) {
+      console.error("Failed to create new season:", e);
+      alert("Failed to create new season.");
+    }
+  };
 
   const sortPlayersByStats = (players) => {
     return [...players].sort((a, b) => {
@@ -2402,6 +2443,18 @@ const activePlayerCount = players.filter((p) => p.active).length;
                     </option>
                   ))}
                 </select>
+                <button
+                  onClick={createNewSeason}
+                  disabled={!!currentSeason}
+                  className={`ml-3 px-3 py-2 rounded text-sm font-semibold transition ${
+                    currentSeason ? "bg-gray-300 text-gray-600 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-500"
+                  }`}
+                >
+                  ➕ Add New Season
+                </button>
+                {currentSeason && (
+                  <div className="ml-3 text-sm text-gray-600">Running: {currentSeason.name}</div>
+                )}
               </div>
             </div>
 
@@ -3345,6 +3398,14 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         alert("Season ended and archived ✅");
                         setShowResetModal(false);
                         setResetPasswordInput("");
+
+                        // Clear running season marker so a new season can be created
+                        try {
+                          localStorage.removeItem("current_season");
+                        } catch (e) {
+                          /* ignore */
+                        }
+                        setCurrentSeason(null);
 
                         // navigate to summaries page
                         router.push("/season-summaries");
