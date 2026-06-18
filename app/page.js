@@ -52,6 +52,9 @@ const [adminCode, setAdminCode] = useState("");
 const [adminError, setAdminError] = useState("");
 
 const [previousMatches, setPreviousMatches] = useState([]);
+  const [seasonSummaries, setSeasonSummaries] = useState([]);
+  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
+  const [selectedSeason, setSelectedSeason] = useState(null);
 
   const [leaderboard, setLeaderboard] = useState([]);
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
@@ -429,6 +432,49 @@ const fetchPreviousMatches = async () => {
     syncAndFetchData();
   }, [division]);
 
+  // Load season summaries when user opens the Seasons tab
+  useEffect(() => {
+    if (activeTab !== "Seasons") return;
+
+    const load = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("season_summaries")
+          .select("*")
+          .order("timestamp", { ascending: false });
+
+        if (!error && Array.isArray(data)) {
+          setSeasonSummaries(data);
+          if (data.length > 0) {
+            setSelectedSeasonId(data[0].id);
+            setSelectedSeason(data[0]);
+          }
+          return;
+        }
+      } catch (e) {
+        console.warn("Failed to load season summaries:", e);
+      }
+
+      // fallback to localStorage index
+      try {
+        const idx = JSON.parse(localStorage.getItem("season_summaries_index") || "[]");
+        const items = idx.map((id) => {
+          const raw = localStorage.getItem(id);
+          return raw ? JSON.parse(raw) : null;
+        }).filter(Boolean);
+        setSeasonSummaries(items);
+        if (items.length > 0) {
+          setSelectedSeasonId(items[0].id);
+          setSelectedSeason(items[0]);
+        }
+      } catch (e) {
+        console.warn("No season summaries in localStorage", e);
+      }
+    };
+
+    load();
+  }, [activeTab]);
+
   const sortPlayersByStats = (players) => {
     return [...players].sort((a, b) => {
       // Calculate stats for sorting
@@ -717,7 +763,7 @@ const fetchPreviousMatches = async () => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Seasons"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -1892,7 +1938,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
           Fylde Pickleball League
         </h1>
         <p className="text-gray-400 mt-2 text-xs sm:text-sm tracking-wide">
-          Weekly Matches • 8 Weeks • 2 Courts • Prize for Winner!🏆
+          Weekly Matches • Live Updates • Prize for Winner!🏆
         </p>
         <div className="absolute -bottom-3 left-0 w-20 sm:w-24 h-1 bg-yellow-400 rounded-full" />
       </header>
@@ -1924,6 +1970,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               {tab === "Matches" && "⚔"}
               {tab === "Players" && "👥"}
               {tab === "Previous Matches" && "🕒"}
+              {tab === "Seasons" && "📜"}
               <span>{tab}</span>
             </button>
           ))}
@@ -2330,6 +2377,112 @@ const activePlayerCount = players.filter((p) => p.active).length;
     </div>
   </div>
 )}
+
+        {/* Seasons */}
+        {activeTab === "Seasons" && (
+          <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-4">
+            <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4 flex items-center justify-between">
+              <div className="font-bold text-yellow-500 text-lg">📜 Seasons</div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Archived season</label>
+                <select
+                  value={selectedSeasonId || ""}
+                  onChange={(e) => {
+                    const id = Number(e.target.value);
+                    setSelectedSeasonId(id);
+                    const found = seasonSummaries.find((s) => s.id === id);
+                    setSelectedSeason(found || null);
+                  }}
+                  className="bg-white border border-gray-300 rounded px-3 py-2"
+                >
+                  {seasonSummaries.length === 0 && <option value="">No seasons</option>}
+                  {seasonSummaries.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {`Division ${s.division} • ${new Date(s.timestamp).toLocaleString()}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {selectedSeason ? (
+              <div className="bg-gray-100 p-4 rounded">
+                <h3 className="text-xl font-bold text-yellow-500 mb-2">Division {selectedSeason.division} — {new Date(selectedSeason.timestamp).toLocaleString()}</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-3 bg-white rounded">
+                    <h4 className="font-semibold text-gray-700">Top By Points</h4>
+                    <ol className="text-gray-700 mt-2">
+                      {(selectedSeason.topByPoints || selectedSeason.top_by_points || []).map((p) => (
+                        <li key={p.id}>{p.name} — {p.points ?? p.points}</li>
+                      ))}
+                    </ol>
+                  </div>
+
+                  <div className="p-3 bg-white rounded">
+                    <h4 className="font-semibold text-gray-700">Top By Wins</h4>
+                    <ol className="text-gray-700 mt-2">
+                      {(selectedSeason.topByWins || selectedSeason.top_by_wins || []).map((p) => (
+                        <li key={p.id}>{p.name} — {p.wins ?? p.wins}</li>
+                      ))}
+                    </ol>
+                  </div>
+
+                  <div className="p-3 bg-white rounded md:col-span-2">
+                    <h4 className="font-semibold text-gray-700">Highest Scoring Match</h4>
+                    {selectedSeason.highestScoringMatch ? (
+                      <div className="text-gray-700 mt-2">
+                        <div>{(selectedSeason.highestScoringMatch.players || []).join(' vs ')}</div>
+                        <div className="text-sm text-gray-500">Score: {selectedSeason.highestScoringMatch.scores?.team1 ?? '-'} — {selectedSeason.highestScoringMatch.scores?.team2 ?? '-'}</div>
+                        <div className="text-sm text-gray-500">Total: {selectedSeason.highestScoringMatch.total}</div>
+                      </div>
+                    ) : (
+                      <div className="text-gray-500">No matches recorded.</div>
+                    )}
+                  </div>
+
+                  <div className="p-3 bg-white rounded">
+                    <h4 className="font-semibold text-gray-700">Average Points / Match</h4>
+                    <div className="text-gray-700 mt-2">{selectedSeason.avgPoints}</div>
+                  </div>
+
+                  <div className="p-3 bg-white rounded">
+                    <h4 className="font-semibold text-gray-700">Most Active Player</h4>
+                    <div className="text-gray-700 mt-2">{selectedSeason.mostActive || '—'}</div>
+                  </div>
+
+                  <div className="md:col-span-2 mt-4">
+                    <h4 className="font-semibold text-gray-700">Full Match List</h4>
+                    <div className="overflow-x-auto mt-2 bg-white p-2 rounded">
+                      <table className="w-full text-left text-gray-700 text-sm">
+                        <thead className="text-gray-500 text-xs uppercase border-b border-gray-200">
+                          <tr>
+                            <th className="p-2">#</th>
+                            <th className="p-2">Players</th>
+                            <th className="p-2">Score</th>
+                            <th className="p-2">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(selectedSeason.matches || []).map((m, i) => (
+                            <tr key={i} className="border-b border-gray-200">
+                              <td className="p-2 align-top">{i + 1}</td>
+                              <td className="p-2">{(m.players || []).join(' vs ')}</td>
+                              <td className="p-2">{m.scores?.team1 ?? '-'} — {m.scores?.team2 ?? '-'}</td>
+                              <td className="p-2">{m.created_at ? new Date(m.created_at).toLocaleString() : '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-600">No season selected.</div>
+            )}
+          </div>
+        )}
 
     <div className="mt-8 px-6 py-6 flex justify-center gap-4 border-t border-gray-200 bg-red-50">
       <button
