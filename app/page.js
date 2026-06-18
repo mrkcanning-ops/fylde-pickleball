@@ -3847,6 +3847,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                                 most_active: summary.mostActive,
                                 players: summary.players,
                                 matches: summary.matches,
+                                final_standings: summary.finalStandings,
+                                tracker: summary.tracker,
                               },
                             ]);
 
