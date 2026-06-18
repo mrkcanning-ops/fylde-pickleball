@@ -50,6 +50,16 @@ export default function HomePage() {
   const [currentRound, setCurrentRound] = useState(0);
   const [roundMatches, setRoundMatches] = useState([]); // flattened all matches by round
 
+  // Tooltip control for NQ pills (mobile-friendly tap to show)
+  const [nqTooltipId, setNqTooltipId] = useState(null);
+
+  // Close NQ tooltip when clicking anywhere else
+  useEffect(() => {
+    const handler = () => setNqTooltipId(null);
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, []);
+
 const [isAdmin, setIsAdmin] = useState(false);
 const [showAdminModal, setShowAdminModal] = useState(false);
 const [adminCode, setAdminCode] = useState("");
@@ -2368,7 +2378,26 @@ const activePlayerCount = players.filter((p) => p.active).length;
               {i === 0 && "🥇"}
               {i === 1 && "🥈"}
               {i === 2 && "🥉"}
-              #{i + 1} {p.name} {positionDisplay === "NQ" && <span title={`Requires ${MIN_QUALIFY_GAMES} games to qualify`} aria-label={`Requires ${MIN_QUALIFY_GAMES} games to qualify`} className="ml-2 inline-block px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 rounded">NQ</span>}
+              #{i + 1} {p.name} {positionDisplay === "NQ" && (
+                <span className="ml-2 inline-block relative">
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); setNqTooltipId(nqTooltipId === p.id ? null : p.id); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setNqTooltipId(nqTooltipId === p.id ? null : p.id); } }}
+                    title={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
+                    aria-label={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
+                    className="px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 rounded cursor-pointer select-none"
+                  >
+                    NQ
+                  </span>
+                  {nqTooltipId === p.id && (
+                    <div className="absolute z-50 mt-2 left-1/2 transform -translate-x-1/2 w-max px-3 py-2 text-xs text-white bg-gray-800 rounded shadow-lg">
+                      {`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
+                    </div>
+                  )}
+                </span>
+              )}
             </span>
             <span className="font-bold text-gray-900">{p.points} pts</span>
           </div>
@@ -2484,7 +2513,26 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 {i === 0 && <span>🥇</span>}
                 {i === 1 && <span>🥈</span>}
                 {i === 2 && <span>🥉</span>}
-                {p.name} {positionDisplay === "NQ" && <span title={`Requires ${MIN_QUALIFY_GAMES} games to qualify`} aria-label={`Requires ${MIN_QUALIFY_GAMES} games to qualify`} className="ml-2 inline-block px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 rounded">NQ</span>}
+                {p.name} {positionDisplay === "NQ" && (
+                  <span className="ml-2 inline-block relative">
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); setNqTooltipId(nqTooltipId === p.id ? null : p.id); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setNqTooltipId(nqTooltipId === p.id ? null : p.id); } }}
+                      title={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
+                      aria-label={`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
+                      className="px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 rounded cursor-pointer select-none"
+                    >
+                      NQ
+                    </span>
+                    {nqTooltipId === p.id && (
+                      <div className="absolute z-50 mt-2 left-1/2 transform -translate-x-1/2 w-max px-3 py-2 text-xs text-white bg-gray-800 rounded shadow-lg">
+                        {`Requires ${MIN_QUALIFY_GAMES} games to qualify`}
+                      </div>
+                    )}
+                  </span>
+                )}
               </td>
               <td className="p-2 text-center text-gray-700">{gp}</td>
               <td className="p-2 text-green-600 text-center">{p.wins}</td>
