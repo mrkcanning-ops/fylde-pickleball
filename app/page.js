@@ -637,33 +637,54 @@ const fetchPreviousMatches = async () => {
   onClick: toggleDivision,
   renderCustom: () => (
     <div className="flex flex-col items-center gap-2 select-none">
-      <span className="bg-yellow-500 text-gray-950 font-extrabold text-2xl px-5 py-2 rounded-full leading-none">
-        {divisions.find((d) => d.id === division)?.name || `Division ${division}`}
-      </span>
       <div className="flex items-center gap-2">
-        <span className="bg-gray-700 text-gray-300 font-semibold text-xs px-3 py-1 rounded-full border border-gray-500">
-          {(() => {
+        <button
+          onClick={() => {
+            // previous division
             const idx = divisions.findIndex((d) => d.id === division);
-            const next = divisions[(idx + 1) % divisions.length];
-            return next ? next.name : "—";
-          })()}
+            const prevIdx = (idx - 1 + divisions.length) % divisions.length;
+            const prev = divisions[prevIdx];
+            if (prev) {
+              setDivision(prev.id);
+              fetchAllDivisionPlayers(prev.id);
+            }
+          }}
+          className="text-sm bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 hover:bg-gray-600"
+          title="Previous division"
+        >
+          ◀
+        </button>
+
+        <span className="bg-yellow-500 text-gray-950 font-extrabold text-2xl px-5 py-2 rounded-full leading-none">
+          {divisions.find((d) => d.id === division)?.name || `Division ${division}`}
         </span>
+
+        <button
+          onClick={() => toggleDivision()}
+          className="text-sm bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 hover:bg-gray-600"
+          title="Next division"
+        >
+          ▶
+        </button>
+      </div>
+      
+
+      <div className="flex items-center gap-3 mt-3">
         <button
           onClick={() => setShowAddDivisionPasscodeModal(true)}
-          className="text-xs bg-gray-800 text-white px-2 py-1 rounded border border-gray-600 hover:bg-gray-700"
+          className="bg-gray-800 text-white px-4 py-2 rounded text-sm border border-gray-600 hover:bg-gray-700"
         >
           ➕ Add
         </button>
         <button
           onClick={syncDivisions}
-          className="text-xs bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 hover:bg-gray-600"
-          title="Sync divisions from server"
+          className="bg-gray-700 text-white px-4 py-2 rounded text-sm border border-gray-600 hover:bg-gray-600"
         >
           🔄 Sync
         </button>
         <button
           onClick={() => setShowRemoveDivisionPasscodeModal(true)}
-          className="text-xs bg-red-600 text-white px-2 py-1 rounded border border-red-700 hover:bg-red-700"
+          className="bg-red-600 text-white px-4 py-2 rounded text-sm border border-red-700 hover:bg-red-700"
         >
           🗑 Remove
         </button>
@@ -671,6 +692,7 @@ const fetchPreviousMatches = async () => {
     </div>
   ),
 },
+    
     { label: "Current Leader", value: currentLeader, highlight: "gold" },
     {
       label: "Most Improved",
