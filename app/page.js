@@ -2368,7 +2368,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               {i === 0 && "🥇"}
               {i === 1 && "🥈"}
               {i === 2 && "🥉"}
-              #{positionDisplay} {p.name} {positionDisplay === "NQ" && <span className="ml-2 inline-block px-2 py-0.5 text-xs font-semibold text-red-700 bg-red-100 rounded">NQ</span>}
+              #{i + 1} {p.name} {positionDisplay === "NQ" && <span className="ml-2 inline-block px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 rounded">NQ</span>}
             </span>
             <span className="font-bold text-gray-900">{p.points} pts</span>
           </div>
@@ -2479,12 +2479,12 @@ const activePlayerCount = players.filter((p) => p.active).length;
                     : "even:bg-yellow-50"
                 }`}
             >
-              <td className="p-2">{positionDisplay}</td>
+              <td className="p-2">{i + 1}</td>
               <td className="p-2 font-semibold flex items-center gap-2">
                 {i === 0 && <span>🥇</span>}
                 {i === 1 && <span>🥈</span>}
                 {i === 2 && <span>🥉</span>}
-                {p.name} {positionDisplay === "NQ" && <span className="text-xs text-gray-400">(NQ)</span>}
+                {p.name} {positionDisplay === "NQ" && <span className="ml-2 inline-block px-3 py-1 text-sm font-semibold text-red-700 bg-red-100 rounded">NQ</span>}
               </td>
               <td className="p-2 text-center text-gray-700">{gp}</td>
               <td className="p-2 text-green-600 text-center">{p.wins}</td>
