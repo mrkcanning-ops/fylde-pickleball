@@ -3370,42 +3370,86 @@ const activePlayerCount = players.filter((p) => p.active).length;
                           localStorage.setItem(summary.id, JSON.stringify(summary));
                         }
 
-                        // 4) Reset players for this division (prepare for next season)
-                        if (playersForSummary.length > 0) {
-                          for (const player of playersForSummary) {
-                            await supabase
-                              .from("players")
-                              .update({
-                                wins: 0,
-                                losses: 0,
-                                draws: 0,
-                                points: 0,
-                                points_for: 0,
-                                points_against: 0,
-                                win_streak: 0,
-                              })
-                              .eq("id", player.id);
+                        // Ask whether user wants to start a new season with the same players
+                        let createNext = confirm(
+                          "Do you want to start a new season with the same players (stats reset)? Click OK to create, Cancel to clear players."
+                        );
+
+                        if (createNext) {
+                          // prompt for a season name
+                          let newName = prompt("Enter a name for the new season:", `Season ${new Date().toLocaleDateString()}`);
+                          if (!newName || !newName.trim()) {
+                            newName = `Season ${new Date().toLocaleDateString()}`;
                           }
+
+                          // 4a) Reset players for this division (prepare for next season)
+                          if (playersForSummary.length > 0) {
+                            for (const player of playersForSummary) {
+                              await supabase
+                                .from("players")
+                                .update({
+                                  wins: 0,
+                                  losses: 0,
+                                  draws: 0,
+                                  points: 0,
+                                  points_for: 0,
+                                  points_against: 0,
+                                  win_streak: 0,
+                                })
+                                .eq("id", player.id);
+                            }
+                          }
+
+                          // Refresh players list
+                          await fetchPlayers();
+
+                          // Clear local leaderboard cache for UI
+                          localStorage.removeItem("leaderboard");
+                          setLeaderboard([]);
+
+                          // Create and persist running season marker
+                          const running = {
+                            id: `season_${Date.now()}`,
+                            name: newName,
+                            started_at: new Date().toISOString(),
+                            division,
+                          };
+                          try {
+                            localStorage.setItem("current_season", JSON.stringify(running));
+                            setCurrentSeason(running);
+                          } catch (e) {
+                            console.error("Failed to persist running season:", e);
+                          }
+
+                          alert("Season ended and new season started ✅");
+                          setShowResetModal(false);
+                          setResetPasswordInput("");
+                        } else {
+                          // 4b) Clear all players from this division (leave division blank)
+                          try {
+                            await supabase.from("players").delete().eq("division", division);
+                          } catch (delErr) {
+                            console.warn("Failed to delete players from DB, clearing local state:", delErr);
+                          }
+
+                          // Clear local UI state
+                          setPlayers([]);
+                          setAllDivisionPlayers([]);
+                          localStorage.removeItem("leaderboard");
+                          setLeaderboard([]);
+
+                          // Clear running season marker
+                          try {
+                            localStorage.removeItem("current_season");
+                          } catch (e) {
+                            /* ignore */
+                          }
+                          setCurrentSeason(null);
+
+                          alert("Season ended and players cleared ✅");
+                          setShowResetModal(false);
+                          setResetPasswordInput("");
                         }
-
-                        // Refresh players list
-                        await fetchPlayers();
-
-                        // Clear local leaderboard cache for UI
-                        localStorage.removeItem("leaderboard");
-                        setLeaderboard([]);
-
-                        alert("Season ended and archived ✅");
-                        setShowResetModal(false);
-                        setResetPasswordInput("");
-
-                        // Clear running season marker so a new season can be created
-                        try {
-                          localStorage.removeItem("current_season");
-                        } catch (e) {
-                          /* ignore */
-                        }
-                        setCurrentSeason(null);
 
                         // navigate to summaries page
                         router.push("/season-summaries");
