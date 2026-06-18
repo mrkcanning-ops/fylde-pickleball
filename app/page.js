@@ -2337,100 +2337,105 @@ const activePlayerCount = players.filter((p) => p.active).length;
     <span className="text-cyan-600 font-black text-xs">Win %</span>
   </div>
 
-  {players.map((p, i) => {
-    const gp = p.wins + p.losses + p.draws;
-    const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
-    const diff = (p.points_for || 0) - (p.points_against || 0);
+  {(() => {
+    const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= MIN_QUALIFY_GAMES);
+    return players.map((p, i) => {
+      const gp = p.wins + p.losses + p.draws;
+      const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
+      const diff = (p.points_for || 0) - (p.points_against || 0);
 
-    const form = computePlayerForm(p.id);
+      const form = computePlayerForm(p.id);
+      const eligibleIndex = eligiblePlayers.findIndex((ep) => ep.id === p.id);
+      const positionDisplay = eligibleIndex >= 0 ? String(eligibleIndex + 1) : "NQ";
 
-    return (
-      <div
-        key={p.id}
-        className={`rounded-lg shadow border p-4 transition
-          ${
-            i === 0
-              ? "bg-yellow-50 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.5)]"
-              : i === 1
-              ? "bg-gray-100 border-gray-300 shadow-[0_0_18px_rgba(192,192,192,0.5)]"
-              : i === 2
-              ? "bg-orange-50 border-orange-300 shadow-[0_0_18px_rgba(205,127,50,0.5)]"
-              : "bg-white border-gray-200"
-          }`}
-      >
-        {/* Player Name and Rank */}
-        <div className="flex justify-between items-center mb-2">
-          <span className="font-bold text-gray-900 flex items-center gap-2">
-            {i === 0 && "🥇"}
-            {i === 1 && "🥈"}
-            {i === 2 && "🥉"}
-            #{i + 1} {p.name}
-          </span>
-          <span className="font-bold text-gray-900">{p.points} pts</span>
-        </div>
-
-        {/* Stats Row */}
-        <div className="grid grid-cols-6 text-sm font-semibold gap-1 text-center">
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-gray-700">{gp}</span>
+      return (
+        <div
+          key={p.id}
+          className={`rounded-lg shadow border p-4 transition
+            ${
+              i === 0
+                ? "bg-yellow-50 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.5)]"
+                : i === 1
+                ? "bg-gray-100 border-gray-300 shadow-[0_0_18px_rgba(192,192,192,0.5)]"
+                : i === 2
+                ? "bg-orange-50 border-orange-300 shadow-[0_0_18px_rgba(205,127,50,0.5)]"
+                : "bg-white border-gray-200"
+            }`}
+        >
+          {/* Player Name and Rank */}
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-bold text-gray-900 flex items-center gap-2">
+              {i === 0 && "🥇"}
+              {i === 1 && "🥈"}
+              {i === 2 && "🥉"}
+              #{positionDisplay} {p.name} {positionDisplay === "NQ" && <span className="ml-2 inline-block px-2 py-0.5 text-xs font-semibold text-red-700 bg-red-100 rounded">NQ</span>}
+            </span>
+            <span className="font-bold text-gray-900">{p.points} pts</span>
           </div>
-          <span className="text-green-600">{p.wins}</span>
-          <span className="text-red-400">{p.losses}</span>
-          <span className="text-yellow-500">{p.draws}</span>
-          <span className="text-gray-700">{diff}</span>
-          <span className="text-cyan-600 font-black text-base">{winPct}</span>
-        </div>
-        {/* Bottom row: change + recent form */}
-        <div className="flex justify-end mt-3 items-end gap-4">
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-xs uppercase tracking-widest text-gray-400">Change</span>
-            <div>
-              {(() => {
-                const change = p.positionChange || 0;
-                const baseClass = "inline-flex items-center justify-center min-w-[36px] h-5 px-1 rounded text-sm font-semibold";
-                if (change > 0) {
+
+          {/* Stats Row */}
+          <div className="grid grid-cols-6 text-sm font-semibold gap-1 text-center">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-gray-700">{gp}</span>
+            </div>
+            <span className="text-green-600">{p.wins}</span>
+            <span className="text-red-400">{p.losses}</span>
+            <span className="text-yellow-500">{p.draws}</span>
+            <span className="text-gray-700">{diff}</span>
+            <span className="text-cyan-600 font-black text-base">{winPct}</span>
+          </div>
+          {/* Bottom row: change + recent form */}
+          <div className="flex justify-end mt-3 items-end gap-4">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-xs uppercase tracking-widest text-gray-400">Change</span>
+              <div>
+                {(() => {
+                  const change = p.positionChange || 0;
+                  const baseClass = "inline-flex items-center justify-center min-w-[36px] h-5 px-1 rounded text-sm font-semibold";
+                  if (change > 0) {
+                    return (
+                      <span className={baseClass + " text-green-700 bg-green-50 border border-green-100"}>
+                        <span aria-hidden className="mr-1">▲</span>
+                        <span>{change}</span>
+                      </span>
+                    );
+                  }
+                  if (change < 0) {
+                    return (
+                      <span className={baseClass + " text-red-700 bg-red-50 border border-red-100"}>
+                        <span aria-hidden className="mr-1">▼</span>
+                        <span>{Math.abs(change)}</span>
+                      </span>
+                    );
+                  }
                   return (
-                    <span className={baseClass + " text-green-700 bg-green-50 border border-green-100"}>
-                      <span aria-hidden className="mr-1">▲</span>
-                      <span>{change}</span>
+                    <span className={baseClass + " text-gray-500 bg-gray-100 border border-gray-200"}>
+                      —
                     </span>
                   );
-                }
-                if (change < 0) {
-                  return (
-                    <span className={baseClass + " text-red-700 bg-red-50 border border-red-100"}>
-                      <span aria-hidden className="mr-1">▼</span>
-                      <span>{Math.abs(change)}</span>
-                    </span>
-                  );
-                }
-                return (
-                  <span className={baseClass + " text-gray-500 bg-gray-100 border border-gray-200"}>
-                    —
-                  </span>
-                );
-              })()}
+                })()}
+              </div>
             </div>
-          </div>
 
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-xs uppercase tracking-widest text-gray-400">Form</span>
-            <div className="flex items-center gap-1 overflow-x-auto px-1">
-              {[Array(Math.max(0, 10 - (form.length || 0))).fill(null).concat(form.length ? form : []).slice(0, 10)].flat().map((r, idx) => (
-                <span
-                  key={idx}
-                  className={`w-3 h-3 rounded-sm inline-block border ${
-                    r === 'W' ? 'bg-green-500 border-green-600' : r === 'L' ? 'bg-red-500 border-red-600' : r === 'D' ? 'bg-yellow-400 border-yellow-500' : 'bg-gray-200 border-gray-300'
-                  }`}
-                  title={r === 'W' ? 'Win' : r === 'L' ? 'Loss' : r === 'D' ? 'Draw' : 'No match'}
-                />
-              ))}
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-xs uppercase tracking-widest text-gray-400">Form</span>
+              <div className="flex items-center gap-1 overflow-x-auto px-1">
+                {[Array(Math.max(0, 10 - (form.length || 0))).fill(null).concat(form.length ? form : []).slice(0, 10)].flat().map((r, idx) => (
+                  <span
+                    key={idx}
+                    className={`w-3 h-3 rounded-sm inline-block border ${
+                      r === 'W' ? 'bg-green-500 border-green-600' : r === 'L' ? 'bg-red-500 border-red-600' : r === 'D' ? 'bg-yellow-400 border-yellow-500' : 'bg-gray-200 border-gray-300'
+                    }`}
+                    title={r === 'W' ? 'Win' : r === 'L' ? 'Loss' : r === 'D' ? 'Draw' : 'No match'}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    );
-  })}
+      );
+    });
+  })()}
 </div>
 
     {/* Desktop Table */}
