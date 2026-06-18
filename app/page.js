@@ -64,6 +64,40 @@ const [previousMatches, setPreviousMatches] = useState([]);
     }
   });
 
+  // Try to load running season from Supabase for this division (fallback to localStorage)
+  const loadRunningSeasonFromDb = async (divisionNum = division) => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from("running_seasons")
+        .select("*")
+        .eq("division", divisionNum)
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        try {
+          localStorage.setItem("current_season", JSON.stringify(data));
+        } catch (e) {}
+        setCurrentSeason(data);
+        return;
+      }
+    } catch (e) {
+      // table may not exist or network error — ignore and rely on localStorage
+    }
+
+    try {
+      const raw = localStorage.getItem("current_season");
+      if (raw) setCurrentSeason(JSON.parse(raw));
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    // load running season for current division on mount and when division changes
+    loadRunningSeasonFromDb(division);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [division]);
+
   const [leaderboard, setLeaderboard] = useState([]);
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
   const [hydrated, setHydrated] = useState(false);
@@ -507,8 +541,36 @@ const fetchPreviousMatches = async () => {
     };
 
     try {
-      localStorage.setItem("current_season", JSON.stringify(newSeason));
-      setCurrentSeason(newSeason);
+      // try persist to Supabase table `running_seasons` (if available)
+      let saved = false;
+      try {
+        const { data: insertData, error: insertError } = await supabase
+          .from("running_seasons")
+          .insert([
+            {
+              id: newSeason.id,
+              name: newSeason.name,
+              started_at: newSeason.started_at,
+              division: newSeason.division || null,
+            },
+          ]);
+
+        if (!insertError) {
+          saved = true;
+          // prefer DB record
+          const dbRec = Array.isArray(insertData) ? insertData[0] : insertData;
+          localStorage.setItem("current_season", JSON.stringify(dbRec));
+          setCurrentSeason(dbRec);
+        }
+      } catch (dbErr) {
+        // ignore
+      }
+
+      if (!saved) {
+        localStorage.setItem("current_season", JSON.stringify(newSeason));
+        setCurrentSeason(newSeason);
+      }
+
       alert(`New season "${newSeason.name}" started.`);
     } catch (e) {
       console.error("Failed to create new season:", e);
@@ -3415,8 +3477,32 @@ const activePlayerCount = players.filter((p) => p.active).length;
                             division,
                           };
                           try {
-                            localStorage.setItem("current_season", JSON.stringify(running));
-                            setCurrentSeason(running);
+                            // attempt to persist running season to Supabase
+                            try {
+                              const { data: ins, error: insErr } = await supabase
+                                .from("running_seasons")
+                                .insert([
+                                  {
+                                    id: running.id,
+                                    name: running.name,
+                                    started_at: running.started_at,
+                                    division: running.division,
+                                  },
+                                ]);
+
+                              if (!insErr) {
+                                const dbRec = Array.isArray(ins) ? ins[0] : ins;
+                                localStorage.setItem("current_season", JSON.stringify(dbRec));
+                                setCurrentSeason(dbRec);
+                              } else {
+                                // fallback to localStorage
+                                localStorage.setItem("current_season", JSON.stringify(running));
+                                setCurrentSeason(running);
+                              }
+                            } catch (dbErr) {
+                              localStorage.setItem("current_season", JSON.stringify(running));
+                              setCurrentSeason(running);
+                            }
                           } catch (e) {
                             console.error("Failed to persist running season:", e);
                           }
@@ -3438,8 +3524,14 @@ const activePlayerCount = players.filter((p) => p.active).length;
                           localStorage.removeItem("leaderboard");
                           setLeaderboard([]);
 
-                          // Clear running season marker
+                          // Clear running season marker locally and in DB (if available)
                           try {
+                            // try delete from DB
+                            try {
+                              await supabase.from("running_seasons").delete().eq("division", division);
+                            } catch (dbDelErr) {
+                              // ignore
+                            }
                             localStorage.removeItem("current_season");
                           } catch (e) {
                             /* ignore */
