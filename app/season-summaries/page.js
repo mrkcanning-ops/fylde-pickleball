@@ -13,6 +13,9 @@ const summariesIndex = undefined;
 export default function SeasonSummariesPage() {
   const [summariesList, setSummariesList] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagResult, setDiagResult] = useState(null);
+  const [showDiagModal, setShowDiagModal] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -67,6 +70,60 @@ export default function SeasonSummariesPage() {
     load();
   }, []);
 
+  const runSeasonDiagnosticsAndRepair = async () => {
+    const pass = prompt('Enter admin passcode to run diagnostics:');
+    const correct = process.env.NEXT_PUBLIC_ADMIN_PASSCODE || '';
+    if (!pass || pass.trim() !== correct.trim()) {
+      alert('Incorrect passcode');
+      return;
+    }
+
+    setDiagLoading(true);
+    const result = { total: 0, missingFinal: 0, missingTracker: 0, repaired: 0, missingLocal: 0, errors: [] };
+    try {
+      const { data, error } = await supabase.from('season_summaries').select('*');
+      if (error) throw error;
+      const rows = data || [];
+      result.total = rows.length;
+      for (const row of rows) {
+        const hasFinal = !!(row.final_standings || row.finalStandings);
+        const hasTracker = !!(row.tracker || row.tracker);
+        if (hasFinal && hasTracker) continue;
+        if (!hasFinal) result.missingFinal += 1;
+        if (!hasTracker) result.missingTracker += 1;
+
+        const raw = localStorage.getItem(row.id);
+        if (!raw) {
+          result.missingLocal += 1;
+          continue;
+        }
+        try {
+          const local = JSON.parse(raw);
+          const payload = {};
+          if (!hasFinal && (local.finalStandings || local.final_standings)) payload.final_standings = local.finalStandings || local.final_standings;
+          if (!hasTracker && local.tracker) payload.tracker = local.tracker;
+          if (Object.keys(payload).length === 0) {
+            result.missingLocal += 1;
+            continue;
+          }
+          const { error: updErr } = await supabase.from('season_summaries').update(payload).eq('id', row.id);
+          if (updErr) {
+            result.errors.push({ id: row.id, message: updErr.message || JSON.stringify(updErr) });
+          } else {
+            result.repaired += 1;
+          }
+        } catch (e) {
+          result.errors.push({ id: row.id, message: e.message || String(e) });
+        }
+      }
+    } catch (e) {
+      result.errors.push({ message: e.message || String(e) });
+    }
+    setDiagResult(result);
+    setDiagLoading(false);
+    setShowDiagModal(true);
+  };
+
   const openSummary = (id) => {
     const found = summariesList.find((s) => s.id === id);
     if (found) return setSelected(found);
@@ -91,6 +148,13 @@ export default function SeasonSummariesPage() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold text-yellow-400 mb-4">Season Summaries</h1>
+
+      <div className="mb-4">
+        <button onClick={runSeasonDiagnosticsAndRepair} disabled={diagLoading} className="px-3 py-2 bg-blue-600 text-white rounded mr-3">
+          {diagLoading ? 'Running...' : 'Run Repair & Diagnostics'}
+        </button>
+        <button onClick={() => { setShowDiagModal(true); }} className="px-3 py-2 bg-gray-700 text-white rounded">View Last Result</button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="col-span-1">
@@ -193,6 +257,39 @@ export default function SeasonSummariesPage() {
       <div className="mt-6">
         <Link href="/" className="text-blue-400 underline">Back to dashboard</Link>
       </div>
+
+      {showDiagModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-96 border border-gray-700">
+            <h3 className="text-lg font-bold text-yellow-400 mb-3">Diagnostics Result</h3>
+            {diagResult ? (
+              <div className="text-gray-300 text-sm">
+                <div>Total rows: {diagResult.total}</div>
+                <div>Missing final standings: {diagResult.missingFinal}</div>
+                <div>Missing tracker: {diagResult.missingTracker}</div>
+                <div>Repaired: {diagResult.repaired}</div>
+                <div>Missing local backups: {diagResult.missingLocal}</div>
+                {diagResult.errors && diagResult.errors.length > 0 && (
+                  <div className="mt-3">
+                    <div className="font-semibold">Errors</div>
+                    <ul className="text-xs mt-2 max-h-40 overflow-y-auto">
+                      {diagResult.errors.map((e, i) => (
+                        <li key={i} className="mb-1">{e.id ? `${e.id}: ` : ''}{e.message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-gray-400">No result run yet.</div>
+            )}
+
+            <div className="mt-4 text-right">
+              <button onClick={() => setShowDiagModal(false)} className="px-3 py-2 bg-gray-700 text-white rounded">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
