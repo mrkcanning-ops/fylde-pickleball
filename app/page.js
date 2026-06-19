@@ -1829,6 +1829,7 @@ const syncDivisions = async (vmOverride) => {
       }
 
       const mapped = finalDbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}`, min_qualify_games: d.min_qualify_games }));
+    console.debug("syncDivisions: setting divisions for vm=", vm, mapped);
     setDivisions(mapped);
     // populate per-division min map from DB values
     const byDiv = {};
@@ -2242,9 +2243,11 @@ const activePlayerCount = players.filter((p) => p.active).length;
             const next = viewMode === "league" ? "doubles" : "league";
             try { setLSRaw("view_mode", next); } catch (e) {}
             setViewMode(next);
+            console.debug("Header toggle: switched viewMode ->", next);
             try {
               // After switching the app state to the new mode, sync divisions from the corresponding table
               await syncDivisions(next);
+              console.debug("Header toggle: syncDivisions completed for", next);
             } catch (e) {
               console.warn('Failed to sync divisions after mode change', e);
             }
