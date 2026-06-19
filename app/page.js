@@ -1274,6 +1274,7 @@ const fetchPreviousMatches = async () => {
     };
 
     // Prefer upsert so hosted clients don't depend on delete permissions.
+    console.debug("savePendingFixtures payload:", payload);
     const { error: upsertError } = await db("pending_fixtures").upsert(payload, { onConflict: "division" });
 
     if (!upsertError) return;
