@@ -2245,6 +2245,17 @@ const activePlayerCount = players.filter((p) => p.active).length;
             setViewMode(next);
             console.debug("Header toggle: switched viewMode ->", next);
             try {
+              const cachedDivs = getLSJson("divisions", null);
+              if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
+                console.debug("Header toggle: applying cached divisions for", next, cachedDivs);
+                setDivisions(cachedDivs);
+                const sel = cachedDivs.find((d) => d.id === division) ? division : cachedDivs[0].id;
+                setDivision(sel);
+              }
+            } catch (e) {
+              console.debug("Header toggle: no cached divisions or error", e);
+            }
+            try {
               // After switching the app state to the new mode, sync divisions from the corresponding table
               await syncDivisions(next);
               console.debug("Header toggle: syncDivisions completed for", next);
