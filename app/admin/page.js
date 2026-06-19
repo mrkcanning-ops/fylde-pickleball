@@ -127,6 +127,27 @@ export default function Admin() {
         }
       }
 
+      // Persist pending fixtures (matches + byes) so the main UI shows resting players/rounds
+      try {
+        const division = Number(getLSRaw("division")) || 1;
+        const payload = {
+          division,
+          court1_matches: (courts[0]?.matches || []).map((match) => (match || []).map((team) => (team || []).map((p) => p.id))),
+          court2_matches: (courts[1]?.matches || []).map((match) => (match || []).map((team) => (team || []).map((p) => p.id))),
+          court1_scores: (courts[0]?.matches || []).map(() => ({ team1: "", team2: "" })),
+          court2_scores: (courts[1]?.matches || []).map(() => ({ team1: "", team2: "" })),
+          court1_byes: (courts[0]?.byes || []).map((round) => (round || []).map((p) => p.id)),
+          court2_byes: (courts[1]?.byes || []).map((round) => (round || []).map((p) => p.id)),
+          status: "generated",
+        };
+
+        const { error: upsertError } = await db("pending_fixtures").upsert(payload, { onConflict: "division" });
+        if (upsertError) console.error("Error upserting pending_fixtures:", upsertError);
+        else console.log("Upserted pending_fixtures for division", division);
+      } catch (e) {
+        console.error("Failed to persist pending fixtures:", e);
+      }
+
       fetchPlayersAndMatches();
       alert("Weekly matches generated!");
     } catch (err) {
