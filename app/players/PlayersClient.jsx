@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
-import { getViewMode, getLSJson, setLSJson } from "../../lib/ls";
+import { getViewMode, getLSJson, setLSJson, getLSRaw } from "../../lib/ls";
 
 export default function PlayersClient() {
   const [players, setPlayers] = useState(() => {
@@ -52,11 +52,23 @@ export default function PlayersClient() {
       const DOUBLES_SUFFIX = "_doubles";
       const vm = getViewMode();
       const table = `players${vm === "doubles" ? DOUBLES_SUFFIX : ""}`;
-      const { data, error } = await supabase.from(table).insert([{ name, active: true }]).select();
+      const payload = { name, active: true };
+      if (vm === "doubles") {
+        // include division and generate text id for players_doubles
+        payload.division = Number(getLSRaw("division")) || 1;
+        try {
+          payload.id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+        } catch (e) {
+          payload.id = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+        }
+      }
+
+      const { data, error } = await supabase.from(table).insert([payload]).select();
       if (!error && Array.isArray(data)) {
         setPlayers((prev) => [...prev, data[0]]);
       } else {
-        setPlayers((prev) => [...prev, { name, active: true }]);
+        console.warn('Insert returned error or no data', error, data);
+        setPlayers((prev) => [...prev, payload]);
       }
     } catch (e) {
       console.warn('Failed to insert player:', e);
