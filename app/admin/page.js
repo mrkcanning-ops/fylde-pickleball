@@ -46,6 +46,14 @@ export default function Admin() {
     // include division for doubles mode (players_doubles requires division)
     const division = Number(getLSRaw("division")) || 1;
     const payload = { name: newPlayerName, active: true, division };
+    // players_doubles uses text `id` primary key — generate one when in doubles mode
+    if (getViewMode() === "doubles") {
+      try {
+        payload.id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+      } catch (e) {
+        payload.id = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+      }
+    }
     const { data, error } = await db("players").insert([payload]).select();
     if (error) console.error(error);
     else {
