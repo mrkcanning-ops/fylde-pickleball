@@ -130,6 +130,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
   const [hydrated, setHydrated] = useState(false);
+  const [serverError, setServerError] = useState(null);
   const [viewMode, setViewMode] = useState(() => {
     try { return getViewMode(); } catch (e) { return "league"; }
   });
@@ -235,13 +236,13 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
 
           // Server returned empty or invalid response — treat as failure.
           console.error("Failed to fetch divisions from server: empty or invalid response", { dbDivs, dbErr });
-          alert("Error: failed to load divisions from server. The app requires a working connection to Supabase. Check network or Supabase settings.");
+          setServerError("Failed to load divisions from server. The app requires a working connection to Supabase. Check network or Supabase settings.");
           setDivisions([]);
           setHydrated(true);
           return;
         } catch (e) {
           console.error("Failed to fetch divisions from server:", e);
-          alert("Error: failed to load divisions from server. The app requires a working connection to Supabase. Check network or Supabase settings.");
+          setServerError("Failed to load divisions from server. The app requires a working connection to Supabase. Check network or Supabase settings.");
           setDivisions([]);
           setHydrated(true);
           return;
@@ -1774,7 +1775,7 @@ const syncDivisions = async () => {
     console.debug("syncDivisions: supabase response", { dbDivs, error });
 
     if (error) {
-      console.error("Failed to fetch divisions via supabase client:", error);
+    console.error("Failed to fetch divisions via supabase client:", error);
       // Try a direct REST fetch to help debug CORS/permission issues
       try {
         const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/+$/,'')}/rest/v1/divisions`;
@@ -1793,13 +1794,13 @@ const syncDivisions = async () => {
         console.error("syncDivisions: REST fetch failed:", restErr);
       }
 
-      alert(`Failed to sync divisions: ${error.message || JSON.stringify(error)}`);
+        setServerError(`Failed to sync divisions: ${error.message || JSON.stringify(error)}`);
       return;
     }
 
     if (!Array.isArray(dbDivs) || dbDivs.length === 0) {
       console.warn("syncDivisions: server returned empty divisions array", dbDivs);
-      alert("No divisions found on server.");
+      setServerError("No divisions found on server.");
       return;
     }
 
@@ -2230,6 +2231,18 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </p>
         <div className={`absolute -bottom-3 left-0 w-20 sm:w-24 h-1 rounded-full ${viewMode === "league" ? "bg-yellow-400" : "bg-green-400"}`} />
       </header>
+      {serverError && (
+        <div className="mb-6 p-3 rounded bg-red-600 text-white flex items-start justify-between">
+          <div className="mr-4 text-sm">{serverError}</div>
+          <div className="flex-shrink-0">
+            <button
+              onClick={() => setServerError(null)}
+              className="px-3 py-1 bg-red-800 hover:bg-red-700 rounded text-sm"
+              aria-label="Dismiss server error"
+            >Dismiss</button>
+          </div>
+        </div>
+      )}
 
       <HeaderStats stats={stats} />
 
