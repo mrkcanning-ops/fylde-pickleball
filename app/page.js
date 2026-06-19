@@ -746,9 +746,14 @@ const fetchPreviousMatches = async () => {
       const bWinPct = bGP > 0 ? (b.wins || 0) / bGP : 0;
       const aDiff = (a.points_for || 0) - (a.points_against || 0);
       const bDiff = (b.points_for || 0) - (b.points_against || 0);
-
       // 0. Players with GP > 0 always rank above players with GP = 0
       if (bHasPlayed !== aHasPlayed) return bHasPlayed - aHasPlayed;
+      // If in doubles mode, rank by point difference first
+      if (viewMode === 'doubles') {
+        if (bDiff !== aDiff) return bDiff - aDiff;
+        if (bGP !== aGP) return bGP - aGP;
+        return (a.name || "").localeCompare(b.name || "");
+      }
       // 1. Win % (descending)
       if (bWinPct !== aWinPct) return bWinPct - aWinPct;
       // 2. Point Diff (descending)
@@ -768,7 +773,12 @@ const fetchPreviousMatches = async () => {
       const bWinPct = bGP > 0 ? (b.wins || 0) / bGP : 0;
       const aDiff = (a.points_for || 0) - (a.points_against || 0);
       const bDiff = (b.points_for || 0) - (b.points_against || 0);
-
+      // If in doubles mode, rank by point diff first
+      if (viewMode === 'doubles') {
+        if (bDiff !== aDiff) return bDiff - aDiff;
+        if (bGP !== aGP) return bGP - aGP;
+        return (a.name || "").localeCompare(b.name || "");
+      }
       // 1. Win % (descending)
       if (bWinPct !== aWinPct) return bWinPct - aWinPct;
       // 2. Point diff (descending)
