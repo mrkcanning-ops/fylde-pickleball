@@ -1622,11 +1622,11 @@ const fetchPreviousMatches = async () => {
   });
 
   await savePendingFixtures(
-    court1.matches,
-    court2.matches,
-    court1.matches.map(() => ({ team1: "", team2: "" })),
-    court2.matches.map(() => ({ team1: "", team2: "" })),
-    { court1: court1.byes, court2: court2.byes }
+    courts[0]?.matches || [],
+    courts[1]?.matches || [],
+    (courts[0]?.matches || []).map(() => ({ team1: "", team2: "" })),
+    (courts[1]?.matches || []).map(() => ({ team1: "", team2: "" })),
+    { court1: courts[0]?.byes || [], court2: courts[1]?.byes || [] }
   );
 };
 
