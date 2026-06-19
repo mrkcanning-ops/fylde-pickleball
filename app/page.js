@@ -147,7 +147,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
     console.debug("[debug] divisions (state):", divisions);
     console.debug("[debug] division (state):", division);
     try {
-      console.debug("[debug] divisions (localStorage):", getLSJson("divisions", null));
+      console.debug("[debug] divisions (localStorage):", getLSJson(`divisions_${viewMode}`, null));
       console.debug("[debug] division (localStorage):", getLSRaw("division"));
     } catch (e) {
       console.debug("[debug] localStorage parse error", e);
@@ -214,7 +214,7 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
       const saved = getLSJson("leaderboard", []) || [];
       setLeaderboard(saved);
 
-      const savedDivisions = getLSJson("divisions", null);
+      const savedDivisions = getLSJson(`divisions_${viewMode}`, null);
       const savedDivisionId = Number(getLSRaw("division"));
 
       // Server-first: attempt to load canonical divisions from Supabase
@@ -237,6 +237,7 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
             if (!dbErr && Array.isArray(dbDivs) && dbDivs.length > 0) {
               const mapped = dbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}`, min_qualify_games: d.min_qualify_games }));
               setDivisions(mapped);
+              try { setLSJson(`divisions_${viewMode}`, mapped); } catch (e) {}
               const byDiv = {};
               mapped.forEach((m) => { if (m.min_qualify_games != null) byDiv[String(m.id)] = m.min_qualify_games; });
               setMinQualifyByDivision((prev) => ({ ...(prev || {}), ...(byDiv || {}) }));
@@ -729,8 +730,8 @@ const fetchPreviousMatches = async () => {
     const ineligible = [];
     for (const p of players) {
       const gp = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
-      // use per-division runtime value
-      const runtimeMin = minQualifyByDivision[division] ?? minQualifyGames ?? MIN_QUALIFY_GAMES;
+      // use per-division runtime value; ignore min in doubles mode
+      const runtimeMin = viewMode === 'doubles' ? 0 : (minQualifyByDivision[division] ?? minQualifyGames ?? MIN_QUALIFY_GAMES);
       if (gp >= runtimeMin) eligible.push(p);
       else ineligible.push(p);
     }
@@ -1778,7 +1779,6 @@ const syncDivisions = async (vmOverride) => {
 
     const vm = vmOverride || getViewMode();
     const tableName = `divisions${vm === 'doubles' ? DOUBLES_SUFFIX : ''}`;
-    try {
       const { data: dbDivs, error } = await supabase.from(tableName)
         .select("id,name,min_qualify_games")
         .order("id", { ascending: true });
@@ -1830,7 +1830,8 @@ const syncDivisions = async (vmOverride) => {
 
       const mapped = finalDbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}`, min_qualify_games: d.min_qualify_games }));
     console.debug("syncDivisions: setting divisions for vm=", vm, mapped);
-    setDivisions(mapped);
+                setDivisions(mapped);
+                try { setLSJson(`divisions_${vm}`, mapped); } catch (e) {}
     // populate per-division min map from DB values
     const byDiv = {};
     mapped.forEach((m) => {
@@ -1840,7 +1841,7 @@ const syncDivisions = async (vmOverride) => {
     const sel = mapped.find((d) => d.id === division) ? division : mapped[0].id;
     setDivision(sel);
     await fetchAllDivisionPlayers(sel);
-    alert("Divisions synced ✅");
+    console.debug("Divisions synced (silent)");
   } catch (e) {
     console.error("Unexpected error syncing divisions:", e);
     alert("Failed to sync divisions. See console for details.");
@@ -1906,6 +1907,7 @@ const handleConfirmRemoveDivision = () => {
         } else {
           const nextDivisions = divisions.filter((d) => d.id !== idToRemove);
           setDivisions(nextDivisions);
+          try { setLSJson(`divisions_${viewMode}`, nextDivisions); } catch (e) {}
           if (division === idToRemove) {
             const first = nextDivisions[0];
             setDivision(first ? first.id : 1);
@@ -1974,6 +1976,7 @@ const addDivision = async (name) => {
 
     if (newDiv) {
       setDivisions((prev) => [...prev, newDiv]);
+      try { setLSJson(`divisions_${viewMode}`, [...divisions, newDiv]); } catch (e) {}
       setDivision(newDiv.id);
       await fetchAllDivisionPlayers(newDiv.id);
     } else {
@@ -1982,6 +1985,7 @@ const addDivision = async (name) => {
       const newId = maxId + 1;
       const localDiv = { id: newId, name: trimmed };
       setDivisions((prev) => [...prev, localDiv]);
+      try { setLSJson(`divisions_${viewMode}`, [...divisions, localDiv]); } catch (e) {}
       setDivision(newId);
       fetchAllDivisionPlayers(newId);
     }
@@ -2245,7 +2249,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
             setViewMode(next);
             console.debug("Header toggle: switched viewMode ->", next);
             try {
-              const cachedDivs = getLSJson("divisions", null);
+              const cachedDivs = getLSJson(`divisions_${next}`, null);
               if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
                 console.debug("Header toggle: applying cached divisions for", next, cachedDivs);
                 setDivisions(cachedDivs);
@@ -2456,6 +2460,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
           >
             Tracker
           </button>
+          {viewMode !== 'doubles' && (
           <button
             onClick={() => {
                 const current = minQualifyByDivision[division] ?? minQualifyGames ?? MIN_QUALIFY_GAMES;
@@ -2467,6 +2472,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
           >
             Min games: {minQualifyGames}
           </button>
+          )}
         </div>
       </div>
     </div>
@@ -2486,7 +2492,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 
   {(() => {
-          const runtimeMin = minQualifyByDivision[division] ?? minQualifyGames ?? MIN_QUALIFY_GAMES;
+          const runtimeMin = viewMode === 'doubles' ? 0 : (minQualifyByDivision[division] ?? minQualifyGames ?? MIN_QUALIFY_GAMES);
           const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= runtimeMin);
     return players.map((p, i) => {
       const gp = p.wins + p.losses + p.draws;
@@ -2623,7 +2629,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
       </thead>
       <tbody>
         {(() => {
-          const runtimeMin = minQualifyByDivision[division] ?? minQualifyGames ?? MIN_QUALIFY_GAMES;
+          const runtimeMin = viewMode === 'doubles' ? 0 : (minQualifyByDivision[division] ?? minQualifyGames ?? MIN_QUALIFY_GAMES);
           const eligiblePlayers = players.filter((pp) => ((pp.wins||0) + (pp.losses||0) + (pp.draws||0)) >= runtimeMin);
           return players.map((p, i) => {
           const gp = p.wins + p.losses + p.draws;
@@ -2726,7 +2732,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
     </table>
 
     {/* NQ bottom-sheet modal (mobile-friendly). Renders at end of Leaderboard view */}
-    {showNqModalFor && (
+    {showNqModalFor && viewMode !== 'doubles' && (
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
         <div className="absolute inset-0 bg-black/40" onClick={() => setShowNqModalFor(null)} />
         <div className="relative w-full sm:max-w-md bg-white rounded-t-xl sm:rounded-xl p-4 sm:p-6 shadow-xl">
