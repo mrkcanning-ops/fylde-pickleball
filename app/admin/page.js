@@ -162,9 +162,24 @@ export default function Admin() {
           status: "generated",
         };
 
+        console.debug("Admin: pending_fixtures payload", payload);
         const { error: upsertError } = await supabase.from(pendingTable).upsert(payload, { onConflict: "division" });
-        if (upsertError) console.error("Error upserting pending_fixtures:", upsertError);
-        else console.log("Upserted pending_fixtures for division", division);
+        if (upsertError) {
+          console.error("Error upserting pending_fixtures:", upsertError);
+          // Fallback for tables without unique constraint on division
+          if (String(upsertError.message || "").toLowerCase().includes("on conflict")) {
+            const { error: deleteError } = await supabase.from(pendingTable).delete().eq("division", division);
+            if (deleteError) {
+              console.error("Admin: failed to delete previous pending_fixtures for fallback:", deleteError);
+            } else {
+              const { error: insertError } = await supabase.from(pendingTable).insert([payload]);
+              if (insertError) console.error("Admin: failed to insert pending_fixtures fallback:", insertError);
+              else console.log("Admin: inserted pending_fixtures fallback for division", division);
+            }
+          }
+        } else {
+          console.log("Upserted pending_fixtures for division", division);
+        }
       } catch (e) {
         console.error("Failed to persist pending fixtures:", e);
       }
