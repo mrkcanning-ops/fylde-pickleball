@@ -64,10 +64,12 @@ export default function PlayersClient() {
       }
 
       const { data, error } = await supabase.from(table).insert([payload]).select();
+      console.debug('PlayersClient:addPlayer insert response', { table, payload, data, error });
       if (!error && Array.isArray(data)) {
         setPlayers((prev) => [...prev, data[0]]);
       } else {
         console.warn('Insert returned error or no data', error, data);
+        alert(`Failed to persist player to DB: ${error?.message || JSON.stringify(error)}`);
         setPlayers((prev) => [...prev, payload]);
       }
     } catch (e) {
