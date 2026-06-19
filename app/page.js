@@ -236,13 +236,14 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
 
           // Server returned empty or invalid response — treat as failure.
           console.error("Failed to fetch divisions from server: empty or invalid response", { dbDivs, dbErr });
-          setServerError("Failed to load divisions from server. The app requires a working connection to Supabase. Check network or Supabase settings.");
+          const details = dbErr ? JSON.stringify(dbErr) : JSON.stringify(dbDivs);
+          setServerError(`Failed to load divisions from server. Details: ${details}`);
           setDivisions([]);
           setHydrated(true);
           return;
         } catch (e) {
           console.error("Failed to fetch divisions from server:", e);
-          setServerError("Failed to load divisions from server. The app requires a working connection to Supabase. Check network or Supabase settings.");
+          setServerError(`Failed to load divisions from server. Error: ${e?.message || String(e)}`);
           setDivisions([]);
           setHydrated(true);
           return;
@@ -1790,8 +1791,13 @@ const syncDivisions = async () => {
         });
         const text = await resp.text();
         console.debug("syncDivisions: rest fetch raw response", { status: resp.status, text });
+        if (!resp.ok) {
+          setServerError(`REST fetch failed with status ${resp.status}: ${text}`);
+          return;
+        }
       } catch (restErr) {
         console.error("syncDivisions: REST fetch failed:", restErr);
+        setServerError(`REST fetch failed: ${restErr?.message || String(restErr)}`);
       }
 
         setServerError(`Failed to sync divisions: ${error.message || JSON.stringify(error)}`);
