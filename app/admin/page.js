@@ -54,11 +54,26 @@ export default function Admin() {
         payload.id = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
       }
     }
-    const { data, error } = await db("players").insert([payload]).select();
-    if (error) console.error(error);
-    else {
-      setPlayers([...players, data[0]]);
+    try {
+      const tableName = getViewMode() === "doubles" ? `players${DOUBLES_SUFFIX}` : "players";
+      console.debug("Admin:addPlayer -> inserting", payload, "into", tableName);
+      const { data, error } = await db("players").insert([payload]).select();
+      if (error) {
+        console.error("Supabase insert error:", error);
+        alert(`Failed to add player: ${error.message || JSON.stringify(error)}`);
+        return;
+      }
+      if (!data || !data[0]) {
+        console.warn("Insert returned no data", data);
+        // refresh from server to be safe
+        await fetchPlayersAndMatches();
+      } else {
+        setPlayers((prev) => [...prev, data[0]]);
+      }
       setNewPlayerName("");
+    } catch (err) {
+      console.error("Unexpected error adding player:", err);
+      alert(`Unexpected error adding player: ${err?.message || String(err)}`);
     }
   }
 
