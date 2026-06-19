@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
+import { getLSRaw, getLSJson, setLSJson, getViewMode } from "../../lib/ls";
 
 // Backwards-compatibility fallback for builds that reference `summariesIndex`.
 // Some older compiled code may still expect this variable; define it harmlessly.
@@ -17,13 +18,13 @@ export default function SeasonSummariesPage() {
   const [diagResult, setDiagResult] = useState(null);
   const [showDiagModal, setShowDiagModal] = useState(false);
 
+  // Helper to pick season_summaries table based on view mode (league or doubles)
+  const db = (table) => supabase.from(`${table}${getViewMode() === "doubles" ? "_doubles" : ""}`);
+
   useEffect(() => {
     const load = async () => {
       try {
-        const { data, error } = await supabase
-          .from("season_summaries")
-          .select("*")
-          .order("timestamp", { ascending: false });
+        const { data, error } = await db("season_summaries").select("*").order("timestamp", { ascending: false });
 
         if (!error && data && data.length > 0) {
           setSummariesList(data);
@@ -36,14 +37,14 @@ export default function SeasonSummariesPage() {
               const hasTracker = row.tracker || row.tracker;
               if (hasFinal && hasTracker) continue;
               try {
-                const raw = localStorage.getItem(row.id);
+                const raw = getLSRaw(row.id);
                 if (!raw) continue;
                 const local = JSON.parse(raw);
                 const payload = {};
                 if (!hasFinal && (local.finalStandings || local.final_standings)) payload.final_standings = local.finalStandings || local.final_standings;
                 if (!hasTracker && (local.tracker)) payload.tracker = local.tracker;
                 if (Object.keys(payload).length === 0) continue;
-                const { error: updErr } = await supabase.from('season_summaries').update(payload).eq('id', row.id);
+                const { error: updErr } = await db('season_summaries').update(payload).eq('id', row.id);
                 if (updErr) console.warn('Failed to repair season_summaries row', row.id, updErr.message || updErr);
                 else console.info('Repaired season_summaries row from localStorage', row.id);
               } catch (e) {
@@ -57,10 +58,10 @@ export default function SeasonSummariesPage() {
         console.warn("Supabase fetch error, falling back to localStorage:", e);
       }
 
-      // fallback to localStorage
-      const idx = JSON.parse(localStorage.getItem("season_summaries_index") || "[]");
-      const items = idx.map((id) => {
-        const raw = localStorage.getItem(id);
+      // fallback to localStorage (namespaced per view mode)
+      const idx = getLSJson("season_summaries_index", []);
+      const items = (idx || []).map((id) => {
+        const raw = getLSRaw(id);
         return raw ? JSON.parse(raw) : null;
       }).filter(Boolean);
       setSummariesList(items);
@@ -81,7 +82,7 @@ export default function SeasonSummariesPage() {
     setDiagLoading(true);
     const result = { total: 0, missingFinal: 0, missingTracker: 0, repaired: 0, missingLocal: 0, errors: [] };
     try {
-      const { data, error } = await supabase.from('season_summaries').select('*');
+      const { data, error } = await db('season_summaries').select('*');
       if (error) throw error;
       const rows = data || [];
       result.total = rows.length;
@@ -92,7 +93,7 @@ export default function SeasonSummariesPage() {
         if (!hasFinal) result.missingFinal += 1;
         if (!hasTracker) result.missingTracker += 1;
 
-        const raw = localStorage.getItem(row.id);
+        const raw = getLSRaw(row.id);
         if (!raw) {
           result.missingLocal += 1;
           continue;
@@ -106,7 +107,7 @@ export default function SeasonSummariesPage() {
             result.missingLocal += 1;
             continue;
           }
-          const { error: updErr } = await supabase.from('season_summaries').update(payload).eq('id', row.id);
+          const { error: updErr } = await db('season_summaries').update(payload).eq('id', row.id);
           if (updErr) {
             result.errors.push({ id: row.id, message: updErr.message || JSON.stringify(updErr) });
           } else {
@@ -128,7 +129,7 @@ export default function SeasonSummariesPage() {
     const found = summariesList.find((s) => s.id === id);
     if (found) return setSelected(found);
 
-    const raw = localStorage.getItem(id);
+    const raw = getLSRaw(id);
     if (!raw) return;
     setSelected(JSON.parse(raw));
   };

@@ -1,22 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getLSJson, setLSJson } from "../../lib/ls";
 
 export default function PlayersClient() {
   const [players, setPlayers] = useState(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("players");
-      return saved ? JSON.parse(saved) : [
+      return getLSJson("players", [
         { name: "Maddie" },
         { name: "Nathan" },
         { name: "Helen" },
-      ];
+      ]);
     }
     return [];
   });
 
   useEffect(() => {
-    localStorage.setItem("players", JSON.stringify(players));
+    setLSJson("players", players);
   }, [players]);
 
   const addPlayer = () => {

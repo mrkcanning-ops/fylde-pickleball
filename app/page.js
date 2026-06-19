@@ -4,6 +4,7 @@ import { useState, useEffect, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 import HeaderStats from "../components/HeaderStats";
 import { supabase } from "../lib/supabase";
+import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode } from "../lib/ls";
 
 // Minimum games required to qualify for ranked positions. Configure via env var
 // NEXT_PUBLIC_MIN_QUALIFY_GAMES (build-time). Defaults to 10.
@@ -55,8 +56,7 @@ export default function HomePage() {
   // Editable minimum games to qualify (per-division, persisted to localStorage)
   const [minQualifyByDivision, setMinQualifyByDivision] = useState(() => {
     try {
-      const raw = localStorage.getItem("min_qualify_by_division");
-      return raw ? JSON.parse(raw) : {};
+      return getLSJson("min_qualify_by_division", {});
     } catch (e) {
       return {};
     }
@@ -64,7 +64,7 @@ export default function HomePage() {
   // current division value (kept in sync)
   const [minQualifyGames, setMinQualifyGames] = useState(() => {
     try {
-      const v = localStorage.getItem("min_qualify_games");
+      const v = getLSRaw("min_qualify_games");
       return v ? parseInt(v, 10) || MIN_QUALIFY_GAMES : MIN_QUALIFY_GAMES;
     } catch (e) {
       return MIN_QUALIFY_GAMES;
@@ -88,8 +88,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const [selectedSeason, setSelectedSeason] = useState(null);
   const [currentSeason, setCurrentSeason] = useState(() => {
     try {
-      const raw = localStorage.getItem("current_season");
-      return raw ? JSON.parse(raw) : null;
+      return getLSJson("current_season", null);
     } catch (e) {
       return null;
     }
@@ -99,8 +98,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const loadRunningSeasonFromDb = async (divisionNum = division) => {
     if (!supabase) return;
     try {
-      const { data, error } = await supabase
-        .from("running_seasons")
+      const { data, error } = await db("running_seasons")
         .select("*")
         .eq("division", divisionNum)
         .limit(1)
@@ -108,7 +106,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
 
       if (!error && data) {
         try {
-          localStorage.setItem("current_season", JSON.stringify(data));
+          setLSJson("current_season", data);
         } catch (e) {}
         setCurrentSeason(data);
         return;
@@ -118,8 +116,8 @@ const [previousMatches, setPreviousMatches] = useState([]);
     }
 
     try {
-      const raw = localStorage.getItem("current_season");
-      if (raw) setCurrentSeason(JSON.parse(raw));
+      const raw = getLSJson("current_season", null);
+      if (raw) setCurrentSeason(raw);
     } catch (e) {}
   };
 
@@ -133,8 +131,11 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
   const [hydrated, setHydrated] = useState(false);
   const [viewMode, setViewMode] = useState(() => {
-    try { return localStorage.getItem("view_mode") || "league"; } catch (e) { return "league"; }
+    try { return getViewMode(); } catch (e) { return "league"; }
   });
+
+  // Helper to pick table name depending on view mode (league or doubles)
+  const db = (table) => supabase.from(`${table}${viewMode === "doubles" ? "_doubles" : ""}`);
 
   // Dev-only debug: log and expose divisions state to diagnose mobile/desktop mismatch
   useEffect(() => {
@@ -143,8 +144,8 @@ const [previousMatches, setPreviousMatches] = useState([]);
     console.debug("[debug] divisions (state):", divisions);
     console.debug("[debug] division (state):", division);
     try {
-      console.debug("[debug] divisions (localStorage):", JSON.parse(localStorage.getItem("divisions") || "null"));
-      console.debug("[debug] division (localStorage):", localStorage.getItem("division"));
+      console.debug("[debug] divisions (localStorage):", getLSJson("divisions", null));
+      console.debug("[debug] division (localStorage):", getLSRaw("division"));
     } catch (e) {
       console.debug("[debug] localStorage parse error", e);
     }
@@ -207,18 +208,17 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
   // Load leaderboard and persisted divisions from localStorage on startup
   useLayoutEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("leaderboard")) || [];
+      const saved = getLSJson("leaderboard", []) || [];
       setLeaderboard(saved);
 
-      const savedDivisions = JSON.parse(localStorage.getItem("divisions"));
-      const savedDivisionId = Number(localStorage.getItem("division"));
+      const savedDivisions = getLSJson("divisions", null);
+      const savedDivisionId = Number(getLSRaw("division"));
 
       // Server-first: attempt to load canonical divisions from Supabase
       // so all clients (different origins) see the same data.
       (async () => {
         try {
-          const { data: dbDivs, error: dbErr } = await supabase
-            .from("divisions")
+          const { data: dbDivs, error: dbErr } = await db("divisions")
             .select("id,name")
             .order("id", { ascending: true });
 
@@ -251,7 +251,7 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
     } catch (e) {
       // If localStorage has invalid JSON, fallback gracefully
       console.warn("Error reading saved divisions/leaderboard:", e);
-      const saved = JSON.parse(localStorage.getItem("leaderboard")) || [];
+      const saved = getLSJson("leaderboard", []) || [];
       setLeaderboard(saved);
       fetchAllDivisionPlayers();
       setHydrated(true);
@@ -261,8 +261,8 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
   // Persist divisions and selected division to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem("divisions", JSON.stringify(divisions));
-      localStorage.setItem("division", String(division));
+      setLSJson("divisions", divisions);
+      setLSRaw("division", String(division));
     } catch (e) {
       console.warn("Failed to persist divisions:", e);
     }
@@ -279,7 +279,7 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
       if (!confirmed) return;
 
       setLeaderboard([]);
-      localStorage.removeItem("leaderboard");
+      removeLS("leaderboard");
       alert("Season ended ✅");
     } else {
       alert("Incorrect passcode ❌");
@@ -290,16 +290,14 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
     if (!supabase) return;
 
     // 1) Get players for current division only.
-    const { data: players } = await supabase
-      .from("players")
+    const { data: players } = await db("players")
       .select("*")
       .eq("division", division);
 
     if (!players || players.length === 0) return;
 
     // 2) Get matches in deterministic chronological order for this division.
-      const { data: matches } = await supabase
-        .from("previous_matches")
+      const { data: matches } = await db("previous_matches")
         .select("id,players,scores,created_at")
         .eq("division", division)
         .order("created_at", { ascending: true });
@@ -370,10 +368,7 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
 
     // 5) Persist recalculated stats for each player.
     for (const playerId in playerStats) {
-      const { error } = await supabase
-        .from("players")
-        .update(playerStats[playerId])
-        .eq("id", playerId);
+      const { error } = await db("players").update(playerStats[playerId]).eq("id", playerId);
 
       if (error) {
         console.error(`Failed to update player ${playerId}:`, error);
@@ -382,10 +377,7 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
   };
 
 const updatePlayerStatsFromMatches = async () => {
-  const { data: matches } = await supabase
-    .from("previous_matches")
-    .select("*")
-    .order("created_at", { ascending: true });
+  const { data: matches } = await db("previous_matches").select("*").order("created_at", { ascending: true });
 
   for (const match of matches) {
     const playersArray = JSON.parse(match.players);
@@ -409,11 +401,7 @@ const updatePlayerStatsFromMatches = async () => {
 
     // Helper to update stats by player id
     const updateStats = async (playerId, result, scored, conceded) => {
-      const { data: player, error } = await supabase
-        .from("players")
-        .select("*")
-        .eq("id", playerId)
-        .single();
+      const { data: player, error } = await db("players").select("*").eq("id", playerId).single();
 
       console.log("Looking for player id:", playerId);
       console.log("Found player:", player, "error:", error);
@@ -536,12 +524,12 @@ const fetchPreviousMatches = async () => {
         console.warn("Failed to load season summaries:", e);
       }
 
-      // fallback to localStorage index
+      // fallback to localStorage index (namespaced per mode)
       try {
-        const idx = JSON.parse(localStorage.getItem("season_summaries_index") || "[]");
+        const idx = getLSJson("season_summaries_index", []);
         console.debug("[seasons] local index:", idx);
-        const items = idx.map((id) => {
-          const raw = localStorage.getItem(id);
+        const items = (idx || []).map((id) => {
+          const raw = getLSRaw(id);
           console.debug("[seasons] local item", id, raw ? 'present' : 'missing');
           return raw ? JSON.parse(raw) : null;
         }).filter(Boolean);
@@ -562,7 +550,7 @@ const fetchPreviousMatches = async () => {
   const createNewSeason = async () => {
     // Prevent creating a new season if one is already running
     const running = currentSeason || (() => {
-      try { return JSON.parse(localStorage.getItem("current_season") || "null"); } catch (e) { return null; }
+      try { return getLSJson("current_season", null); } catch (e) { return null; }
     })();
 
     if (running) {
@@ -601,7 +589,7 @@ const fetchPreviousMatches = async () => {
           saved = true;
           // prefer DB record
           const dbRec = Array.isArray(insertData) ? insertData[0] : insertData;
-          localStorage.setItem("current_season", JSON.stringify(dbRec));
+          setLSJson("current_season", dbRec);
           setCurrentSeason(dbRec);
         }
       } catch (dbErr) {
@@ -609,7 +597,7 @@ const fetchPreviousMatches = async () => {
       }
 
       if (!saved) {
-        localStorage.setItem("current_season", JSON.stringify(newSeason));
+        setLSJson("current_season", newSeason);
         setCurrentSeason(newSeason);
       }
 
@@ -630,16 +618,13 @@ const fetchPreviousMatches = async () => {
       // Reset player stats
       if (playersForSummary.length > 0) {
         for (const player of playersForSummary) {
-          await supabase
-            .from("players")
-            .update({ wins: 0, losses: 0, draws: 0, points: 0, points_for: 0, points_against: 0, win_streak: 0 })
-            .eq("id", player.id);
+          await db("players").update({ wins: 0, losses: 0, draws: 0, points: 0, points_for: 0, points_against: 0, win_streak: 0 }).eq("id", player.id);
         }
       }
 
       // remove previous matches and pending fixtures
-      try { await supabase.from("previous_matches").delete().eq("division", divisionNum); } catch (e) {}
-      try { await supabase.from("pending_fixtures").delete().eq("division", divisionNum); } catch (e) {}
+      try { await db("previous_matches").delete().eq("division", divisionNum); } catch (e) {}
+      try { await db("pending_fixtures").delete().eq("division", divisionNum); } catch (e) {}
 
       // Clear client-side match and leaderboard state
       setPreviousMatches([]);
@@ -662,23 +647,23 @@ const fetchPreviousMatches = async () => {
       await fetchPlayers();
 
       // Clear local leaderboard cache
-      localStorage.removeItem("leaderboard");
+      removeLS("leaderboard");
       setLeaderboard([]);
 
       // Persist running season to DB if possible
       const running = { id: `season_${Date.now()}`, name, started_at: new Date().toISOString(), division: divisionNum };
       try {
-        const { data: ins, error: insErr } = await supabase.from("running_seasons").insert([running]);
+        const { data: ins, error: insErr } = await db("running_seasons").insert([running]);
         if (!insErr) {
           const dbRec = Array.isArray(ins) ? ins[0] : ins;
-          localStorage.setItem("current_season", JSON.stringify(dbRec));
+          setLSJson("current_season", dbRec);
           setCurrentSeason(dbRec);
         } else {
-          localStorage.setItem("current_season", JSON.stringify(running));
+          setLSJson("current_season", running);
           setCurrentSeason(running);
         }
       } catch (e) {
-        localStorage.setItem("current_season", JSON.stringify(running));
+        setLSJson("current_season", running);
         setCurrentSeason(running);
       }
 
@@ -698,19 +683,19 @@ const fetchPreviousMatches = async () => {
     const divisionNum = endSummaryContext.division;
     try {
       // delete players for division
-      try { await supabase.from("players").delete().eq("division", divisionNum); } catch (e) { console.warn(e); }
+      try { await db("players").delete().eq("division", divisionNum); } catch (e) { console.warn(e); }
 
       // remove running season row if exists
-      try { await supabase.from("running_seasons").delete().eq("division", divisionNum); } catch (e) {}
+      try { await db("running_seasons").delete().eq("division", divisionNum); } catch (e) {}
 
       // Clear client state
       setPlayers([]);
       setAllDivisionPlayers([]);
       setPreviousMatches([]);
-      localStorage.removeItem("leaderboard");
+      removeLS("leaderboard");
       setLeaderboard([]);
 
-      try { localStorage.removeItem("current_season"); } catch (e) {}
+      try { removeLS("current_season"); } catch (e) {}
       setCurrentSeason(null);
 
       alert("Players cleared for division.");
@@ -938,7 +923,7 @@ const fetchPreviousMatches = async () => {
     const player = players.find((p) => p.id === id);
     const newActive = !player.active;
 
-    await supabase.from("players").update({ active: newActive }).eq("id", id);
+    await db("players").update({ active: newActive }).eq("id", id);
 
     setPlayers((prev) =>
       prev.map((p) => (p.id === id ? { ...p, active: newActive } : p))
@@ -1267,18 +1252,13 @@ const fetchPreviousMatches = async () => {
     };
 
     // Prefer upsert so hosted clients don't depend on delete permissions.
-    const { error: upsertError } = await supabase
-      .from("pending_fixtures")
-      .upsert(payload, { onConflict: "division" });
+    const { error: upsertError } = await db("pending_fixtures").upsert(payload, { onConflict: "division" });
 
     if (!upsertError) return;
 
     // Fallback for tables without a unique constraint on division.
     if (String(upsertError.message || "").toLowerCase().includes("on conflict")) {
-      const { error: deleteError } = await supabase
-        .from("pending_fixtures")
-        .delete()
-        .eq("division", division);
+      const { error: deleteError } = await db("pending_fixtures").delete().eq("division", division);
 
       if (deleteError) {
         console.error("Error deleting previous pending fixtures:", deleteError);
@@ -1286,7 +1266,7 @@ const fetchPreviousMatches = async () => {
         return;
       }
 
-      const { error: insertError } = await supabase.from("pending_fixtures").insert(payload);
+      const { error: insertError } = await db("pending_fixtures").insert(payload);
       if (!insertError) return;
 
       console.error("Error inserting pending fixtures:", insertError);
@@ -1300,15 +1280,14 @@ const fetchPreviousMatches = async () => {
 
   const clearPendingFixtures = async () => {
     if (!supabase) return;
-    const { error } = await supabase.from("pending_fixtures").delete().eq("division", division);
+    const { error } = await db("pending_fixtures").delete().eq("division", division);
     if (error) {
       console.error("Error clearing pending fixtures:", error);
     }
   };
 
   const loadPendingFixtures = async (playerPool = []) => {
-    const { data, error } = await supabase
-      .from("pending_fixtures")
+    const { data, error } = await db("pending_fixtures")
       .select("*")
       .eq("division", division)
       .order("created_at", { ascending: false })
@@ -2215,7 +2194,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         <button
           onClick={() => {
             const next = viewMode === "league" ? "doubles" : "league";
-            try { localStorage.setItem("view_mode", next); } catch (e) {}
+            try { setLSRaw("view_mode", next); } catch (e) {}
             setViewMode(next);
           }}
           className="flex items-center text-left"
@@ -2707,7 +2686,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                   const next = { ...(minQualifyByDivision || {}) };
                   next[String(pendingMinSave.division)] = pendingMinSave.value;
                   setMinQualifyByDivision(next);
-                  try { localStorage.setItem("min_qualify_by_division", JSON.stringify(next)); } catch (e) {}
+                  try { setLSJson("min_qualify_by_division", next); } catch (e) {}
                   // update current displayed value
                   setMinQualifyGames(pendingMinSave.value);
                 }
@@ -3867,13 +3846,13 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
                           if (insertError) throw insertError;
                         } catch (dbErr) {
-                          console.error("Failed to persist season summary to Supabase, falling back to localStorage:", dbErr);
-                          const idxKey = "season_summaries_index";
-                          const existingIndex = JSON.parse(localStorage.getItem(idxKey) || "[]");
-                          existingIndex.unshift(summary.id);
-                          localStorage.setItem(idxKey, JSON.stringify(existingIndex));
-                          localStorage.setItem(summary.id, JSON.stringify(summary));
-                        }
+                                          console.error("Failed to persist season summary to Supabase, falling back to localStorage:", dbErr);
+                                          const idxKey = "season_summaries_index";
+                                          const existingIndex = getLSJson(idxKey, []);
+                                          existingIndex.unshift(summary.id);
+                                          setLSJson(idxKey, existingIndex);
+                                          setLSJson(summary.id, summary);
+                                        }
 
                         // Persisted summary; open confirmation modal to choose next action (start new season or clear players)
                         try {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
+import { getViewMode } from "../../lib/ls";
 
 export default function Admin() {
   const [players, setPlayers] = useState([]);
@@ -16,22 +17,18 @@ export default function Admin() {
     fetchPlayersAndMatches();
   }, [week]);
 
+  const db = (table) => supabase.from(`${getViewMode() === "doubles" ? `${table}_doubles` : table}`);
+
   async function fetchPlayersAndMatches() {
     setLoading(true);
 
     // Players
-    const { data: playerData, error: playerError } = await supabase
-      .from("players")
-      .select("*")
-      .order("name", { ascending: true });
+    const { data: playerData, error: playerError } = await db("players").select("*").order("name", { ascending: true });
     if (playerError) console.error(playerError);
     else setPlayers(playerData);
 
     // Matches
-    const { data: matchData, error: matchError } = await supabase
-      .from("matches")
-      .select("*")
-      .eq("week", week);
+    const { data: matchData, error: matchError } = await db("matches").select("*").eq("week", week);
     if (matchError) console.error(matchError);
 
     // Split by court
@@ -44,10 +41,7 @@ export default function Admin() {
   // Add new player
   async function addPlayer() {
     if (!newPlayerName) return;
-    const { data, error } = await supabase
-      .from("players")
-      .insert([{ name: newPlayerName, active: true }])
-      .select();
+    const { data, error } = await db("players").insert([{ name: newPlayerName, active: true }]).select();
     if (error) console.error(error);
     else {
       setPlayers([...players, data[0]]);
@@ -57,11 +51,7 @@ export default function Admin() {
 
   // Toggle player availability
   async function togglePlayerActive(player) {
-    const { data, error } = await supabase
-      .from("players")
-      .update({ active: !player.active })
-      .eq("id", player.id)
-      .select();
+    const { data, error } = await db("players").update({ active: !player.active }).eq("id", player.id).select();
     if (!error) setPlayers(players.map((p) => (p.id === player.id ? data[0] : p)));
   }
 
@@ -94,7 +84,7 @@ export default function Admin() {
 
     try {
       // Delete old matches for this week
-      const { error: deleteError } = await supabase.from("matches").delete().eq("week", week);
+      const { error: deleteError } = await db("matches").delete().eq("week", week);
       if (deleteError) console.error("Error clearing old matches:", deleteError);
 
       const insertCourtMatches = async (pairs, courtNum) => {
@@ -109,7 +99,7 @@ export default function Admin() {
             score2: null,
             week,
           };
-          const { data, error } = await supabase.from("matches").insert([matchRow]).select();
+          const { data, error } = await db("matches").insert([matchRow]).select();
           if (error) {
             console.error("Supabase insert error:", error);
             console.log("Match row causing error:", matchRow);
@@ -132,7 +122,7 @@ export default function Admin() {
     const intValue = parseInt(value);
     if (isNaN(intValue)) return;
 
-    const { error } = await supabase.from("matches").update({ [scoreField]: intValue }).eq("id", matchId);
+    const { error } = await db("matches").update({ [scoreField]: intValue }).eq("id", matchId);
     if (error) console.error(error);
     else fetchPlayersAndMatches();
   }
