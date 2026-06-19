@@ -34,9 +34,12 @@ export default function Admin() {
     const { data: matchData, error: matchError } = await db("matches").select("*").eq("week", week);
     if (matchError) console.error(matchError);
 
+    const division = Number(getLSRaw("division")) || 1;
+    const filteredMatches = (matchData || []).filter((m) => Number(m.division || 1) === division);
+
     // Split by court
-    setCourt1Matches(matchData?.filter((m) => m.court === 1) || []);
-    setCourt2Matches(matchData?.filter((m) => m.court === 2) || []);
+    setCourt1Matches(filteredMatches.filter((m) => m.court === 1) || []);
+    setCourt2Matches(filteredMatches.filter((m) => m.court === 2) || []);
 
     setLoading(false);
   }
