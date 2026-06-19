@@ -215,7 +215,9 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
       const savedDivisionId = Number(getLSRaw("division"));
 
       // Server-first: attempt to load canonical divisions from Supabase
-      // so all clients (different origins) see the same data.
+      // so all clients (different origins) see the same data. If the
+      // server fetch fails or returns no divisions, show a visible error
+      // and do not silently fall back to localStorage.
       (async () => {
         try {
           const { data: dbDivs, error: dbErr } = await db("divisions")
@@ -230,21 +232,20 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
             await fetchAllDivisionPlayers(initialDivision);
             return;
           }
-        } catch (e) {
-          console.warn("Failed to fetch divisions from server:", e);
-        }
 
-        // If server has none, fall back to saved local divisions (if any)
-        if (Array.isArray(savedDivisions) && savedDivisions.length > 0) {
-          setDivisions(savedDivisions);
-          const initialDivision = savedDivisionId || savedDivisions[0].id;
-          setDivision(initialDivision);
-          fetchAllDivisionPlayers(initialDivision);
+          // Server returned empty or invalid response — treat as failure.
+          console.error("Failed to fetch divisions from server: empty or invalid response", { dbDivs, dbErr });
+          alert("Error: failed to load divisions from server. The app requires a working connection to Supabase. Check network or Supabase settings.");
+          setDivisions([]);
+          setHydrated(true);
+          return;
+        } catch (e) {
+          console.error("Failed to fetch divisions from server:", e);
+          alert("Error: failed to load divisions from server. The app requires a working connection to Supabase. Check network or Supabase settings.");
+          setDivisions([]);
+          setHydrated(true);
           return;
         }
-
-        // fallback to defaults
-        fetchAllDivisionPlayers();
       })();
       // mark hydration complete so UI renders consistently
       setHydrated(true);
@@ -1766,8 +1767,7 @@ const syncDivisions = async () => {
     console.debug("syncDivisions: env url", process.env.NEXT_PUBLIC_SUPABASE_URL);
     console.debug("syncDivisions: anon key present", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-    const { data: dbDivs, error } = await supabase
-      .from("divisions")
+    const { data: dbDivs, error } = await db("divisions")
       .select("id,name")
       .order("id", { ascending: true });
 
@@ -1828,20 +1828,39 @@ const handleConfirmRemoveDivision = () => {
     const idToRemove = selectedDivisionToRemove;
 
     try {
-      // Call server-side RPC to delete division and related rows
-      const { data, error } = await supabase.rpc("delete_division_and_children", { old_id: idToRemove });
-      if (error) {
-        console.error("Failed to delete division server-side:", error);
-        const msg = error.message || JSON.stringify(error);
-        alert(`Failed to remove division on server: ${msg}`);
-        return;
+      // Mode-aware deletion: for `league` use the server RPC; for `doubles` delete against doubles tables.
+      const vm = getViewMode();
+      if (vm === 'league') {
+        const { data, error } = await supabase.rpc("delete_division_and_children", { old_id: idToRemove });
+        if (error) {
+          console.error("Failed to delete division server-side:", error);
+          const msg = error.message || JSON.stringify(error);
+          alert(`Failed to remove division on server: ${msg}`);
+          return;
+        }
+      } else {
+        // Doubles mode: delete related rows from doubles tables only
+        try {
+          await db('previous_matches').delete().eq('division', idToRemove);
+        } catch (e) { console.warn('Failed to delete doubles previous_matches', e); }
+        try {
+          await db('players').delete().eq('division', idToRemove);
+        } catch (e) { console.warn('Failed to delete doubles players', e); }
+        try {
+          await db('pending_fixtures').delete().eq('division', idToRemove);
+        } catch (e) { console.warn('Failed to delete doubles pending_fixtures', e); }
+        try {
+          await db('running_seasons').delete().eq('division', idToRemove);
+        } catch (e) { console.warn('Failed to delete doubles running_seasons', e); }
+        try {
+          await db('divisions').delete().eq('id', idToRemove);
+        } catch (e) { console.warn('Failed to delete doubles division row', e); }
       }
 
       // Update local UI state after successful server deletion
       // Re-fetch canonical divisions from server to ensure consistency
       try {
-        const { data: dbDivs, error: dbErr } = await supabase
-          .from("divisions")
+        const { data: dbDivs, error: dbErr } = await db("divisions")
           .select("id,name")
           .order("id", { ascending: true });
 
@@ -1908,9 +1927,8 @@ const addDivision = async (name) => {
   if (!trimmed) return;
 
   try {
-    // Persist on server first
-    const { data, error } = await supabase
-      .from("divisions")
+    // Persist on server first (mode-aware table)
+    const { data, error } = await db("divisions")
       .insert([{ name: trimmed }])
       .select();
 
