@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
-import { getViewMode } from "../../lib/ls";
+import { getViewMode, getLSRaw } from "../../lib/ls";
 
 export default function Admin() {
   const [players, setPlayers] = useState([]);
@@ -43,7 +43,10 @@ export default function Admin() {
   // Add new player
   async function addPlayer() {
     if (!newPlayerName) return;
-    const { data, error } = await db("players").insert([{ name: newPlayerName, active: true }]).select();
+    // include division for doubles mode (players_doubles requires division)
+    const division = Number(getLSRaw("division")) || 1;
+    const payload = { name: newPlayerName, active: true, division };
+    const { data, error } = await db("players").insert([payload]).select();
     if (error) console.error(error);
     else {
       setPlayers([...players, data[0]]);
