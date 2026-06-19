@@ -1321,18 +1321,22 @@ const fetchPreviousMatches = async () => {
     const availablePlayers = playerPool.length ? playerPool : players;
     const findPlayer = (id) => availablePlayers.find((p) => p.id === id) || { id, name: "Unknown Player" };
 
-    const mappedCourt1Matches = (pending.court1_matches || []).map((match) => [
+    // Support two shapes: legacy { payload: { court1_matches, court1_byes, ... } }
+    // and newer flattened columns (court1_matches, court1_byes, ...)
+    const pendingObj = pending.payload ? (typeof pending.payload === "string" ? JSON.parse(pending.payload) : pending.payload) : pending;
+
+    const mappedCourt1Matches = (pendingObj.court1_matches || []).map((match) => [
       (match[0] || []).map(findPlayer),
       (match[1] || []).map(findPlayer),
     ]);
 
-    const mappedCourt2Matches = (pending.court2_matches || []).map((match) => [
+    const mappedCourt2Matches = (pendingObj.court2_matches || []).map((match) => [
       (match[0] || []).map(findPlayer),
       (match[1] || []).map(findPlayer),
     ]);
 
-    const mappedCourt1Byes = (pending.court1_byes || []).map((round) => (round || []).map(findPlayer));
-    const mappedCourt2Byes = (pending.court2_byes || []).map((round) => (round || []).map(findPlayer));
+    const mappedCourt1Byes = (pendingObj.court1_byes || []).map((round) => (round || []).map(findPlayer));
+    const mappedCourt2Byes = (pendingObj.court2_byes || []).map((round) => (round || []).map(findPlayer));
 
     setCourt1Matches(mappedCourt1Matches);
     setCourt2Matches(mappedCourt2Matches);
