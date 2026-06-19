@@ -942,13 +942,13 @@ const fetchPreviousMatches = async () => {
   };
 
   const toggleAvailability = async (id) => {
-    const player = players.find((p) => p.id === id);
+    const player = players.find((p) => String(p.id) === String(id));
     const newActive = !player.active;
 
     await db("players").update({ active: newActive }).eq("id", id);
 
     setPlayers((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, active: newActive } : p))
+      prev.map((p) => (String(p.id) === String(id) ? { ...p, active: newActive } : p))
     );
   };
 
@@ -1207,7 +1207,7 @@ const fetchPreviousMatches = async () => {
 
   // Helper function to convert player IDs to names
   const getPlayerNameFromId = (playerId) => {
-    const player = players.find(p => p.id === playerId);
+    const player = players.find((p) => String(p.id) === String(playerId));
     return player ? player.name : 'Unknown Player';
   };
 
@@ -1319,7 +1319,7 @@ const fetchPreviousMatches = async () => {
 
     const pending = data[0];
     const availablePlayers = playerPool.length ? playerPool : players;
-    const findPlayer = (id) => availablePlayers.find((p) => p.id === id) || { id, name: "Unknown Player" };
+    const findPlayer = (id) => availablePlayers.find((p) => String(p.id) === String(id)) || { id, name: "Unknown Player" };
 
     // Support two shapes: legacy { payload: { court1_matches, court1_byes, ... } }
     // and newer flattened columns (court1_matches, court1_byes, ...)
@@ -2014,7 +2014,7 @@ const addDivision = async (name) => {
 
 const buildSelectedPlayers = (ids) => {
   return (ids || []).map((id) => {
-    const player = allDivisionPlayers.find((p) => p.id === id) || players.find((p) => p.id === id);
+    const player = allDivisionPlayers.find((p) => String(p.id) === String(id)) || players.find((p) => String(p.id) === String(id));
     return player || { id, name: getPlayerNameFromId(id) };
   });
 };
@@ -2514,7 +2514,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
       const diff = (p.points_for || 0) - (p.points_against || 0);
 
       const form = computePlayerForm(p.id);
-      const eligibleIndex = eligiblePlayers.findIndex((ep) => ep.id === p.id);
+      const eligibleIndex = eligiblePlayers.findIndex((ep) => String(ep.id) === String(p.id));
       const positionDisplay = eligibleIndex >= 0 ? String(eligibleIndex + 1) : "NQ";
 
       return (
@@ -2649,7 +2649,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
           const gp = p.wins + p.losses + p.draws;
           const winPct = gp > 0 ? ((p.wins / gp) * 100).toFixed(0) + "%" : "0%";
           const diff = (p.points_for || 0) - (p.points_against || 0);
-          const eligibleIndex = eligiblePlayers.findIndex((ep) => ep.id === p.id);
+          const eligibleIndex = eligiblePlayers.findIndex((ep) => String(ep.id) === String(p.id));
           const positionDisplay = eligibleIndex >= 0 ? String(eligibleIndex + 1) : "NQ";
 
           return (
@@ -4610,7 +4610,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                     <label key={p.id} className="flex items-center text-gray-300 mb-2">
                       <input
                         type="checkbox"
-                        checked={addMatchData.team1Players.some(tp => tp.id === p.id)}
+                        checked={addMatchData.team1Players.some(tp => String(tp.id) === String(p.id))}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setAddMatchData({
@@ -4643,7 +4643,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                     <label key={p.id} className="flex items-center text-gray-300 mb-2">
                       <input
                         type="checkbox"
-                        checked={addMatchData.team2Players.some(tp => tp.id === p.id)}
+                        checked={addMatchData.team2Players.some(tp => String(tp.id) === String(p.id))}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setAddMatchData({

@@ -190,7 +190,7 @@ export default function Admin() {
   function computeLeaderboard() {
     const leaderboard = {};
     players.forEach((p) => {
-      leaderboard[p.id] = { name: p.name, wins: 0, draws: 0, losses: 0, points: 0 };
+      leaderboard[String(p.id)] = { name: p.name, wins: 0, draws: 0, losses: 0, points: 0 };
     });
 
     const allMatches = [...court1Matches, ...court2Matches];
@@ -198,27 +198,27 @@ export default function Admin() {
     allMatches.forEach((m) => {
       if (m.score1 === null || m.score2 === null) return;
 
-      const team1 = [m.player1_id, m.player2_id].filter(Boolean);
-      const team2 = [m.player3_id, m.player4_id].filter(Boolean);
+      const team1 = [m.player1_id, m.player2_id].filter(Boolean).map((id) => String(id));
+      const team2 = [m.player3_id, m.player4_id].filter(Boolean).map((id) => String(id));
 
       if (!team2.length) return;
 
       if (m.score1 > m.score2) {
         team1.forEach((id) => {
-          leaderboard[id].wins++;
-          leaderboard[id].points += 3;
+          leaderboard[String(id)].wins++;
+          leaderboard[String(id)].points += 3;
         });
-        team2.forEach((id) => leaderboard[id].losses++);
+        team2.forEach((id) => (leaderboard[String(id)].losses++));
       } else if (m.score1 < m.score2) {
         team2.forEach((id) => {
-          leaderboard[id].wins++;
-          leaderboard[id].points += 3;
+          leaderboard[String(id)].wins++;
+          leaderboard[String(id)].points += 3;
         });
-        team1.forEach((id) => leaderboard[id].losses++);
+        team1.forEach((id) => (leaderboard[String(id)].losses++));
       } else {
         [...team1, ...team2].forEach((id) => {
-          leaderboard[id].draws++;
-          leaderboard[id].points += 1;
+          leaderboard[String(id)].draws++;
+          leaderboard[String(id)].points += 1;
         });
       }
     });
@@ -267,10 +267,10 @@ export default function Admin() {
             <ul>
               {matches.map((m) => (
                 <li key={m.id} style={{ marginBottom: "5px" }}>
-                  {players.find((p) => p.id === m.player1_id)?.name} &{" "}
-                  {players.find((p) => p.id === m.player2_id)?.name} vs{" "}
-                  {players.find((p) => p.id === m.player3_id)?.name || "TBD"} &{" "}
-                  {players.find((p) => p.id === m.player4_id)?.name || "TBD"}
+                  {players.find((p) => String(p.id) === String(m.player1_id))?.name} &{" "}
+                  {players.find((p) => String(p.id) === String(m.player2_id))?.name} vs{" "}
+                  {players.find((p) => String(p.id) === String(m.player3_id))?.name || "TBD"} &{" "}
+                  {players.find((p) => String(p.id) === String(m.player4_id))?.name || "TBD"}
                   <input
                     type="number"
                     placeholder="Team 1"
