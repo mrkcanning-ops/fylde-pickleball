@@ -2243,11 +2243,48 @@ const activePlayerCount = players.filter((p) => p.active).length;
         <div className="mb-6 p-3 rounded bg-red-600 text-white flex items-start justify-between">
           <div className="mr-4 text-sm">{serverError}</div>
           <div className="flex-shrink-0">
-            <button
-              onClick={() => setServerError(null)}
-              className="px-3 py-1 bg-red-800 hover:bg-red-700 rounded text-sm"
-              aria-label="Dismiss server error"
-            >Dismiss</button>
+            <div className="space-x-2">
+              <button
+                onClick={async () => {
+                  // retry fetching divisions for current mode
+                  setServerError(null);
+                  try {
+                    await syncDivisions();
+                  } catch (e) {
+                    setServerError(`Retry failed: ${e?.message || String(e)}`);
+                  }
+                }}
+                className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 rounded text-sm"
+              >Retry</button>
+              <button
+                onClick={async () => {
+                  // copy league divisions into doubles table
+                  try {
+                    const { data: leagueDivs, error: leagueErr } = await supabase.from('divisions').select('id,name');
+                    if (leagueErr) throw leagueErr;
+                    if (!Array.isArray(leagueDivs) || leagueDivs.length === 0) {
+                      setServerError('No divisions found in league to copy.');
+                      return;
+                    }
+                    // insert names into doubles table
+                    const payload = leagueDivs.map((d) => ({ name: d.name }));
+                    const { error: insErr } = await supabase.from('divisions_doubles').insert(payload);
+                    if (insErr) throw insErr;
+                    setServerError('Copied league divisions into divisions_doubles.');
+                    // refresh client view
+                    try { await syncDivisions(); } catch (e) {}
+                  } catch (e) {
+                    setServerError(`Copy failed: ${e?.message || String(e)}`);
+                  }
+                }}
+                className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-sm"
+              >Copy League → Doubles</button>
+              <button
+                onClick={() => setServerError(null)}
+                className="px-3 py-1 bg-red-800 hover:bg-red-700 rounded text-sm"
+                aria-label="Dismiss server error"
+              >Dismiss</button>
+            </div>
           </div>
         </div>
       )}
