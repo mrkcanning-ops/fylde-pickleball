@@ -94,18 +94,15 @@ export default function Admin() {
 
     const division = Number(getLSRaw("division")) || 1;
 
-    // If in doubles mode, scope to players in the selected division only
-    const vm = getViewMode();
-    const scopedPlayers = vm === "doubles" ? availablePlayers.filter((p) => Number(p.division) === division) : availablePlayers;
+    // Scope players to the selected division for both League and Doubles
+    const scopedPlayers = availablePlayers.filter((p) => Number(p.division) === division);
 
     const numCourts = 2;
     const courts = generateLeagueSchedules(scopedPlayers, numCourts);
 
     try {
-      // Delete old matches for this week (scope to division in doubles mode)
-      let deleteQuery = db("matches").delete().eq("week", week);
-      if (vm === "doubles") deleteQuery = deleteQuery.eq("division", division);
-      const { error: deleteError } = await deleteQuery;
+      // Delete old matches for this week scoped to the selected division
+      const { error: deleteError } = await db("matches").delete().eq("week", week).eq("division", division);
       if (deleteError) console.error("Error clearing old matches:", deleteError);
 
       // Insert matches for each court and round
@@ -125,7 +122,8 @@ export default function Admin() {
             score2: null,
             week,
           };
-          if (vm === "doubles") matchRow.division = division;
+          // Always set division on inserted matches so generation is scoped
+          matchRow.division = division;
           const { data, error } = await db("matches").insert([matchRow]).select();
           if (error) {
             console.error("Supabase insert error:", error);
