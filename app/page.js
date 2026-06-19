@@ -2240,14 +2240,14 @@ const activePlayerCount = players.filter((p) => p.active).length;
         <button
           onClick={async () => {
             const next = viewMode === "league" ? "doubles" : "league";
-            try {
-              // Fetch divisions for the target mode first so names update immediately
-              await syncDivisions(next);
-            } catch (e) {
-              console.warn('Failed to sync divisions for target mode', e);
-            }
             try { setLSRaw("view_mode", next); } catch (e) {}
             setViewMode(next);
+            try {
+              // After switching the app state to the new mode, sync divisions from the corresponding table
+              await syncDivisions(next);
+            } catch (e) {
+              console.warn('Failed to sync divisions after mode change', e);
+            }
           }}
           className="flex items-center text-left"
           aria-label="Toggle league / doubles view"
