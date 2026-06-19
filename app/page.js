@@ -237,7 +237,9 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
           // Server returned empty or invalid response — treat as failure.
           console.error("Failed to fetch divisions from server: empty or invalid response", { dbDivs, dbErr });
           const details = dbErr ? JSON.stringify(dbErr) : JSON.stringify(dbDivs);
-          setServerError(`Failed to load divisions from server. Details: ${details}`);
+          const vm = getViewMode();
+          const table = vm === 'doubles' ? 'divisions_doubles' : 'divisions';
+          setServerError(`Failed to load divisions from server. Details: ${details} Queried table: ${table} (view_mode=${vm})`);
           setDivisions([]);
           setHydrated(true);
           return;
