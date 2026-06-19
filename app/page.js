@@ -132,6 +132,9 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
   const [hydrated, setHydrated] = useState(false);
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem("view_mode") || "league"; } catch (e) { return "league"; }
+  });
 
   // Dev-only debug: log and expose divisions state to diagnose mobile/desktop mismatch
   useEffect(() => {
@@ -2207,18 +2210,28 @@ const activePlayerCount = players.filter((p) => p.active).length;
       )}
       {hydrated && (
         <>
-      {/* Header */}
+      {/* Header (click title to toggle mode) */}
       <header className="mb-8 sm:mb-10 relative">
-        <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-          <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
-            🔥
-          </span>
-          Fylde Pickleball League
-        </h1>
+        <button
+          onClick={() => {
+            const next = viewMode === "league" ? "doubles" : "league";
+            try { localStorage.setItem("view_mode", next); } catch (e) {}
+            setViewMode(next);
+          }}
+          className="flex items-center text-left"
+          aria-label="Toggle league / doubles view"
+        >
+          <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+            <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
+              {viewMode === "league" ? "🔥" : "🎯"}
+            </span>
+            {viewMode === "league" ? "Fylde Pickleball League" : "Doubles - Points Difference"}
+          </h1>
+        </button>
         <p className="text-gray-400 mt-2 text-xs sm:text-sm tracking-wide">
-          Weekly Matches • Live Updates • Prize for Winner!🏆
+          {viewMode === "league" ? "Weekly Matches • Live Updates • Prize for Winner!🏆" : "Casual doubles format • Points-difference scoring"}
         </p>
-        <div className="absolute -bottom-3 left-0 w-20 sm:w-24 h-1 bg-yellow-400 rounded-full" />
+        <div className={`absolute -bottom-3 left-0 w-20 sm:w-24 h-1 rounded-full ${viewMode === "league" ? "bg-yellow-400" : "bg-green-400"}`} />
       </header>
 
       <HeaderStats stats={stats} />
