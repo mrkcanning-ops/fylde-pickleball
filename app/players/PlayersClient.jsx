@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getLSJson, setLSJson } from "../../lib/ls";
+import { supabase } from "../../lib/supabase";
+import { getViewMode, getLSJson, setLSJson } from "../../lib/ls";
 
 export default function PlayersClient() {
   const [players, setPlayers] = useState(() => {
@@ -16,23 +17,99 @@ export default function PlayersClient() {
   });
 
   useEffect(() => {
+    // Attempt to load players from Supabase; fall back to localStorage cache
+    const load = async () => {
+      if (!supabase) return;
+      try {
+        const DOUBLES_SUFFIX = "_doubles";
+        const vm = getViewMode();
+        const table = `players${vm === "doubles" ? DOUBLES_SUFFIX : ""}`;
+        const { data, error } = await supabase.from(table).select("*").order("name", { ascending: true });
+        if (!error && Array.isArray(data)) {
+          setPlayers(data.map((d) => ({ ...d, active: typeof d.active === 'boolean' ? d.active : true })));
+          try { setLSJson("players", data); } catch (e) {}
+          return;
+        }
+      } catch (e) {
+        console.warn('Failed to load players from DB, using cache', e);
+      }
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
     setLSJson("players", players);
   }, [players]);
 
-  const addPlayer = () => {
+  const addPlayer = async () => {
     const name = prompt("Enter new player name:");
-    if (name) setPlayers([...players, { name }]);
+    if (!name) return;
+    if (!supabase) {
+      setPlayers([...players, { name }]);
+      return;
+    }
+    try {
+      const DOUBLES_SUFFIX = "_doubles";
+      const vm = getViewMode();
+      const table = `players${vm === "doubles" ? DOUBLES_SUFFIX : ""}`;
+      const { data, error } = await supabase.from(table).insert([{ name, active: true }]).select();
+      if (!error && Array.isArray(data)) {
+        setPlayers((prev) => [...prev, data[0]]);
+      } else {
+        setPlayers((prev) => [...prev, { name, active: true }]);
+      }
+    } catch (e) {
+      console.warn('Failed to insert player:', e);
+      setPlayers((prev) => [...prev, { name, active: true }]);
+    }
   };
 
-  const deletePlayer = (index) => {
-    if (confirm(`Delete ${players[index].name}?`)) {
+  const deletePlayer = async (index) => {
+    if (!confirm(`Delete ${players[index].name}?`)) return;
+    const player = players[index];
+    if (!supabase || !player.id) {
+      setPlayers(players.filter((_, i) => i !== index));
+      return;
+    }
+    try {
+      const DOUBLES_SUFFIX = "_doubles";
+      const vm = getViewMode();
+      const table = `players${vm === "doubles" ? DOUBLES_SUFFIX : ""}`;
+      const { error } = await supabase.from(table).delete().eq('id', player.id);
+      if (error) throw error;
+      setPlayers(players.filter((_, i) => i !== index));
+    } catch (e) {
+      console.warn('Failed to delete player from DB:', e);
       setPlayers(players.filter((_, i) => i !== index));
     }
   };
 
-  const editPlayer = (index) => {
+  const editPlayer = async (index) => {
     const name = prompt("Edit player name:", players[index].name);
-    if (name) {
+    if (!name) return;
+    const player = players[index];
+    if (!supabase || !player.id) {
+      const updated = [...players];
+      updated[index].name = name;
+      setPlayers(updated);
+      return;
+    }
+    try {
+      const DOUBLES_SUFFIX = "_doubles";
+      const vm = getViewMode();
+      const table = `players${vm === "doubles" ? DOUBLES_SUFFIX : ""}`;
+      const { data, error } = await supabase.from(table).update({ name }).eq('id', player.id).select();
+      if (!error && Array.isArray(data)) {
+        const updated = [...players];
+        updated[index] = data[0];
+        setPlayers(updated);
+      } else {
+        const updated = [...players];
+        updated[index].name = name;
+        setPlayers(updated);
+      }
+    } catch (e) {
+      console.warn('Failed to update player:', e);
       const updated = [...players];
       updated[index].name = name;
       setPlayers(updated);
@@ -62,7 +139,7 @@ export default function PlayersClient() {
           <tbody>
             {players.map((player, index) => (
               <tr
-                key={index}
+                key={player.id || index}
                 className="border-b border-gray-700 even:bg-gray-800/50"
               >
                 <td className="p-3">{index + 1}</td>

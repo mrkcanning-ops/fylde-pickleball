@@ -136,7 +136,9 @@ const [previousMatches, setPreviousMatches] = useState([]);
   });
 
   // Helper to pick table name depending on view mode (league or doubles)
-  const db = (table) => supabase.from(`${table}${viewMode === "doubles" ? "_doubles" : ""}`);
+  // Force literal suffix to avoid environment mismatch during development
+  const DOUBLES_SUFFIX = "_doubles";
+  const db = (table) => supabase.from(`${table}${viewMode === "doubles" ? DOUBLES_SUFFIX : ""}`);
 
   // Dev-only debug: log and expose divisions state to diagnose mobile/desktop mismatch
   useEffect(() => {
@@ -220,25 +222,36 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
       // server fetch fails or returns no divisions, show a visible error
       // and do not silently fall back to localStorage.
       (async () => {
-        try {
-          const { data: dbDivs, error: dbErr } = await db("divisions")
-            .select("id,name")
-            .order("id", { ascending: true });
+          try {
+            let { data: dbDivs, error: dbErr } = await db("divisions")
+              .select("id,name,min_qualify_games")
+              .order("id", { ascending: true });
 
-          if (!dbErr && Array.isArray(dbDivs) && dbDivs.length > 0) {
-            const mapped = dbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}` }));
-            setDivisions(mapped);
-            const initialDivision = savedDivisionId || mapped[0].id;
-            setDivision(initialDivision);
-            await fetchAllDivisionPlayers(initialDivision);
-            return;
-          }
+            // If the DB returns a missing-column error (e.g. older doubles table), retry without the column
+            if (dbErr && String(dbErr?.code) === "42703") {
+              const fallback = await db("divisions").select("id,name").order("id", { ascending: true });
+              dbDivs = fallback.data;
+              dbErr = fallback.error;
+            }
+
+            if (!dbErr && Array.isArray(dbDivs) && dbDivs.length > 0) {
+              const mapped = dbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}`, min_qualify_games: d.min_qualify_games }));
+              setDivisions(mapped);
+              const byDiv = {};
+              mapped.forEach((m) => { if (m.min_qualify_games != null) byDiv[String(m.id)] = m.min_qualify_games; });
+              setMinQualifyByDivision((prev) => ({ ...(prev || {}), ...(byDiv || {}) }));
+              const initialDivision = savedDivisionId || mapped[0].id;
+              setDivision(initialDivision);
+              await fetchAllDivisionPlayers(initialDivision);
+              return;
+            }
+          
 
           // Server returned empty or invalid response — treat as failure.
           console.error("Failed to fetch divisions from server: empty or invalid response", { dbDivs, dbErr });
           const details = dbErr ? JSON.stringify(dbErr) : JSON.stringify(dbDivs);
           const vm = getViewMode();
-          const table = vm === 'doubles' ? 'divisions_doubles' : 'divisions';
+          const table = vm === 'doubles' ? `divisions${DOUBLES_SUFFIX}` : 'divisions';
           setServerError(`Failed to load divisions from server. Details: ${details} Queried table: ${table} (view_mode=${vm})`);
           setDivisions([]);
           setHydrated(true);
@@ -266,7 +279,7 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
   // Persist divisions and selected division to localStorage
   useEffect(() => {
     try {
-      setLSJson("divisions", divisions);
+      // Keep only selected division in localStorage (divisions are canonical in Supabase)
       setLSRaw("division", String(division));
     } catch (e) {
       console.warn("Failed to persist divisions:", e);
@@ -439,8 +452,7 @@ const updatePlayerStatsFromMatches = async () => {
       updated.points_for += scored;
       updated.points_against += conceded;
 
-      await supabase
-        .from("players")
+      await db("players")
         .update(updated)
         .eq("id", player.id);
     };
@@ -480,8 +492,7 @@ const verifyAdminCode = () => {
 };
 
 const fetchPreviousMatches = async () => {
-  const { data, error } = await supabase
-    .from("previous_matches")
+  const { data, error } = await db("previous_matches")
     .select("*")
     .eq("division", division)
     .order("created_at", { ascending: false }); // Most recent first
@@ -579,8 +590,7 @@ const fetchPreviousMatches = async () => {
       // try persist to Supabase table `running_seasons` (if available)
       let saved = false;
       try {
-        const { data: insertData, error: insertError } = await supabase
-          .from("running_seasons")
+        const { data: insertData, error: insertError } = await db("running_seasons")
           .insert([
             {
               id: newSeason.id,
@@ -772,8 +782,7 @@ const fetchPreviousMatches = async () => {
   };
 
   const fetchPlayers = async () => {
-    const { data, error } = await supabase
-      .from("players")
+    const { data, error } = await db("players")
       .select("*")
       .eq("division", division); // filter by current division
 
@@ -785,8 +794,7 @@ const fetchPreviousMatches = async () => {
       }));
 
       // Build rank maps based on matches so we can compute position changes.
-      const { data: divisionMatches, error: matchesError } = await supabase
-        .from("previous_matches")
+      const { data: divisionMatches, error: matchesError } = await db("previous_matches")
         .select("players,scores,created_at")
         .eq("division", division)
         .order("created_at", { ascending: true });
@@ -891,8 +899,7 @@ const fetchPreviousMatches = async () => {
   };
 
   const fetchAllDivisionPlayers = async (divisionNum = division) => {
-    const { data, error } = await supabase
-      .from("players")
+    const { data, error } = await db("players")
       .select("*")
       .eq("division", divisionNum)
       .order("name", { ascending: true });
@@ -906,8 +913,7 @@ const fetchPreviousMatches = async () => {
     const name = prompt("Enter new player's name:");
     if (!name) return;
 
-    const { data, error } = await supabase
-      .from("players")
+    const { data, error } = await db("players")
       .insert([{ name, wins: 0, draws: 0, losses: 0, points: 0, active: true, division }])
       .select();
 
@@ -1657,8 +1663,7 @@ const saveMatches = async () => {
     console.log("Saving matches with player IDs:", allMatches);
 
     // Insert into Supabase
-    const { data, error } = await supabase
-      .from("previous_matches")
+    const { data, error } = await db("previous_matches")
       .insert(allMatches)
       .select();
 
@@ -1766,19 +1771,31 @@ const verifyRemoveDivisionPasscode = async () => {
   setShowSelectDivisionModal(true);
 };
 
-const syncDivisions = async () => {
+const syncDivisions = async (vmOverride) => {
   try {
     console.debug("syncDivisions: env url", process.env.NEXT_PUBLIC_SUPABASE_URL);
     console.debug("syncDivisions: anon key present", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-    const { data: dbDivs, error } = await db("divisions")
-      .select("id,name")
-      .order("id", { ascending: true });
+    const vm = vmOverride || getViewMode();
+    const tableName = `divisions${vm === 'doubles' ? DOUBLES_SUFFIX : ''}`;
+    try {
+      const { data: dbDivs, error } = await supabase.from(tableName)
+        .select("id,name,min_qualify_games")
+        .order("id", { ascending: true });
 
-    console.debug("syncDivisions: supabase response", { dbDivs, error });
+      console.debug("syncDivisions: supabase response", { dbDivs, error });
 
-    if (error) {
-    console.error("Failed to fetch divisions via supabase client:", error);
+      // If missing column error, retry without column to recover older tables
+      let finalDbDivs = dbDivs;
+      let finalError = error;
+      if (error && String(error?.code) === "42703") {
+        const fallback = await supabase.from(tableName).select("id,name").order("id", { ascending: true });
+        finalDbDivs = fallback.data;
+        finalError = fallback.error;
+      }
+
+      if (finalError) {
+        console.error("Failed to fetch divisions via supabase client:", finalError);
       // Try a direct REST fetch to help debug CORS/permission issues
       try {
         const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/+$/,'')}/rest/v1/divisions`;
@@ -1801,19 +1818,24 @@ const syncDivisions = async () => {
         console.error("syncDivisions: REST fetch failed:", restErr);
         setServerError(`REST fetch failed: ${restErr?.message || String(restErr)}`);
       }
+        setServerError(`Failed to sync divisions: ${finalError.message || JSON.stringify(finalError)}`);
+        return;
+      }
 
-        setServerError(`Failed to sync divisions: ${error.message || JSON.stringify(error)}`);
-      return;
-    }
+      if (!Array.isArray(finalDbDivs) || finalDbDivs.length === 0) {
+        console.warn("syncDivisions: server returned empty divisions array", finalDbDivs);
+        setServerError("No divisions found on server.");
+        return;
+      }
 
-    if (!Array.isArray(dbDivs) || dbDivs.length === 0) {
-      console.warn("syncDivisions: server returned empty divisions array", dbDivs);
-      setServerError("No divisions found on server.");
-      return;
-    }
-
-    const mapped = dbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}` }));
+      const mapped = finalDbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}`, min_qualify_games: d.min_qualify_games }));
     setDivisions(mapped);
+    // populate per-division min map from DB values
+    const byDiv = {};
+    mapped.forEach((m) => {
+      if (m.min_qualify_games != null) byDiv[String(m.id)] = m.min_qualify_games;
+    });
+    setMinQualifyByDivision((prev) => ({ ...(prev || {}), ...(byDiv || {}) }));
     const sel = mapped.find((d) => d.id === division) ? division : mapped[0].id;
     setDivision(sel);
     await fetchAllDivisionPlayers(sel);
@@ -1913,8 +1935,7 @@ const verifyRemovePlayerPasscode = async () => {
   setShowRemovePlayerModal(false);
   
   if (selectedPlayerToRemove) {
-    const { error } = await supabase
-      .from("players")
+    const { error } = await db("players")
       .delete()
       .eq("id", selectedPlayerToRemove.id);
     
@@ -2061,8 +2082,7 @@ const saveEditedMatch = async () => {
     return;
   }
 
-  const { error } = await supabase
-    .from("previous_matches")
+  const { error } = await db("previous_matches")
     .update({
       created_at: `${editMatchData.date}T00:00:00Z`,
       court: editMatchData.court,
@@ -2115,8 +2135,7 @@ const addMatch = async () => {
     ];
 
     // Insert match into Supabase
-    const { data, error } = await supabase
-      .from("previous_matches")
+    const { data, error } = await db("previous_matches")
       .insert({
         created_at: addMatchData.date + "T00:00:00Z",
         court: addMatchData.court,
@@ -2219,10 +2238,16 @@ const activePlayerCount = players.filter((p) => p.active).length;
       {/* Header (click title to toggle mode) */}
       <header className="mb-8 sm:mb-10 relative">
         <button
-          onClick={() => {
+          onClick={async () => {
             const next = viewMode === "league" ? "doubles" : "league";
             try { setLSRaw("view_mode", next); } catch (e) {}
             setViewMode(next);
+            try {
+              // Immediately sync divisions for the selected mode so the UI shows correct divisions without extra clicks
+              await syncDivisions(next);
+            } catch (e) {
+              console.warn('Failed to sync divisions after mode change', e);
+            }
           }}
           className="flex items-center text-left"
           aria-label="Toggle league / doubles view"
@@ -2266,11 +2291,12 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       setServerError('No divisions found in league to copy.');
                       return;
                     }
-                    // insert names into doubles table
+                    // insert names into doubles table (suffix configurable)
                     const payload = leagueDivs.map((d) => ({ name: d.name }));
-                    const { error: insErr } = await supabase.from('divisions_doubles').insert(payload);
+                    const doublesTable = `divisions${DOUBLES_SUFFIX}`;
+                    const { error: insErr } = await supabase.from(doublesTable).insert(payload);
                     if (insErr) throw insErr;
-                    setServerError('Copied league divisions into divisions_doubles.');
+                    setServerError(`Copied league divisions into ${doublesTable}.`);
                     // refresh client view
                     try { await syncDivisions(); } catch (e) {}
                   } catch (e) {
@@ -2765,6 +2791,14 @@ const activePlayerCount = players.filter((p) => p.active).length;
                   try { setLSJson("min_qualify_by_division", next); } catch (e) {}
                   // update current displayed value
                   setMinQualifyGames(pendingMinSave.value);
+
+                  // Persist per-division min to DB for canonical storage
+                  try {
+                    await db('divisions').update({ min_qualify_games: pendingMinSave.value }).eq('id', pendingMinSave.division);
+                  } catch (e) {
+                    console.warn('Failed to persist min_qualify_games to DB:', e);
+                    // not fatal — keep local value
+                  }
                 }
                 setPendingMinSave(null);
                 setShowVerifyMinPasscodeModal(false);
@@ -3764,13 +3798,11 @@ const activePlayerCount = players.filter((p) => p.active).length;
                     if (confirmed) {
                       try {
                         // 1) Fetch players and matches for the current division
-                        const { data: divisionPlayers } = await supabase
-                          .from("players")
+                        const { data: divisionPlayers } = await db("players")
                           .select("*")
                           .eq("division", division);
 
-                        const { data: divisionMatches } = await supabase
-                          .from("previous_matches")
+                        const { data: divisionMatches } = await db("previous_matches")
                           .select("*")
                           .eq("division", division)
                           .order("created_at", { ascending: true });

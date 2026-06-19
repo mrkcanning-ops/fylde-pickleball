@@ -17,7 +17,9 @@ export default function Admin() {
     fetchPlayersAndMatches();
   }, [week]);
 
-  const db = (table) => supabase.from(`${getViewMode() === "doubles" ? `${table}_doubles` : table}`);
+  // Force literal doubles suffix to avoid env mismatch
+  const DOUBLES_SUFFIX = "_doubles";
+  const db = (table) => supabase.from(`${getViewMode() === "doubles" ? `${table}${DOUBLES_SUFFIX}` : table}`);
 
   async function fetchPlayersAndMatches() {
     setLoading(true);

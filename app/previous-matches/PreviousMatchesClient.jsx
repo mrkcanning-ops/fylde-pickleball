@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
+import { getViewMode } from "../../lib/ls";
 
 export default function PreviousMatchesClient() {
   const [previousMatches, setPreviousMatches] = useState([]);
@@ -10,8 +11,9 @@ export default function PreviousMatchesClient() {
   useEffect(() => {
     const fetchPreviousMatches = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("previous_matches")
+      const DOUBLES_SUFFIX = "_doubles";
+      const db = (table) => supabase.from(`${table}${getViewMode() === "doubles" ? DOUBLES_SUFFIX : ""}`);
+      const { data, error } = await db("previous_matches")
         .select("*")
         .order("created_at", { ascending: false });
 

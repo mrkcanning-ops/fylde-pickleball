@@ -19,7 +19,9 @@ export default function SeasonSummariesPage() {
   const [showDiagModal, setShowDiagModal] = useState(false);
 
   // Helper to pick season_summaries table based on view mode (league or doubles)
-  const db = (table) => supabase.from(`${table}${getViewMode() === "doubles" ? "_doubles" : ""}`);
+  // Force literal suffix to avoid environment mismatch
+  const DOUBLES_SUFFIX = "_doubles";
+  const db = (table) => supabase.from(`${table}${getViewMode() === "doubles" ? DOUBLES_SUFFIX : ""}`);
 
   useEffect(() => {
     const load = async () => {
