@@ -20,18 +20,26 @@ export default function Admin() {
 
   // Force literal doubles suffix to avoid env mismatch
   const DOUBLES_SUFFIX = "_doubles";
-  const db = (table) => supabase.from(`${getViewMode() === "doubles" ? `${table}${DOUBLES_SUFFIX}` : table}`);
+
+  const getTablesForMode = (vm) => ({
+    playersTable: vm === "doubles" ? `players${DOUBLES_SUFFIX}` : "players",
+    matchesTable: vm === "doubles" ? `matches${DOUBLES_SUFFIX}` : "matches",
+    pendingTable: vm === "doubles" ? `pending_fixtures${DOUBLES_SUFFIX}` : "pending_fixtures",
+  });
 
   async function fetchPlayersAndMatches() {
     setLoading(true);
 
+    const vm = getViewMode();
+    const { playersTable, matchesTable } = getTablesForMode(vm);
+
     // Players
-    const { data: playerData, error: playerError } = await db("players").select("*").order("name", { ascending: true });
+    const { data: playerData, error: playerError } = await supabase.from(playersTable).select("*").order("name", { ascending: true });
     if (playerError) console.error(playerError);
     else setPlayers(playerData);
 
     // Matches
-    const { data: matchData, error: matchError } = await db("matches").select("*").eq("week", week);
+    const { data: matchData, error: matchError } = await supabase.from(matchesTable).select("*").eq("week", week);
     if (matchError) console.error(matchError);
 
     const division = Number(getLSRaw("division")) || 1;
@@ -104,8 +112,11 @@ export default function Admin() {
     const courts = generateLeagueSchedules(scopedPlayers, numCourts);
 
     try {
+      const vm = getViewMode();
+      const { matchesTable, pendingTable } = getTablesForMode(vm);
+
       // Delete old matches for this week scoped to the selected division
-      const { error: deleteError } = await db("matches").delete().eq("week", week).eq("division", division);
+      const { error: deleteError } = await supabase.from(matchesTable).delete().eq("week", week).eq("division", division);
       if (deleteError) console.error("Error clearing old matches:", deleteError);
 
       // Insert matches for each court and round
@@ -127,7 +138,7 @@ export default function Admin() {
           };
           // Always set division on inserted matches so generation is scoped
           matchRow.division = division;
-          const { data, error } = await db("matches").insert([matchRow]).select();
+          const { data, error } = await supabase.from(matchesTable).insert([matchRow]).select();
           if (error) {
             console.error("Supabase insert error:", error);
             console.log("Match row causing error:", matchRow);
@@ -151,7 +162,7 @@ export default function Admin() {
           status: "generated",
         };
 
-        const { error: upsertError } = await db("pending_fixtures").upsert(payload, { onConflict: "division" });
+        const { error: upsertError } = await supabase.from(pendingTable).upsert(payload, { onConflict: "division" });
         if (upsertError) console.error("Error upserting pending_fixtures:", upsertError);
         else console.log("Upserted pending_fixtures for division", division);
       } catch (e) {
