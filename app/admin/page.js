@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { getViewMode, getLSRaw } from "../../lib/ls";
+import { generateLeagueSchedules } from "../../lib/matchGenerator";
 
 export default function Admin() {
   const [players, setPlayers] = useState([]);
@@ -83,7 +84,7 @@ export default function Admin() {
     if (!error) setPlayers(players.map((p) => (p.id === player.id ? data[0] : p)));
   }
 
-  // Generate matches (fixed, fully working)
+  // Generate matches (use league-style schedule generator for parity with League page)
   async function generateMatches() {
     const availablePlayers = players.filter((p) => p.active);
     if (availablePlayers.length < 4) {
@@ -91,37 +92,26 @@ export default function Admin() {
       return;
     }
 
-    const half = Math.ceil(availablePlayers.length / 2);
-    const court1Players = availablePlayers.slice(0, half);
-    const court2Players = availablePlayers.slice(half);
-
-    const pairPlayers = (arr) => {
-      const pairs = [];
-      for (let i = 0; i < arr.length; i += 4) {
-        const team1 = arr[i];
-        const team2 = arr[i + 1] || null;
-        const team3 = arr[i + 2] || null;
-        const team4 = arr[i + 3] || null;
-        pairs.push([team1, team2, team3, team4].filter(Boolean));
-      }
-      return pairs;
-    };
-
-    const court1Pairs = pairPlayers(court1Players);
-    const court2Pairs = pairPlayers(court2Players);
+    const numCourts = 2;
+    const courts = generateLeagueSchedules(availablePlayers, numCourts);
 
     try {
       // Delete old matches for this week
       const { error: deleteError } = await db("matches").delete().eq("week", week);
       if (deleteError) console.error("Error clearing old matches:", deleteError);
 
-      const insertCourtMatches = async (pairs, courtNum) => {
-        for (const pair of pairs) {
+      // Insert matches for each court and round
+      for (let c = 0; c < courts.length; c++) {
+        const court = courts[c];
+        const courtNum = c + 1;
+        for (const round of court.matches) {
+          const team1 = round[0] || [];
+          const team2 = round[1] || [];
           const matchRow = {
-            player1_id: pair[0].id,
-            player2_id: pair[1]?.id || null,
-            player3_id: pair[2]?.id || null,
-            player4_id: pair[3]?.id || null,
+            player1_id: team1[0]?.id || null,
+            player2_id: team1[1]?.id || null,
+            player3_id: team2[0]?.id || null,
+            player4_id: team2[1]?.id || null,
             court: courtNum,
             score1: null,
             score2: null,
@@ -131,12 +121,11 @@ export default function Admin() {
           if (error) {
             console.error("Supabase insert error:", error);
             console.log("Match row causing error:", matchRow);
-          } else console.log(`Inserted match Court ${courtNum}:`, data);
+          } else {
+            console.log(`Inserted match Court ${courtNum}:`, data);
+          }
         }
-      };
-
-      await insertCourtMatches(court1Pairs, 1);
-      await insertCourtMatches(court2Pairs, 2);
+      }
 
       fetchPlayersAndMatches();
       alert("Weekly matches generated!");
