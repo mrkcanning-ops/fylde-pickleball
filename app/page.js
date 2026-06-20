@@ -1712,14 +1712,16 @@ const saveMatches = async () => {
     console.log("Saving matches with player IDs:", allMatches);
 
     // Insert into Supabase
-    const { data, error } = await db("previous_matches")
-      .insert(allMatches)
-      .select();
+      console.debug("Saving matches to table:", viewMode === 'doubles' ? 'previous_matches_doubles' : 'previous_matches');
+      const { data, error } = await db("previous_matches")
+        .insert(allMatches)
+        .select();
 
-    if (error) {
-      console.error("Error saving matches:", error);
-      alert("Failed to save matches. Check console.");
-    } else {
+      if (error) {
+        console.error("Error saving matches:", error);
+        const msg = (error && (error.message || error.error || JSON.stringify(error))) || "Unknown DB error";
+        alert(`Failed to save matches: ${msg}`);
+      } else {
       alert("Matches saved successfully!");
 
       // Reset current matches for next round
