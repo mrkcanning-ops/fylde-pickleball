@@ -1678,13 +1678,27 @@ const saveMatches = async () => {
   try {
     // Helper to format matches for saving
     const formatMatches = (matches, scores, court) => {
-      return matches.map((m, idx) => ({
-        court,
-        division,
-        // Use player IDs instead of names
-        players: m.flat().map(p => p.id),
-        scores: scores[idx],
-      }));
+      return matches.map((m, idx) => {
+        const row = {
+          court,
+          division,
+          // Use player IDs instead of names
+          players: m.flat().map((p) => p.id),
+          scores: scores[idx],
+        };
+
+        // `previous_matches_doubles` requires a text `id` primary key.
+        // Generate one when in doubles mode so inserts do not fail.
+        if (viewMode === "doubles") {
+          try {
+            row.id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+          } catch (e) {
+            row.id = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+          }
+        }
+
+        return row;
+      });
     };
 
     const court1Data = formatMatches(court1Matches, court1Scores, "court1");
