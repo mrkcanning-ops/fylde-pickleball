@@ -2521,8 +2521,17 @@ const activePlayerCount = players.filter((p) => p.active).length;
     <span className="text-green-600">W</span>
     <span className="text-red-400">L</span>
     <span className="text-yellow-500">D</span>
-    <span>Diff</span>
-    <span className="text-cyan-600 font-black text-xs">Win %</span>
+    {viewMode === 'doubles' ? (
+      <>
+        <span className="text-cyan-600 font-normal text-xs">Win %</span>
+        <span className="text-cyan-600 font-black text-xs">Diff</span>
+      </>
+    ) : (
+      <>
+        <span>Diff</span>
+        <span className="text-cyan-600 font-black text-xs">Win %</span>
+      </>
+    )}
   </div>
 
   {(() => {
@@ -2587,8 +2596,17 @@ const activePlayerCount = players.filter((p) => p.active).length;
             <span className="text-green-600">{p.wins}</span>
             <span className="text-red-400">{p.losses}</span>
             <span className="text-yellow-500">{p.draws}</span>
-            <span className="text-gray-700">{diff}</span>
-            <span className="text-cyan-600 font-black text-base">{winPct}</span>
+            {viewMode === 'doubles' ? (
+              <>
+                <span className="text-cyan-600">{winPct}</span>
+                <span className="text-cyan-600 font-black text-base">{diff}</span>
+              </>
+            ) : (
+              <>
+                <span className="text-gray-700">{diff}</span>
+                <span className="text-cyan-600 font-black text-base">{winPct}</span>
+              </>
+            )}
           </div>
           {/* Bottom row: change + recent form */}
           <div className="flex justify-end mt-3 items-end gap-4">
@@ -2654,8 +2672,17 @@ const activePlayerCount = players.filter((p) => p.active).length;
           <th className="p-2 text-green-600">W</th>
           <th className="p-2 text-red-400">L</th>
           <th className="p-2 text-yellow-500">D</th>
-          <th className="p-2 text-center text-gray-700">Diff</th>
-          <th className="p-2 text-center text-cyan-600 font-black">Win %</th>
+          {viewMode === 'doubles' ? (
+            <>
+              <th className="p-2 text-center text-cyan-600">Win %</th>
+              <th className="p-2 text-center text-cyan-600 font-black">Diff</th>
+            </>
+          ) : (
+            <>
+              <th className="p-2 text-center text-gray-700">Diff</th>
+              <th className="p-2 text-center text-cyan-600 font-black">Win %</th>
+            </>
+          )}
           <th className="p-2 text-center">Change</th>
           <th className="p-2">Form</th>
           <th className="p-2 text-right">Points</th>
@@ -2714,8 +2741,17 @@ const activePlayerCount = players.filter((p) => p.active).length;
               <td className="p-2 text-green-600 text-center">{p.wins}</td>
               <td className="p-2 text-red-400 text-center">{p.losses}</td>
               <td className="p-2 text-yellow-500 text-center">{p.draws}</td>
-              <td className="p-2 text-center text-gray-700">{diff}</td>
-              <td className="p-2 text-center text-cyan-600 font-black text-base">{winPct}</td>
+              {viewMode === 'doubles' ? (
+                <>
+                  <td className="p-2 text-center text-cyan-600">{winPct}</td>
+                  <td className="p-2 text-center text-cyan-600 font-black text-base">{diff}</td>
+                </>
+              ) : (
+                <>
+                  <td className="p-2 text-center text-gray-700">{diff}</td>
+                  <td className="p-2 text-center text-cyan-600 font-black text-base">{winPct}</td>
+                </>
+              )}
               <td className="p-2 text-center">
                 {(() => {
                   const change = p.positionChange || 0;
