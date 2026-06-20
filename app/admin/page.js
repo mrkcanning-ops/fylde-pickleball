@@ -108,11 +108,18 @@ export default function Admin() {
     // Scope players to the selected division for both League and Doubles
     const scopedPlayers = availablePlayers.filter((p) => Number(p.division) === division);
 
+    // Ensure we only generate matches when the selected division has enough active players
+    if (scopedPlayers.length < 4) {
+      alert(`At least 4 active players are required in division ${division}.`);
+      return;
+    }
+
     const numCourts = 2;
     const courts = generateLeagueSchedules(scopedPlayers, numCourts);
 
     try {
       const vm = getViewMode();
+      console.debug("Admin: generateMatches -> viewMode", vm, "division", division, "playersInDivision", scopedPlayers.length);
       const { matchesTable, pendingTable } = getTablesForMode(vm);
 
       // Delete old matches for this week scoped to the selected division
