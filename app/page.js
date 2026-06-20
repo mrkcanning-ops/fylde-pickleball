@@ -522,10 +522,7 @@ const fetchPreviousMatches = async () => {
 
     const load = async () => {
       try {
-        const { data, error } = await supabase
-          .from("season_summaries")
-          .select("*")
-          .order("timestamp", { ascending: false });
+        const { data, error } = await db("season_summaries").select("*").order("timestamp", { ascending: false });
 
         console.debug("[seasons] supabase response:", { data, error });
 
