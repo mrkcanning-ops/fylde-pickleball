@@ -1680,12 +1680,17 @@ const saveMatches = async () => {
     const formatMatches = (matches, scores, court) => {
       return matches.map((m, idx) => {
         const row = {
-          court,
           division,
           // Use player IDs instead of names
           players: m.flat().map((p) => p.id),
           scores: scores[idx],
         };
+
+        // Only include `court` for the non-doubles table —
+        // `previous_matches_doubles` schema does not have a `court` column.
+        if (viewMode !== "doubles") {
+          row.court = court;
+        }
 
         // `previous_matches_doubles` requires a text `id` primary key.
         // Generate one when in doubles mode so inserts do not fail.
