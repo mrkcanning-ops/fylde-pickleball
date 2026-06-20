@@ -2143,15 +2143,20 @@ const saveEditedMatch = async () => {
   }
 
   const { error } = await db("previous_matches")
-    .update({
-      created_at: `${editMatchData.date}T00:00:00Z`,
-      court: editMatchData.court,
-      players: allIds,
-      scores: {
-        team1: parseInt(editMatchData.team1Score, 10),
-        team2: parseInt(editMatchData.team2Score, 10),
-      },
-    })
+    .update(
+      (() => {
+        const payload = {
+          created_at: `${editMatchData.date}T00:00:00Z`,
+          players: allIds,
+          scores: {
+            team1: parseInt(editMatchData.team1Score, 10),
+            team2: parseInt(editMatchData.team2Score, 10),
+          },
+        };
+        if (viewMode !== "doubles") payload.court = editMatchData.court;
+        return payload;
+      })()
+    )
     .eq("id", editingMatchId);
 
   if (error) {
@@ -2195,17 +2200,25 @@ const addMatch = async () => {
     ];
 
     // Insert match into Supabase
+    const payload = {
+      created_at: addMatchData.date + "T00:00:00Z",
+      division,
+      players: allPlayers,
+      scores: {
+        team1: parseInt(addMatchData.team1Score),
+        team2: parseInt(addMatchData.team2Score),
+      },
+    };
+
+    // `previous_matches_doubles` requires a text `id` primary key and has no `court` column.
+    if (viewMode === "doubles") {
+      payload.id = `${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
+    } else {
+      payload.court = addMatchData.court;
+    }
+
     const { data, error } = await db("previous_matches")
-      .insert({
-        created_at: addMatchData.date + "T00:00:00Z",
-        court: addMatchData.court,
-        division,
-        players: allPlayers,
-        scores: {
-          team1: parseInt(addMatchData.team1Score),
-          team2: parseInt(addMatchData.team2Score),
-        },
-      })
+      .insert(payload)
       .select();
 
     if (error) {
