@@ -1316,7 +1316,25 @@ const fetchPreviousMatches = async () => {
       .order("created_at", { ascending: false })
       .limit(1);
 
-    if (error || !data || data.length === 0) return;
+    // If there are no pending fixtures for the selected division, clear any
+    // previously-generated matches from state so other-division fixtures
+    // don't leak into the current view and show "Unknown Player" fallbacks.
+    if (error || !data || data.length === 0) {
+      setCourt1Matches([]);
+      setCourt2Matches([]);
+      setCourt3Matches([]);
+      setCourt4Matches([]);
+      setCourt1Scores([]);
+      setCourt2Scores([]);
+      setCourt3Scores([]);
+      setCourt4Scores([]);
+      setRoundMatches([]);
+      setCourt1Round(0);
+      setCourt2Round(0);
+      setCourt3Round(0);
+      setCourt4Round(0);
+      return;
+    }
 
     const pending = data[0];
     const availablePlayers = playerPool.length ? playerPool : players;
