@@ -4079,20 +4079,21 @@ const activePlayerCount = players.filter((p) => p.active).length;
                             .from("season_summaries")
                             .insert([
                               {
-                                id: summary.id,
-                                division: summary.division,
-                                timestamp: summary.timestamp,
-                                top_by_points: summary.topByPoints,
-                                top_by_wins: summary.topByWins,
-                                highest_scoring_match: summary.highestScoringMatch,
-                                avg_points: summary.avgPoints,
-                                most_active: summary.mostActive,
-                                players: summary.players,
-                                matches: summary.matches,
-                                final_standings: summary.finalStandings,
-                                tracker: summary.tracker,
-                              },
-                            ]);
+                                    id: summary.id,
+                                    division: summary.division,
+                                    timestamp: summary.timestamp,
+                                    name: summary.season_name || summary.name || null,
+                                    top_by_points: summary.topByPoints,
+                                    top_by_wins: summary.topByWins,
+                                    highest_scoring_match: summary.highestScoringMatch,
+                                    avg_points: summary.avgPoints,
+                                    most_active: summary.mostActive,
+                                    players: summary.players,
+                                    matches: summary.matches,
+                                    final_standings: summary.finalStandings,
+                                    tracker: summary.tracker,
+                                  },
+                                ]);
 
                           if (insertError) throw insertError;
                           // Persist season name locally so the UI can show the title even if DB schema doesn't store it
