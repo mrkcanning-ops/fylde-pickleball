@@ -1094,7 +1094,12 @@ const fetchPreviousMatches = async () => {
 
   const getBumpChartData = () => {
     if (!matchesByWeek.length || !players.length) {
+      if (viewMode === 'doubles') console.debug('BumpChart missing data:', { weeks: matchesByWeek.length, players: players.length });
       return { weeks: [], lines: [] };
+    }
+
+    if (viewMode === 'doubles') {
+      console.debug('BumpChart debug (doubles):', { weeks: matchesByWeek.length, players: players.length, matchesByWeek });
     }
 
     const statsById = {};
