@@ -4072,7 +4072,10 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
                         // 3) Persist summary to Supabase (fall back to localStorage on error)
                         try {
-                          const { data: insertData, error: insertError } = await db("season_summaries").insert([
+                          const vm = getViewMode();
+                          const tableName = `season_summaries${vm === "doubles" ? DOUBLES_SUFFIX : ""}`;
+                          console.debug("[seasons] inserting summary into table:", tableName);
+                          const { data: insertData, error: insertError } = await supabase.from(tableName).insert([
                             {
                               id: summary.id,
                               division: summary.division,
