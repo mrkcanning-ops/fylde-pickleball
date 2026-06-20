@@ -98,16 +98,25 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const loadRunningSeasonFromDb = async (divisionNum = division) => {
     if (!supabase) return;
     try {
-      const { data, error } = await db("running_seasons")
+      // First try by integer division (legacy)
+      let { data, error } = await db("running_seasons")
         .select("*")
         .eq("division", divisionNum)
         .limit(1)
         .single();
 
+      // If not found, try by division_uid (new migration)
+      if ((error || !data) && divisions && divisions.length) {
+        const found = divisions.find((d) => Number(d.id) === Number(divisionNum) || String(d.id) === String(divisionNum));
+        const divUid = found?.uid || null;
+        if (divUid) {
+          const res = await db("running_seasons").select("*").eq("division_uid", divUid).limit(1).single();
+          data = res.data; error = res.error;
+        }
+      }
+
       if (!error && data) {
-        try {
-          setLSJson("current_season", data);
-        } catch (e) {}
+        try { setLSJson("current_season", data); } catch (e) {}
         setCurrentSeason(data);
         return;
       }
@@ -516,9 +525,9 @@ const fetchPreviousMatches = async () => {
     syncAndFetchData();
   }, [division]);
 
-  // Load season summaries when user opens the Seasons tab
+  // Load season summaries when user opens the Previous Seasons tab
   useEffect(() => {
-    if (activeTab !== "Seasons") return;
+    if (activeTab !== "Previous Seasons") return;
 
     const load = async () => {
       try {
@@ -1048,7 +1057,7 @@ const fetchPreviousMatches = async () => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Seasons"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Previous Seasons"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -2022,9 +2031,14 @@ const addDivision = async (name) => {
   if (!trimmed) return;
 
   try {
+    // Generate a stable app-side UUID for this division and persist on server
+    const uid = (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
     // Persist on server first (mode-aware table)
     const { data, error } = await db("divisions")
-      .insert([{ name: trimmed }])
+      .insert([{ name: trimmed, uid }])
       .select();
 
     if (error) {
@@ -2034,7 +2048,9 @@ const addDivision = async (name) => {
     }
 
     const created = Array.isArray(data) && data[0] ? data[0] : null;
-    const newDiv = created ? { id: created.id, name: created.name || trimmed } : null;
+    const newDiv = created
+      ? { id: created.id, uid: created.uid || uid, name: created.name || trimmed }
+      : null;
 
     if (newDiv) {
       setDivisions((prev) => [...prev, newDiv]);
@@ -2043,9 +2059,9 @@ const addDivision = async (name) => {
       await fetchAllDivisionPlayers(newDiv.id);
     } else {
       // Fallback to local-only addition if server didn't return an id
-      const maxId = divisions.length ? Math.max(...divisions.map((d) => d.id)) : 0;
+      const maxId = divisions.length ? Math.max(...divisions.map((d) => d.id || 0)) : 0;
       const newId = maxId + 1;
-      const localDiv = { id: newId, name: trimmed };
+      const localDiv = { id: newId, uid, name: trimmed };
       setDivisions((prev) => [...prev, localDiv]);
       try { setLSJson(`divisions_${viewMode}`, [...divisions, localDiv]); } catch (e) {}
       setDivision(newId);
@@ -2440,7 +2456,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               {tab === "Matches" && "⚔"}
               {tab === "Players" && "👥"}
               {tab === "Previous Matches" && "🕒"}
-              {tab === "Seasons" && "📜"}
+              {tab === "Previous Seasons" && "📜"}
               <span>{tab}</span>
             </button>
           ))}
@@ -3043,11 +3059,11 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 )}
 
-        {/* Seasons */}
-        {activeTab === "Seasons" && (
+        {/* Previous Seasons */}
+        {activeTab === "Previous Seasons" && (
           <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-4">
             <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4 flex items-center justify-between">
-              <div className="font-bold text-yellow-500 text-lg">📜 Seasons</div>
+              <div className="font-bold text-yellow-500 text-lg">📜 Previous Seasons</div>
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-600">Archived season</label>
                 <select
@@ -4057,6 +4073,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         const summary = {
                           id: `season_summary_${division}_${Date.now()}`,
                           division,
+                          division_uid: currentSeason?.division_uid || divisions.find((d) => d.id === division)?.uid || null,
                           timestamp: new Date().toISOString(),
                           season_name: seasonName,
                           topByPoints,
@@ -4072,13 +4089,16 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
                         // 3) Persist summary to Supabase (fall back to localStorage on error)
                         try {
-                          const vm = getViewMode();
+                          const vm = viewMode;
                           const tableName = `season_summaries${vm === "doubles" ? DOUBLES_SUFFIX : ""}`;
-                          console.debug("[seasons] inserting summary into table:", tableName);
+                          const runningTable = `running_seasons${vm === "doubles" ? DOUBLES_SUFFIX : ""}`;
+                          const divisionUid = currentSeason?.division_uid || divisions.find((d) => d.id === division)?.uid || null;
+                          console.debug("[seasons] inserting summary into table:", tableName, "runningTable:", runningTable);
                           const { data: insertData, error: insertError } = await supabase.from(tableName).insert([
                             {
                               id: summary.id,
                               division: summary.division,
+                              division_uid: divisionUid,
                               timestamp: summary.timestamp,
                               name: summary.season_name || summary.name || null,
                               top_by_points: summary.topByPoints,
@@ -4094,6 +4114,15 @@ const activePlayerCount = players.filter((p) => p.active).length;
                           ]);
 
                           if (insertError) throw insertError;
+                          // On success, remove the running season row
+                          try {
+                            if (currentSeason && currentSeason.id) {
+                              const { error: delErr } = await supabase.from(runningTable).delete().eq("id", currentSeason.id);
+                              if (delErr) console.warn("Failed to delete running season after archiving:", delErr);
+                            }
+                          } catch (delE) {
+                            console.warn("Error deleting running season after archive:", delE);
+                          }
                           // Persist season name locally so the UI can show the title even if DB schema doesn't store it
                           try { const idxKey = "season_summaries_index"; const existingIndex = getLSJson(idxKey, []); existingIndex.unshift(summary.id); setLSJson(idxKey, existingIndex); setLSJson(`season_name_${summary.id}`, seasonName); } catch (e) {}
                         } catch (dbErr) {
