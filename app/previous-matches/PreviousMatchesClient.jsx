@@ -44,7 +44,7 @@ export default function PreviousMatchesClient() {
             <thead className="text-gray-400 text-sm uppercase border-b border-gray-500">
               <tr>
                 <th className="p-2">#</th>
-                <th className="p-2">Court</th>
+                {getViewMode() !== 'doubles' && <th className="p-2">Court</th>}
                 <th className="p-2">Division</th>
                 <th className="p-2">Players</th>
                 <th className="p-2">Scores</th>
@@ -57,7 +57,7 @@ export default function PreviousMatchesClient() {
                   className="border-b border-gray-600 hover:bg-gray-600 transition"
                 >
                   <td className="p-2">{idx + 1}</td>
-                  <td className="p-2">{m.court}</td>
+                  {getViewMode() !== 'doubles' && <td className="p-2">{m.court}</td>}
                   <td className="p-2">{m.division}</td>
                   <td className="p-2">{m.players.join(" vs ")}</td>
                   <td className="p-2">

@@ -1069,10 +1069,15 @@ const fetchPreviousMatches = async () => {
         groupedByDate[dateKey] = { dateObj, court1: [], court2: [] };
       }
 
-      if (match.court === 'court1' || match.court === 'Court 1') {
+      // Some tables (doubles) don't include a `court` column; default to court1
+      const courtVal = match.court || 'court1';
+      if (courtVal === 'court1' || courtVal === 'Court 1') {
         groupedByDate[dateKey].court1.push(match);
-      } else if (match.court === 'court2' || match.court === 'Court 2') {
+      } else if (courtVal === 'court2' || courtVal === 'Court 2') {
         groupedByDate[dateKey].court2.push(match);
+      } else {
+        // Unknown court value, push to court1 as a safe default
+        groupedByDate[dateKey].court1.push(match);
       }
     });
 
