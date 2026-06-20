@@ -1614,7 +1614,8 @@ const fetchPreviousMatches = async () => {
     return groups;
   };
 
-  const courtGroups = buildGroups(available, numCourts);
+  const effectiveNumCourts = shouldSplitAcrossCourts ? numCourts : 1;
+  const courtGroups = buildGroups(available, effectiveNumCourts);
   const courts = courtGroups.map(buildCourt);
 
   setCourt1Matches(courts[0]?.matches || []);
