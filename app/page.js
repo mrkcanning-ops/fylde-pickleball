@@ -4055,10 +4055,13 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         const mostActive = Object.entries(appearances)
                           .sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
+                        const seasonName = (currentSeason && currentSeason.name) || `Season ${new Date().toLocaleDateString()}`;
+
                         const summary = {
                           id: `season_summary_${division}_${Date.now()}`,
                           division,
                           timestamp: new Date().toISOString(),
+                          season_name: seasonName,
                           topByPoints,
                           topByWins,
                           highestScoringMatch,
@@ -4092,6 +4095,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                             ]);
 
                           if (insertError) throw insertError;
+                          // Persist season name locally so the UI can show the title even if DB schema doesn't store it
+                          try { const idxKey = "season_summaries_index"; const existingIndex = getLSJson(idxKey, []); existingIndex.unshift(summary.id); setLSJson(idxKey, existingIndex); setLSJson(`season_name_${summary.id}`, seasonName); } catch (e) {}
                         } catch (dbErr) {
                                           console.error("Failed to persist season summary to Supabase, falling back to localStorage:", dbErr);
                                           const idxKey = "season_summaries_index";
@@ -4099,6 +4104,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                                           existingIndex.unshift(summary.id);
                                           setLSJson(idxKey, existingIndex);
                                           setLSJson(summary.id, summary);
+                                          try { setLSJson(`season_name_${summary.id}`, seasonName); } catch (e) {}
                                         }
 
                         // Persisted summary; open confirmation modal to choose next action (start new season or clear players)
@@ -4116,23 +4122,24 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         setResetError("Error ending season");
                       }
                     }
-                  } else {
-                    setResetError("Incorrect passcode");
-                  }
-                }}
-                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
-              >
-                End Season
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showEndSeasonChoiceModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-96 border border-gray-700">
-            <h2 className="text-lg font-bold text-yellow-400 mb-4 text-center">Season Finished</h2>
+                  <select
+                    value={selectedSeasonId || ""}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedSeasonId(id);
+                      const found = seasonSummaries.find((s) => String(s.id) === id);
+                      setSelectedSeason(found || null);
+                    }}
+                    className="bg-white border border-gray-300 rounded px-3 py-2"
+                  >
+                    {seasonSummaries.length === 0 && <option value="">No seasons</option>}
+                    {seasonSummaries.map((s) => {
+                      const title = getLSRaw(`season_name_${s.id}`) || `Division ${s.division} • ${new Date(s.timestamp).toLocaleString()}`;
+                      return (
+                        <option key={s.id} value={s.id}>{title}</option>
+                      );
+                    })}
+                  </select>
             <p className="text-gray-300 mb-4">A season summary has been archived. What would you like to do next for Division {endSummaryContext?.division}?</p>
 
             <div className="mb-3">
