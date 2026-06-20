@@ -2142,6 +2142,8 @@ const saveEditedMatch = async () => {
     return;
   }
 
+  // Use current view mode from localStorage to avoid stale state
+  const effectiveViewModeForEdit = getViewMode();
   const { error } = await db("previous_matches")
     .update(
       (() => {
@@ -2153,7 +2155,7 @@ const saveEditedMatch = async () => {
             team2: parseInt(editMatchData.team2Score, 10),
           },
         };
-        if (viewMode !== "doubles") payload.court = editMatchData.court;
+        if (effectiveViewModeForEdit !== "doubles") payload.court = editMatchData.court;
         return payload;
       })()
     )
@@ -2210,8 +2212,11 @@ const addMatch = async () => {
       },
     };
 
+    // Use current view mode from localStorage to avoid stale state
+    const effectiveViewMode = getViewMode();
+
     // `previous_matches_doubles` requires a text `id` primary key and has no `court` column.
-    if (viewMode === "doubles") {
+    if (effectiveViewMode === "doubles") {
       payload.id = `${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
     } else {
       payload.court = addMatchData.court;
