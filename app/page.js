@@ -4150,6 +4150,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         setResetError("Error ending season");
                       }
                     }
+                  {showEndSeasonChoiceModal && (
+                  <>
                   <select
                     value={selectedSeasonId || ""}
                     onChange={(e) => {
