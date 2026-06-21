@@ -1051,7 +1051,7 @@ const fetchPreviousMatches = async () => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Seasons"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Previous Seasons"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
