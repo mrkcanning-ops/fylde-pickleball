@@ -521,9 +521,11 @@ const fetchPreviousMatches = async () => {
     if (activeTab !== "Seasons") return;
 
     const load = async () => {
+      const seasonsTable = viewMode === 'doubles' ? `season_summaries${DOUBLES_SUFFIX}` : "season_summaries";
+      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ""}`;
       try {
         const { data, error } = await supabase
-          .from("season_summaries")
+          .from(seasonsTable)
           .select("*")
           .order("timestamp", { ascending: false });
 
@@ -543,7 +545,7 @@ const fetchPreviousMatches = async () => {
 
       // fallback to localStorage index (namespaced per mode)
       try {
-        const idx = getLSJson("season_summaries_index", []);
+        const idx = getLSJson(idxKey, []);
         console.debug("[seasons] local index:", idx);
         const items = (idx || []).map((id) => {
           const raw = getLSRaw(id);
@@ -4072,8 +4074,10 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
                         // 3) Persist summary to Supabase (fall back to localStorage on error)
                         try {
+                          const seasonsTable = viewMode === 'doubles' ? `season_summaries${DOUBLES_SUFFIX}` : "season_summaries";
+                          const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ""}`;
                           const { data: insertData, error: insertError } = await supabase
-                            .from("season_summaries")
+                            .from(seasonsTable)
                             .insert([
                               {
                                 id: summary.id,
@@ -4093,13 +4097,13 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
                           if (insertError) throw insertError;
                         } catch (dbErr) {
-                                          console.error("Failed to persist season summary to Supabase, falling back to localStorage:", dbErr);
-                                          const idxKey = "season_summaries_index";
-                                          const existingIndex = getLSJson(idxKey, []);
-                                          existingIndex.unshift(summary.id);
-                                          setLSJson(idxKey, existingIndex);
-                                          setLSJson(summary.id, summary);
-                                        }
+                          console.error("Failed to persist season summary to Supabase, falling back to localStorage:", dbErr);
+                          const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ""}`;
+                          const existingIndex = getLSJson(idxKey, []);
+                          existingIndex.unshift(summary.id);
+                          setLSJson(idxKey, existingIndex);
+                          setLSJson(summary.id, summary);
+                        }
 
                         // Persisted summary; open confirmation modal to choose next action (start new season or clear players)
                         try {
