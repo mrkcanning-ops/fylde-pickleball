@@ -525,9 +525,9 @@ const fetchPreviousMatches = async () => {
     syncAndFetchData();
   }, [division]);
 
-  // Load season summaries when user opens the Previous Seasons tab
+  // Load season summaries when user opens the Seasons tab
   useEffect(() => {
-    if (activeTab !== "Previous Seasons") return;
+    if (activeTab !== "Seasons") return;
 
     const load = async () => {
       try {
@@ -1057,7 +1057,7 @@ const fetchPreviousMatches = async () => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Previous Seasons"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Seasons"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -2456,7 +2456,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               {tab === "Matches" && "⚔"}
               {tab === "Players" && "👥"}
               {tab === "Previous Matches" && "🕒"}
-              {tab === "Previous Seasons" && "📜"}
+              {tab === "Seasons" && "📜"}
               <span>{tab}</span>
             </button>
           ))}
@@ -3059,11 +3059,11 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 )}
 
-        {/* Previous Seasons */}
-        {activeTab === "Previous Seasons" && (
+        {/* Seasons */}
+        {activeTab === "Seasons" && (
           <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-4">
             <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4 flex items-center justify-between">
-              <div className="font-bold text-yellow-500 text-lg">📜 Previous Seasons</div>
+              <div className="font-bold text-yellow-500 text-lg">📜 Seasons</div>
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-600">Archived season</label>
                 <select
@@ -4150,8 +4150,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         setResetError("Error ending season");
                       }
                     }
-                  {showEndSeasonChoiceModal && (
-                  <>
                   <select
                     value={selectedSeasonId || ""}
                     onChange={(e) => {
@@ -4185,8 +4183,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
             <div className="flex justify-end mt-4">
               <button onClick={() => { setShowEndSeasonChoiceModal(false); setEndSummaryContext(null); }} className="text-sm text-gray-400 underline">Cancel</button>
             </div>
-          </>
-                  )}
           </div>
         </div>
       )}
