@@ -57,13 +57,12 @@ export default function HomePage() {
   const [minQualifyByDivision, setMinQualifyByDivision] = useState(() => {
     try {
       return getLSJson("min_qualify_by_division", {});
-    } catch (e) {
-      return {};
-    }
-  });
-  // current division value (kept in sync)
-  const [minQualifyGames, setMinQualifyGames] = useState(() => {
-    try {
+                      } catch (err) {
+                        console.error("Error ending season:", err);
+                        setResetError("Error ending season");
+                      }}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm">End Season</button>
+                    {showEndSeasonChoiceModal && (
       const v = getLSRaw("min_qualify_games");
       return v ? parseInt(v, 10) || MIN_QUALIFY_GAMES : MIN_QUALIFY_GAMES;
     } catch (e) {
@@ -4149,9 +4148,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         console.error("Error ending season:", err);
                         setResetError("Error ending season");
                         }
-                      }
-                      className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm">End Season</button>
-                    {showEndSeasonChoiceModal && (
+                        }
+                      {showEndSeasonChoiceModal && (
                   <>
                   <select
                     value={selectedSeasonId || ""}
