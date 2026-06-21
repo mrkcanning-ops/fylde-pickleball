@@ -32,6 +32,7 @@ export default function HomePage() {
   const [showConfirmRemoveDivisionModal, setShowConfirmRemoveDivisionModal] = useState(false);
   const [players, setPlayers] = useState([]);
   const [numCourts, setNumCourts] = useState(2);
+    const rebuildPlayerStats = async (matches) => {
       {showResetModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
           <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
