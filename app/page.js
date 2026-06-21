@@ -3087,226 +3087,30 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 )}
 
-        {/* Seasons (styled like Previous Matches) */}
+        {/* Previous Seasons: simplified rendering of final standings */}
         {activeTab === "Previous Seasons" && (
-          <div className="bg-gray-700 rounded shadow p-4">
-            <div className="flex justify-center mb-4">
-              <button
-                onClick={() => setShowAddMatchPasscodeModal(true)}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded"
-              >
-                ➕ Add Season
-              </button>
+          <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-4">
+            <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4">
+              <div className="font-bold text-yellow-500 text-lg">📜 Previous Seasons</div>
             </div>
 
             {seasonSummaries.length === 0 ? (
-              <div>
-                <p className="text-gray-300 italic text-sm">No previous seasons yet...</p>
-                <p className="text-xs text-gray-400 mt-2">Loaded {seasonLoadInfo.count} summaries ({seasonLoadInfo.source || 'none'})</p>
-              </div>
+              <div className="text-gray-600">No archived seasons yet.</div>
             ) : (
-              (() => {
-                const toRender = filteredSeasonSummaries.length > 0 ? filteredSeasonSummaries : seasonSummaries;
-                return (
-                  <div className="space-y-8">
-                    {filteredSeasonSummaries.length === 0 && (
-                      <div className="text-sm text-yellow-300">No archived seasons found for Division {division}. Showing all archived seasons.</div>
-                    )}
-                    {toRender.map((s, idx) => {
-                  const date = new Date(s.timestamp).toLocaleString();
-                  const isOpen = openDates.includes(s.id);
-                  const totalMatches = (s.matches || []).length;
-
-                  return (
-                    <div key={`season-${s.id}-${idx}`} className="space-y-4">
-                      <div className="text-sm font-bold text-yellow-400">Season</div>
-                      <details
-                        key={s.id}
-                        open={isOpen}
-                        onToggle={(e) => {
-                          if (e.currentTarget.open) {
-                            setOpenDates((prev) => (prev.includes(s.id) ? prev : [...prev, s.id]));
-                          } else {
-                            setOpenDates((prev) => prev.filter((d) => d !== s.id));
-                          }
-                        }}
-                        className="mb-3 rounded-xl border border-gray-600 bg-gray-800 overflow-hidden"
-                      >
-                        <summary className="list-none cursor-pointer select-none px-4 py-4 flex flex-col items-start gap-3 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-                            <span className="text-xl">📜</span>
-                            <div className="min-w-0">
-                              <div className="font-extrabold text-yellow-300 truncate">Division {s.division} — {date}</div>
-                            </div>
-                          </div>
-
-                          <div className="w-full flex items-center justify-between sm:w-auto sm:justify-end sm:gap-2">
-                            <span className="shrink-0 text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">
-                              {totalMatches} match{totalMatches === 1 ? "" : "es"}
-                            </span>
-
-                            <span className="shrink-0 flex items-center gap-2">
-                              <span className="text-sm font-bold text-white bg-yellow-600 px-3 py-1 rounded-lg">
-                                {isOpen ? "Hide" : "Show"}
-                              </span>
-                              <span
-                                className={`text-yellow-300 text-2xl transition-transform duration-200 ${
-                                  isOpen ? "rotate-180" : "rotate-0"
-                                }`}
-                                aria-hidden="true"
-                              >
-                                ▾
-                              </span>
-                            </span>
-                          </div>
-                        </summary>
-
-                        <div className="p-4 bg-gray-700">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-3 bg-white rounded md:col-span-2">
-                              <h4 className="font-semibold text-gray-700">Final Standings</h4>
-                              <ol className="text-gray-700 mt-2">
-                                {(s.finalStandings || s.final_standings || []).map((p) => (
-                                  <li key={p.id || p.name}>{p.position}. {p.name} — {p.points} pts ({p.wins}W {p.losses}L)</li>
-                                ))}
-                              </ol>
-                            </div>
-
-                            <div className="p-3 bg-white rounded md:col-span-2">
-                              <h4 className="font-semibold text-gray-700">Tracker (positions after each match)</h4>
-                              <div className="text-gray-700 mt-2">
-                                {(() => {
-                                  const data = getBumpChartDataForSummary(s);
-                                  if (!data.weeks.length) return <p className="text-gray-500">No tracker data for this season.</p>;
-
-                                  const maxRank = Math.max(1, ...data.lines.flatMap((line) => line.positions.map((pos) => pos.rank)));
-                                  const height = 320;
-                                  const top = 60;
-                                  const left = 100;
-                                  const stepX = data.weeks.length > 1 ? Math.min(120, Math.max(70, 640 / (data.weeks.length - 1))) : 0;
-                                  const chartWidth = Math.max(700, 100 + Math.max(0, data.weeks.length - 1) * stepX + 180);
-                                  const yForRank = (rank) => top + ((rank - 1) / (maxRank - 1 || 1)) * height;
-
-                                  return (
-                                    <div className="overflow-x-auto">
-                                      <svg viewBox={`0 0 ${chartWidth} 420`} className="w-full" style={{ minWidth: `${chartWidth}px` }} role="img" aria-label="Season ranking bump chart">
-                                        <rect x="0" y="0" width={chartWidth} height="420" fill="#111827" rx="24" />
-                                        {data.weeks.map((week, index) => {
-                                          const x = left + index * stepX;
-                                          return (
-                                            <g key={week}>
-                                              <line x1={x} y1={60} x2={x} y2={380} stroke="#334155" strokeDasharray="4 4" />
-                                              <text x={x} y={395} fill="#cbd5e1" fontSize="12" textAnchor="middle">{index + 1}</text>
-                                            </g>
-                                          );
-                                        })}
-                                        <text x={chartWidth / 2} y={415} fill="#cbd5e1" fontSize="14" fontWeight="700" textAnchor="middle">Match</text>
-
-                                        {data.lines.map((line) => {
-                                          const pathD = line.positions.map((pos, index) => {
-                                            const x = left + pos.weekIndex * stepX;
-                                            const y = yForRank(pos.rank);
-                                            return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-                                          }).join(' ');
-
-                                          return (
-                                            <g key={line.id}>
-                                              <path d={pathD} fill="none" stroke={line.color} strokeWidth="2.5" />
-                                              {line.positions.map((pos, index) => {
-                                                const x = left + pos.weekIndex * stepX;
-                                                const y = yForRank(pos.rank);
-                                                const isLast = index === line.positions.length - 1;
-                                                const labelX = Math.min(x + 10, chartWidth - 60);
-                                                return (
-                                                  <g key={`${line.id}-${index}`}>
-                                                    <circle cx={x} cy={y} r="10" fill={line.color} />
-                                                    <text x={x} y={y + 4} fill="#111827" fontSize="9" fontWeight="700" textAnchor="middle">{pos.rank}</text>
-                                                    {isLast && <text x={labelX} y={y + 4} fill="#f8fafc" fontSize="11" fontWeight="700" textAnchor="start">{line.name}</text>}
-                                                  </g>
-                                                );
-                                              })}
-                                            </g>
-                                          );
-                                        })}
-                                      </svg>
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            </div>
-
-                            <div className="p-3 bg-white rounded">
-                              <h4 className="font-semibold text-gray-700">Top By Points</h4>
-                              <ol className="text-gray-700 mt-2">
-                                {(s.topByPoints || s.top_by_points || []).map((p) => (
-                                  <li key={p.id || p.name}>{p.name} — {p.points ?? p.points}</li>
-                                ))}
-                              </ol>
-                            </div>
-
-                            <div className="p-3 bg-white rounded">
-                              <h4 className="font-semibold text-gray-700">Top By Wins</h4>
-                              <ol className="text-gray-700 mt-2">
-                                {(s.topByWins || s.top_by_wins || []).map((p) => (
-                                  <li key={p.id || p.name}>{p.name} — {p.wins ?? p.wins}</li>
-                                ))}
-                              </ol>
-                            </div>
-
-                            <div className="p-3 bg-white rounded md:col-span-2">
-                              <h4 className="font-semibold text-gray-700">Highest Scoring Match</h4>
-                              {s.highestScoringMatch ? (
-                                <div className="text-gray-700 mt-2">
-                                  <div>{(s.highestScoringMatch.players || []).join(' vs ')}</div>
-                                  <div className="text-sm text-gray-500">Score: {s.highestScoringMatch.scores?.team1 ?? '-'} — {s.highestScoringMatch.scores?.team2 ?? '-'}</div>
-                                  <div className="text-sm text-gray-500">Total: {s.highestScoringMatch.total}</div>
-                                </div>
-                              ) : (
-                                <div className="text-gray-500">No matches recorded.</div>
-                              )}
-                            </div>
-
-                            <div className="p-3 bg-white rounded">
-                              <h4 className="font-semibold text-gray-700">Average Points / Match</h4>
-                              <div className="text-gray-700 mt-2">{s.avgPoints ?? s.avg_points}</div>
-                            </div>
-
-                            <div className="p-3 bg-white rounded">
-                              <h4 className="font-semibold text-gray-700">Most Active Player</h4>
-                              <div className="text-gray-700 mt-2">{(s.mostActive ?? s.most_active) || '—'}</div>
-                            </div>
-
-                            <div className="md:col-span-2 mt-4">
-                              <h4 className="font-semibold text-gray-700">Full Match List</h4>
-                              <div className="overflow-x-auto mt-2 bg-white p-2 rounded">
-                                <table className="w-full text-left text-gray-700 text-sm">
-                                  <thead className="text-gray-500 text-xs uppercase border-b border-gray-200">
-                                    <tr>
-                                      <th className="p-2">#</th>
-                                      <th className="p-2">Players</th>
-                                      <th className="p-2">Score</th>
-                                      <th className="p-2">Date</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {(s.matches || []).map((m, i) => (
-                                      <tr key={i} className="border-b border-gray-200">
-                                        <td className="p-2 align-top">{i + 1}</td>
-                                        <td className="p-2">{(m.players || []).join(' vs ')}</td>
-                                        <td className="p-2">{m.scores?.team1 ?? '-'} — {m.scores?.team2 ?? '-'}</td>
-                                        <td className="p-2">{m.created_at ? new Date(m.created_at).toLocaleString() : '-'}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </details>
+              <div className="space-y-3">
+                {seasonSummaries.map((s) => (
+                  <details key={s.id} className="bg-gray-100 p-3 rounded">
+                    <summary className="font-semibold text-yellow-600">Division {s.division} — {new Date(s.timestamp).toLocaleString()}</summary>
+                    <div className="mt-3">
+                      <h4 className="font-semibold text-gray-700">Final Standings</h4>
+                      <ol className="text-gray-700 mt-2">
+                        {(s.finalStandings || s.final_standings || []).map((p) => (
+                          <li key={p.id || p.name}>{p.position}. {p.name} — {p.points} pts ({p.wins}W {p.losses}L)</li>
+                        ))}
+                      </ol>
                     </div>
-                  );
-                })}
+                  </details>
+                ))}
               </div>
             )}
           </div>
