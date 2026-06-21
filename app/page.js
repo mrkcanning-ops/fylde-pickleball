@@ -127,6 +127,8 @@ const [previousMatches, setPreviousMatches] = useState([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [division]);
 
+  const filteredSeasonSummaries = (seasonSummaries || []).filter((s) => Number(s.division) === Number(division));
+
   const [leaderboard, setLeaderboard] = useState([]);
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
   const [hydrated, setHydrated] = useState(false);
@@ -3055,23 +3057,23 @@ const activePlayerCount = players.filter((p) => p.active).length;
               <div className="font-bold text-yellow-500 text-lg">📜 Seasons</div>
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-600">Archived season</label>
-                <select
-                  value={selectedSeasonId || ""}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setSelectedSeasonId(id);
-                    const found = seasonSummaries.find((s) => String(s.id) === id);
-                    setSelectedSeason(found || null);
-                  }}
-                  className="bg-white border border-gray-300 rounded px-3 py-2"
-                >
-                  {seasonSummaries.length === 0 && <option value="">No seasons</option>}
-                  {seasonSummaries.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {`Division ${s.division} • ${new Date(s.timestamp).toLocaleString()}`}
-                    </option>
-                  ))}
-                </select>
+                  <select
+                    value={selectedSeasonId || ""}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedSeasonId(id);
+                      const found = (seasonSummaries || []).find((s) => String(s.id) === id);
+                      setSelectedSeason(found || null);
+                    }}
+                    className="bg-white border border-gray-300 rounded px-3 py-2"
+                  >
+                    {filteredSeasonSummaries.length === 0 && <option value="">No seasons for this division</option>}
+                    {filteredSeasonSummaries.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {`Division ${s.division} • ${new Date(s.timestamp).toLocaleString()}`}
+                      </option>
+                    ))}
+                  </select>
                 <button
                   onClick={createNewSeason}
                   disabled={!!currentSeason}
@@ -3087,11 +3089,11 @@ const activePlayerCount = players.filter((p) => p.active).length;
               </div>
             </div>
 
-            {seasonSummaries.length === 0 ? (
-              <div className="text-gray-600">No archived seasons yet. End a season from the admin panel to create a summary.</div>
+            {filteredSeasonSummaries.length === 0 ? (
+              <div className="text-gray-600">No archived seasons for this division yet. End a season from the admin panel to create a summary.</div>
             ) : (
               <div className="space-y-3">
-                {seasonSummaries.map((s) => (
+                {filteredSeasonSummaries.map((s) => (
                   <details key={s.id} className="bg-gray-100 p-3 rounded">
                     <summary className="font-semibold text-yellow-600">Division {s.division} — {new Date(s.timestamp).toLocaleString()}</summary>
 
