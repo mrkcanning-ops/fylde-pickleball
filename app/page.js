@@ -4139,9 +4139,9 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       } catch (err) {
                         console.error("Error ending season:", err);
                         setResetError("Error ending season");
-                        }
-                        }
-                      {showEndSeasonChoiceModal && (
+                      }}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm">End Season</button>
+                    {showEndSeasonChoiceModal && (
                   <>
                   <select
                     value={selectedSeasonId || ""}
