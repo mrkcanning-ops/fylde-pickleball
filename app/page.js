@@ -125,11 +125,6 @@ const fetchPreviousMatches = async () => {
               division: newSeason.division || null,
             },
           ]);
-            <div className="flex justify-between mt-5">
-              <button onClick={() => { setShowResetModal(false); setResetPasswordInput(""); setResetError(""); }} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">Cancel</button>
-
-              <button onClick={() => { setShowResetModal(false); setEndSummaryContext({ division }); setShowEndSeasonChoiceModal(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm">End Season</button>
-
           const apply = (playerId, scored, conceded, result) => {
             if (!running[playerId]) return;
             running[playerId].points_for += scored;
