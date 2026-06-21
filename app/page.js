@@ -520,7 +520,7 @@ const fetchPreviousMatches = async () => {
 
   // Load season summaries when user opens the Seasons tab
   useEffect(() => {
-    if (activeTab !== "Seasons") return;
+    if (activeTab !== "Previous Seasons") return;
 
     const load = async () => {
       const seasonsTable = viewMode === 'doubles' ? `season_summaries${DOUBLES_SUFFIX}` : "season_summaries";
@@ -2447,7 +2447,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               {tab === "Matches" && "⚔"}
               {tab === "Players" && "👥"}
               {tab === "Previous Matches" && "🕒"}
-              {tab === "Seasons" && "📜"}
+              {tab === "Previous Seasons" && "📜"}
               <span>{tab}</span>
             </button>
           ))}
@@ -3051,7 +3051,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
 )}
 
         {/* Seasons (styled like Previous Matches) */}
-        {activeTab === "Seasons" && (
+        {activeTab === "Previous Seasons" && (
           <div className="bg-gray-700 rounded shadow p-4">
             <div className="flex justify-center mb-4">
               <button
