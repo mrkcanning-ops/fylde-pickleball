@@ -1223,6 +1223,39 @@ const fetchPreviousMatches = async () => {
 
   const bumpChartData = getBumpChartData();
 
+  // Build bump chart data from a saved season summary object
+  const getBumpChartDataForSummary = (summary) => {
+    const tracker = summary?.tracker || [];
+    const final = summary?.finalStandings || summary?.final_standings || [];
+    const weeks = tracker.map((snap, i) => `Match ${i + 1}`);
+
+    // Players list from final standings (preserve order)
+    const playersList = (final || []).map((p) => ({ id: String(p.id), name: p.name || p.id }));
+
+    const history = {};
+    playersList.forEach((p) => { history[p.id] = { id: p.id, name: p.name, positions: [] }; });
+
+    tracker.forEach((snap, weekIndex) => {
+      const positions = snap.positions || [];
+      positions.forEach((pos) => {
+        const pid = String(pos.id || pos.id);
+        if (!history[pid]) {
+          history[pid] = { id: pid, name: pos.name || String(pid), positions: [] };
+        }
+        history[pid].positions.push({ weekIndex, rank: pos.position || pos.position || pos.rank });
+      });
+    });
+
+    const lines = Object.values(history)
+      .filter((entry) => entry.positions && entry.positions.length > 0)
+      .map((entry, index) => ({
+        ...entry,
+        color: ["#f59e0b", "#34d399", "#60a5fa", "#818cf8", "#fb7185", "#a855f7", "#f97316", "#22c55e", "#38bdf8", "#f43f5e"][index % 10],
+      }));
+
+    return { weeks, lines };
+  };
+
   // Helper function to convert player IDs to names
   const getPlayerNameFromId = (playerId) => {
     const player = players.find((p) => String(p.id) === String(playerId));
@@ -3135,17 +3168,64 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
                             <div className="p-3 bg-white rounded md:col-span-2">
                               <h4 className="font-semibold text-gray-700">Tracker (positions after each match)</h4>
-                              <div className="text-gray-700 mt-2 space-y-2">
-                                {(s.tracker || []).map((snap, i) => (
-                                  <details key={i} className="bg-gray-50 p-2 rounded">
-                                    <summary className="font-medium">Match {snap.matchIndex + 1} — {snap.timestamp ? new Date(snap.timestamp).toLocaleString() : 'unknown'}</summary>
-                                    <ol className="mt-2 text-sm">
-                                      {(snap.positions || []).slice(0, 50).map((pos) => (
-                                        <li key={pos.id || pos.name}>{pos.position}. {pos.name} — {pos.points ?? pos.points} pts</li>
-                                      ))}
-                                    </ol>
-                                  </details>
-                                ))}
+                              <div className="text-gray-700 mt-2">
+                                {(() => {
+                                  const data = getBumpChartDataForSummary(s);
+                                  if (!data.weeks.length) return <p className="text-gray-500">No tracker data for this season.</p>;
+
+                                  const maxRank = Math.max(1, ...data.lines.flatMap((line) => line.positions.map((pos) => pos.rank)));
+                                  const height = 320;
+                                  const top = 60;
+                                  const left = 100;
+                                  const stepX = data.weeks.length > 1 ? Math.min(120, Math.max(70, 640 / (data.weeks.length - 1))) : 0;
+                                  const chartWidth = Math.max(700, 100 + Math.max(0, data.weeks.length - 1) * stepX + 180);
+                                  const yForRank = (rank) => top + ((rank - 1) / (maxRank - 1 || 1)) * height;
+
+                                  return (
+                                    <div className="overflow-x-auto">
+                                      <svg viewBox={`0 0 ${chartWidth} 420`} className="w-full" style={{ minWidth: `${chartWidth}px` }} role="img" aria-label="Season ranking bump chart">
+                                        <rect x="0" y="0" width={chartWidth} height="420" fill="#111827" rx="24" />
+                                        {data.weeks.map((week, index) => {
+                                          const x = left + index * stepX;
+                                          return (
+                                            <g key={week}>
+                                              <line x1={x} y1={60} x2={x} y2={380} stroke="#334155" strokeDasharray="4 4" />
+                                              <text x={x} y={395} fill="#cbd5e1" fontSize="12" textAnchor="middle">{index + 1}</text>
+                                            </g>
+                                          );
+                                        })}
+                                        <text x={chartWidth / 2} y={415} fill="#cbd5e1" fontSize="14" fontWeight="700" textAnchor="middle">Match</text>
+
+                                        {data.lines.map((line) => {
+                                          const pathD = line.positions.map((pos, index) => {
+                                            const x = left + pos.weekIndex * stepX;
+                                            const y = yForRank(pos.rank);
+                                            return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+                                          }).join(' ');
+
+                                          return (
+                                            <g key={line.id}>
+                                              <path d={pathD} fill="none" stroke={line.color} strokeWidth="2.5" />
+                                              {line.positions.map((pos, index) => {
+                                                const x = left + pos.weekIndex * stepX;
+                                                const y = yForRank(pos.rank);
+                                                const isLast = index === line.positions.length - 1;
+                                                const labelX = Math.min(x + 10, chartWidth - 60);
+                                                return (
+                                                  <g key={`${line.id}-${index}`}>
+                                                    <circle cx={x} cy={y} r="10" fill={line.color} />
+                                                    <text x={x} y={y + 4} fill="#111827" fontSize="9" fontWeight="700" textAnchor="middle">{pos.rank}</text>
+                                                    {isLast && <text x={labelX} y={y + 4} fill="#f8fafc" fontSize="11" fontWeight="700" textAnchor="start">{line.name}</text>}
+                                                  </g>
+                                                );
+                                              })}
+                                            </g>
+                                          );
+                                        })}
+                                      </svg>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
 
