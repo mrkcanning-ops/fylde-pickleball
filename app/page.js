@@ -19,487 +19,6 @@ export default function HomePage() {
     { id: 1, name: "Division 1" },
     { id: 2, name: "Division 2" },
   ]);
-  const [showAddDivisionModal, setShowAddDivisionModal] = useState(false);
-  const [newDivisionName, setNewDivisionName] = useState("");
-  const [showAddDivisionPasscodeModal, setShowAddDivisionPasscodeModal] = useState(false);
-  const [addDivisionPasscode, setAddDivisionPasscode] = useState("");
-  const [addDivisionPasscodeError, setAddDivisionPasscodeError] = useState("");
-  const [showRemoveDivisionPasscodeModal, setShowRemoveDivisionPasscodeModal] = useState(false);
-  const [removeDivisionPasscode, setRemoveDivisionPasscode] = useState("");
-  const [removeDivisionPasscodeError, setRemoveDivisionPasscodeError] = useState("");
-  const [showSelectDivisionModal, setShowSelectDivisionModal] = useState(false);
-  const [selectedDivisionToRemove, setSelectedDivisionToRemove] = useState(null);
-  const [showConfirmRemoveDivisionModal, setShowConfirmRemoveDivisionModal] = useState(false);
-  const [players, setPlayers] = useState([]);
-  const [numCourts, setNumCourts] = useState(2);
-
-  const [court1Matches, setCourt1Matches] = useState([]);
-  const [court2Matches, setCourt2Matches] = useState([]);
-  const [court3Matches, setCourt3Matches] = useState([]);
-  const [court4Matches, setCourt4Matches] = useState([]);
-
-  const [court1Scores, setCourt1Scores] = useState([]);
-  const [court2Scores, setCourt2Scores] = useState([]);
-  const [court3Scores, setCourt3Scores] = useState([]);
-  const [court4Scores, setCourt4Scores] = useState([]);
-
-  const [court1Round, setCourt1Round] = useState(0);
-  const [court2Round, setCourt2Round] = useState(0);
-  const [court3Round, setCourt3Round] = useState(0);
-  const [court4Round, setCourt4Round] = useState(0);
-
-  const [currentRound, setCurrentRound] = useState(0);
-  const [roundMatches, setRoundMatches] = useState([]); // flattened all matches by round
-
-  // Mobile bottom-sheet modal control for NQ explanation
-  const [showNqModalFor, setShowNqModalFor] = useState(null);
-  // Editable minimum games to qualify (per-division, persisted to localStorage)
-  const [minQualifyByDivision, setMinQualifyByDivision] = useState(() => {
-    try {
-      return getLSJson("min_qualify_by_division", {});
-    } catch (e) {
-      return {};
-    }
-  });
-  // current division value (kept in sync)
-  const [minQualifyGames, setMinQualifyGames] = useState(() => {
-    try {
-      const v = getLSRaw("min_qualify_games");
-      return v ? parseInt(v, 10) || MIN_QUALIFY_GAMES : MIN_QUALIFY_GAMES;
-    } catch (e) {
-      return MIN_QUALIFY_GAMES;
-    }
-  });
-  const [showEditMinModal, setShowEditMinModal] = useState(false);
-  const [minQualifyInput, setMinQualifyInput] = useState(String(minQualifyGames));
-  const [showVerifyMinPasscodeModal, setShowVerifyMinPasscodeModal] = useState(false);
-  const [pendingMinSave, setPendingMinSave] = useState(null); // { division, value }
-  const [verifyMinPasscode, setVerifyMinPasscode] = useState("");
-  const [verifyMinError, setVerifyMinError] = useState("");
-
-const [isAdmin, setIsAdmin] = useState(false);
-const [showAdminModal, setShowAdminModal] = useState(false);
-const [adminCode, setAdminCode] = useState("");
-const [adminError, setAdminError] = useState("");
-
-const [previousMatches, setPreviousMatches] = useState([]);
-  const [seasonSummaries, setSeasonSummaries] = useState([]);
-  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
-  const [selectedSeason, setSelectedSeason] = useState(null);
-  const [currentSeason, setCurrentSeason] = useState(() => {
-    try {
-      return getLSJson("current_season", null);
-    } catch (e) {
-      return null;
-    }
-  });
-
-  // Try to load running season from Supabase for this division (fallback to localStorage)
-  const loadRunningSeasonFromDb = async (divisionNum = division) => {
-    if (!supabase) return;
-    try {
-      // First try by integer division (legacy)
-      let { data, error } = await db("running_seasons")
-        .select("*")
-        .eq("division", divisionNum)
-        .limit(1)
-        .single();
-
-      // If not found, try by division_uid (new migration)
-      if ((error || !data) && divisions && divisions.length) {
-        const found = divisions.find((d) => Number(d.id) === Number(divisionNum) || String(d.id) === String(divisionNum));
-        const divUid = found?.uid || null;
-        if (divUid) {
-          const res = await db("running_seasons").select("*").eq("division_uid", divUid).limit(1).single();
-          data = res.data; error = res.error;
-        }
-      }
-
-      if (!error && data) {
-        try { setLSJson("current_season", data); } catch (e) {}
-        setCurrentSeason(data);
-        return;
-      }
-    } catch (e) {
-      // table may not exist or network error — ignore and rely on localStorage
-    }
-
-    try {
-      const raw = getLSJson("current_season", null);
-      if (raw) setCurrentSeason(raw);
-    } catch (e) {}
-  };
-
-  useEffect(() => {
-    // load running season for current division on mount and when division changes
-    loadRunningSeasonFromDb(division);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [division]);
-
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [openDates, setOpenDates] = useState([]); // dates that are expanded
-  const [hydrated, setHydrated] = useState(false);
-  const [serverError, setServerError] = useState(null);
-  const [viewMode, setViewMode] = useState(() => {
-    try { return getViewMode(); } catch (e) { return "league"; }
-  });
-
-  // Helper to pick table name depending on view mode (league or doubles)
-  // Force literal suffix to avoid environment mismatch during development
-  const DOUBLES_SUFFIX = "_doubles";
-  const db = (table) => supabase.from(`${table}${viewMode === "doubles" ? DOUBLES_SUFFIX : ""}`);
-
-  // Dev-only debug: log and expose divisions state to diagnose mobile/desktop mismatch
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!hydrated) return;
-    console.debug("[debug] divisions (state):", divisions);
-    console.debug("[debug] division (state):", division);
-    try {
-      console.debug("[debug] divisions (localStorage):", getLSJson(`divisions_${viewMode}`, null));
-      console.debug("[debug] division (localStorage):", getLSRaw("division"));
-    } catch (e) {
-      console.debug("[debug] localStorage parse error", e);
-    }
-  }, [hydrated, divisions, division]);
-
-  const toggleDate = (date) => {
-    setOpenDates((prev) =>
-      prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date]
-    );
-  }; 
-
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [showEndSeasonChoiceModal, setShowEndSeasonChoiceModal] = useState(false);
-  const [endSummaryContext, setEndSummaryContext] = useState(null);
-  const [newSeasonName, setNewSeasonName] = useState("");
-const [resetPasswordInput, setResetPasswordInput] = useState("");
-const [resetError, setResetError] = useState("");
-  const router = useRouter();
-const [showRecalculateModal, setShowRecalculateModal] = useState(false);
-const [recalculatePasswordInput, setRecalculatePasswordInput] = useState("");
-const [recalculateError, setRecalculateError] = useState("");
-
-const [showAddMatchModal, setShowAddMatchModal] = useState(false);
-const [showAddMatchPasscodeModal, setShowAddMatchPasscodeModal] = useState(false);
-const [addMatchPasscode, setAddMatchPasscode] = useState("");
-const [addMatchPasscodeError, setAddMatchPasscodeError] = useState("");
-const [addMatchError, setAddMatchError] = useState("");
-const [showEditMatchPasscodeModal, setShowEditMatchPasscodeModal] = useState(false);
-const [editMatchPasscode, setEditMatchPasscode] = useState("");
-const [editMatchPasscodeError, setEditMatchPasscodeError] = useState("");
-const [pendingEditMatch, setPendingEditMatch] = useState(null);
-const [showEditMatchModal, setShowEditMatchModal] = useState(false);
-const [editMatchError, setEditMatchError] = useState("");
-const [editingMatchId, setEditingMatchId] = useState(null);
-const [allDivisionPlayers, setAllDivisionPlayers] = useState([]);
-const [addMatchData, setAddMatchData] = useState({
-  date: new Date().toISOString().split('T')[0],
-  team1Players: [],
-  team1Name: "",
-  team2Players: [],
-  team2Name: "",
-  team1Score: "",
-  team2Score: "",
-  court: "court1",
-});
-const [editMatchData, setEditMatchData] = useState({
-  date: new Date().toISOString().split('T')[0],
-  team1Players: [],
-  team2Players: [],
-  team1Score: "",
-  team2Score: "",
-  court: "court1",
-});
-const [showRemovePlayerModal, setShowRemovePlayerModal] = useState(false);
-const [removePlayerPasscode, setRemovePlayerPasscode] = useState("");
-const [removePlayerPasscodeError, setRemovePlayerPasscodeError] = useState("");
-const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState(null);
-const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
-
-  // Load leaderboard and persisted divisions from localStorage on startup
-  useLayoutEffect(() => {
-    try {
-      const saved = getLSJson("leaderboard", []) || [];
-      setLeaderboard(saved);
-
-      const savedDivisions = getLSJson(`divisions_${viewMode}`, null);
-      const savedDivisionId = Number(getLSRaw("division"));
-
-      // Server-first: attempt to load canonical divisions from Supabase
-      // so all clients (different origins) see the same data. If the
-      // server fetch fails or returns no divisions, show a visible error
-      // and do not silently fall back to localStorage.
-      (async () => {
-          try {
-            let { data: dbDivs, error: dbErr } = await db("divisions")
-              .select("id,name,min_qualify_games")
-              .order("id", { ascending: true });
-
-            // If the DB returns a missing-column error (e.g. older doubles table), retry without the column
-            if (dbErr && String(dbErr?.code) === "42703") {
-              const fallback = await db("divisions").select("id,name").order("id", { ascending: true });
-              dbDivs = fallback.data;
-              dbErr = fallback.error;
-            }
-
-            if (!dbErr && Array.isArray(dbDivs) && dbDivs.length > 0) {
-              const mapped = dbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}`, min_qualify_games: d.min_qualify_games }));
-              setDivisions(mapped);
-              try { setLSJson(`divisions_${viewMode}`, mapped); } catch (e) {}
-              const byDiv = {};
-              mapped.forEach((m) => { if (m.min_qualify_games != null) byDiv[String(m.id)] = m.min_qualify_games; });
-              setMinQualifyByDivision((prev) => ({ ...(prev || {}), ...(byDiv || {}) }));
-              const initialDivision = savedDivisionId || mapped[0].id;
-              setDivision(initialDivision);
-              await fetchAllDivisionPlayers(initialDivision);
-              return;
-            }
-          
-
-          // Server returned empty or invalid response — treat as failure.
-          console.error("Failed to fetch divisions from server: empty or invalid response", { dbDivs, dbErr });
-          const details = dbErr ? JSON.stringify(dbErr) : JSON.stringify(dbDivs);
-          const vm = getViewMode();
-          const table = vm === 'doubles' ? `divisions${DOUBLES_SUFFIX}` : 'divisions';
-          setServerError(`Failed to load divisions from server. Details: ${details} Queried table: ${table} (view_mode=${vm})`);
-          setDivisions([]);
-          setHydrated(true);
-          return;
-        } catch (e) {
-          console.error("Failed to fetch divisions from server:", e);
-          setServerError(`Failed to load divisions from server. Error: ${e?.message || String(e)}`);
-          setDivisions([]);
-          setHydrated(true);
-          return;
-        }
-      })();
-      // mark hydration complete so UI renders consistently
-      setHydrated(true);
-    } catch (e) {
-      // If localStorage has invalid JSON, fallback gracefully
-      console.warn("Error reading saved divisions/leaderboard:", e);
-      const saved = getLSJson("leaderboard", []) || [];
-      setLeaderboard(saved);
-      fetchAllDivisionPlayers();
-      setHydrated(true);
-    }
-  }, []);
-
-  // Persist divisions and selected division to localStorage
-  useEffect(() => {
-    try {
-      // Keep only selected division in localStorage (divisions are canonical in Supabase)
-      setLSRaw("division", String(division));
-    } catch (e) {
-      console.warn("Failed to persist divisions:", e);
-    }
-  }, [divisions, division]);
-
-  const resetLeaderboard = () => {
-    const code = prompt("Enter admin passcode to end season:");
-    if (!code) return;
-
-    const envPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
-
-    if (code.trim() === envPasscode?.trim()) {
-      const confirmed = confirm("Are you sure you want to end the season and reset the leaderboard?");
-      if (!confirmed) return;
-
-      setLeaderboard([]);
-      removeLS("leaderboard");
-      alert("Season ended ✅");
-    } else {
-      alert("Incorrect passcode ❌");
-    }
-  };
-
-  const recalculateStandings = async () => {
-    if (!supabase) return;
-
-    // 1) Get players for current division only.
-    const { data: players } = await db("players")
-      .select("*")
-      .eq("division", division);
-
-    if (!players || players.length === 0) return;
-
-    // 2) Get matches in deterministic chronological order for this division.
-      const { data: matches } = await db("previous_matches")
-        .select("id,players,scores,created_at")
-        .eq("division", division)
-        .order("created_at", { ascending: true });
-
-    // 3) Initialize in-memory stats.
-    const playerStats = {};
-    players.forEach((p) => {
-      playerStats[p.id] = {
-        wins: 0,
-        losses: 0,
-        draws: 0,
-        points: 0,
-        points_for: 0,
-        points_against: 0,
-        win_streak: 0,
-      };
-    });
-
-    const updatePlayerStats = (playerId, result, scored, conceded) => {
-      const stats = playerStats[playerId];
-      if (!stats) return;
-
-      if (result === "win") {
-        stats.wins += 1;
-        stats.points += 3;
-        stats.win_streak += 1;
-      } else if (result === "loss") {
-        stats.losses += 1;
-        stats.win_streak = 0;
-      } else {
-        stats.draws += 1;
-        stats.points += 1;
-        stats.win_streak = 0;
-      }
-
-      stats.points_for += scored;
-      stats.points_against += conceded;
-    };
-
-    // 4) Rebuild stats from matches oldest -> newest.
-    for (const match of matches || []) {
-      const playersArray = Array.isArray(match.players)
-        ? match.players
-        : JSON.parse(match.players || "[]");
-
-      if (!Array.isArray(playersArray) || playersArray.length < 4) continue;
-
-      const score1 = Number(match?.scores?.team1);
-      const score2 = Number(match?.scores?.team2);
-      if (Number.isNaN(score1) || Number.isNaN(score2)) continue;
-
-      const team1 = playersArray.slice(0, 2);
-      const team2 = playersArray.slice(2, 4);
-
-      let result1 = "draw";
-      let result2 = "draw";
-      if (score1 > score2) {
-        result1 = "win";
-        result2 = "loss";
-      } else if (score1 < score2) {
-        result1 = "loss";
-        result2 = "win";
-      }
-
-      team1.forEach((p) => updatePlayerStats(p, result1, score1, score2));
-      team2.forEach((p) => updatePlayerStats(p, result2, score2, score1));
-    }
-
-    // 5) Persist recalculated stats for each player.
-    for (const playerId in playerStats) {
-      const { error } = await db("players").update(playerStats[playerId]).eq("id", playerId);
-
-      if (error) {
-        console.error(`Failed to update player ${playerId}:`, error);
-      }
-    }
-  };
-
-const updatePlayerStatsFromMatches = async () => {
-  const { data: matches } = await db("previous_matches").select("*").order("created_at", { ascending: true });
-
-  for (const match of matches) {
-    const playersArray = JSON.parse(match.players);
-
-    const team1 = playersArray.slice(0, 2).map((id) => String(id));
-    const team2 = playersArray.slice(2, 4).map((id) => String(id));
-
-    const score1 = Number((match.scores && (match.scores.team1 ?? match.scores[0])) || 0);
-    const score2 = Number((match.scores && (match.scores.team2 ?? match.scores[1])) || 0);
-
-    // Determine result for each team
-    let resultTeam1 = "draw";
-    let resultTeam2 = "draw";
-    if (score1 > score2) {
-      resultTeam1 = "win";
-      resultTeam2 = "loss";
-    } else if (score1 < score2) {
-      resultTeam1 = "loss";
-      resultTeam2 = "win";
-    }
-
-    // Helper to update stats by player id
-    const updateStats = async (playerId, result, scored, conceded) => {
-      const { data: player, error } = await db("players").select("*").eq("id", playerId).single();
-
-      console.log("Looking for player id:", playerId);
-      console.log("Found player:", player, "error:", error);
-
-      if (!player) return;
-
-      const updated = {
-        wins: player.wins || 0,
-        losses: player.losses || 0,
-        draws: player.draws || 0,
-        points: player.points || 0,
-        points_for: player.points_for || 0,
-        points_against: player.points_against || 0,
-        win_streak: player.win_streak || 0,
-      };
-
-      if (result === "win") {
-        updated.wins += 1;
-        updated.points += 3;
-        updated.win_streak += 1;
-      } else if (result === "loss") {
-        updated.losses += 1;
-        updated.win_streak = 0;
-      } else {
-        updated.draws += 1;
-        updated.points += 1;
-        updated.win_streak = 0;
-      }
-
-      updated.points_for += scored;
-      updated.points_against += conceded;
-
-      await db("players")
-        .update(updated)
-        .eq("id", player.id);
-    };
-
-    // Update team 1
-    for (const p of team1) {
-      await updateStats(p, resultTeam1, score1, score2);
-    }
-    // Update team 2
-    for (const p of team2) {
-      await updateStats(p, resultTeam2, score2, score1);
-    }
-  }
-};
-const handleAdminUnlock = () => {
-  const code = prompt("Enter admin passcode:");
-
-  if (!code) return;
-
-  if (code === process.env.NEXT_PUBLIC_ADMIN_PASSCODE) {
-    setIsAdmin(true);
-    alert("Admin access granted ✅");
-  } else {
-    alert("Incorrect passcode ❌");
-  }
-};
-
-const verifyAdminCode = () => {
-  if (adminCode === process.env.NEXT_PUBLIC_ADMIN_PASSCODE) {
-    setIsAdmin(true);
-    setShowAdminModal(false);
-    setAdminCode("");
-    setAdminError("");
-  } else {
-    setAdminError("Incorrect passcode");
-  }
-};
 
 const fetchPreviousMatches = async () => {
   const { data, error } = await db("previous_matches")
@@ -525,9 +44,9 @@ const fetchPreviousMatches = async () => {
     syncAndFetchData();
   }, [division]);
 
-  // Load season summaries when user opens the Seasons tab
+  // Load season summaries when user opens the Previous Seasons tab
   useEffect(() => {
-    if (activeTab !== "Seasons") return;
+    if (activeTab !== "Previous Seasons") return;
 
     const load = async () => {
       try {
@@ -1057,7 +576,7 @@ const fetchPreviousMatches = async () => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Seasons"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Previous Seasons"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -2456,7 +1975,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               {tab === "Matches" && "⚔"}
               {tab === "Players" && "👥"}
               {tab === "Previous Matches" && "🕒"}
-              {tab === "Seasons" && "📜"}
+              {tab === "Previous Seasons" && "📜"}
               <span>{tab}</span>
             </button>
           ))}
@@ -3059,11 +2578,11 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 )}
 
-        {/* Seasons */}
-        {activeTab === "Seasons" && (
+        {/* Previous Seasons */}
+        {activeTab === "Previous Seasons" && (
           <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-4">
             <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4 flex items-center justify-between">
-              <div className="font-bold text-yellow-500 text-lg">📜 Seasons</div>
+              <div className="font-bold text-yellow-500 text-lg">📜 Previous Seasons</div>
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-600">Archived season</label>
                 <select
@@ -4148,8 +3667,10 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       } catch (err) {
                         console.error("Error ending season:", err);
                         setResetError("Error ending season");
-                      }
-                    }
+                      }}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm">End Season</button>
+                    {showEndSeasonChoiceModal && (
+                  <>
                   <select
                     value={selectedSeasonId || ""}
                     onChange={(e) => {
@@ -4168,7 +3689,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       );
                     })}
                   </select>
-            <p className="text-gray-300 mb-4">A season summary has been archived. What would you like to do next for Division {endSummaryContext?.division}?</p>
+            <p className="text-gray-300 mb-4">A season summary has been archived. What would you like to do next for Division {endSummaryContext && endSummaryContext.division}?</p>
 
             <div className="mb-3">
               <label className="text-sm text-gray-300">New season name (if starting new)</label>
@@ -4183,6 +3704,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
             <div className="flex justify-end mt-4">
               <button onClick={() => { setShowEndSeasonChoiceModal(false); setEndSummaryContext(null); }} className="text-sm text-gray-400 underline">Cancel</button>
             </div>
+          </>
+            )}
           </div>
         </div>
       )}
