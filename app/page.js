@@ -18,7 +18,8 @@ export default function HomePage() {
   const [divisions, setDivisions] = useState([
     { id: 1, name: "Division 1" },
     { id: 2, name: "Division 2" },
-              <button onClick={() => { setShowResetModal(false); setEndSummaryContext({ division }); setShowEndSeasonChoiceModal(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm">End Season</button>
+  ]);
+
 const fetchPreviousMatches = async () => {
   const { data, error } = await db("previous_matches")
     .select("*")
