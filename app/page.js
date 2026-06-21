@@ -3099,14 +3099,20 @@ const activePlayerCount = players.filter((p) => p.active).length;
               </button>
             </div>
 
-            {filteredSeasonSummaries.length === 0 ? (
+            {seasonSummaries.length === 0 ? (
               <div>
                 <p className="text-gray-300 italic text-sm">No previous seasons yet...</p>
-                <p className="text-xs text-gray-400 mt-2">Loaded {seasonLoadInfo.count} summaries ({seasonLoadInfo.source || 'none'}) — {filteredSeasonSummaries.length} for Division {division}</p>
+                <p className="text-xs text-gray-400 mt-2">Loaded {seasonLoadInfo.count} summaries ({seasonLoadInfo.source || 'none'})</p>
               </div>
             ) : (
-              <div className="space-y-8">
-                {filteredSeasonSummaries.map((s, idx) => {
+              (() => {
+                const toRender = filteredSeasonSummaries.length > 0 ? filteredSeasonSummaries : seasonSummaries;
+                return (
+                  <div className="space-y-8">
+                    {filteredSeasonSummaries.length === 0 && (
+                      <div className="text-sm text-yellow-300">No archived seasons found for Division {division}. Showing all archived seasons.</div>
+                    )}
+                    {toRender.map((s, idx) => {
                   const date = new Date(s.timestamp).toLocaleString();
                   const isOpen = openDates.includes(s.id);
                   const totalMatches = (s.matches || []).length;
