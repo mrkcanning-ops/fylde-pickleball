@@ -61,6 +61,15 @@ export default function HomePage() {
       return {};
     }
   });
+  // current division value (kept in sync)
+  const [minQualifyGames, setMinQualifyGames] = useState(() => {
+    try {
+      const v = getLSRaw("min_qualify_games");
+      return v ? parseInt(v, 10) || MIN_QUALIFY_GAMES : MIN_QUALIFY_GAMES;
+    } catch (e) {
+      return MIN_QUALIFY_GAMES;
+    }
+  });
   const [showEditMinModal, setShowEditMinModal] = useState(false);
   const [minQualifyInput, setMinQualifyInput] = useState(String(minQualifyGames));
   const [showVerifyMinPasscodeModal, setShowVerifyMinPasscodeModal] = useState(false);
@@ -4139,10 +4148,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       } catch (err) {
                         console.error("Error ending season:", err);
                         setResetError("Error ending season");
-                        }
-                        }
-                      {showEndSeasonChoiceModal && (
-                  <>
+                      }
+                    }
                   <select
                     value={selectedSeasonId || ""}
                     onChange={(e) => {
@@ -4161,7 +4168,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       );
                     })}
                   </select>
-            <p className="text-gray-300 mb-4">A season summary has been archived. What would you like to do next for Division {endSummaryContext && endSummaryContext.division}?</p>
+            <p className="text-gray-300 mb-4">A season summary has been archived. What would you like to do next for Division {endSummaryContext?.division}?</p>
 
             <div className="mb-3">
               <label className="text-sm text-gray-300">New season name (if starting new)</label>
@@ -4176,8 +4183,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
             <div className="flex justify-end mt-4">
               <button onClick={() => { setShowEndSeasonChoiceModal(false); setEndSummaryContext(null); }} className="text-sm text-gray-400 underline">Cancel</button>
             </div>
-          </>
-            )}
           </div>
         </div>
       )}
