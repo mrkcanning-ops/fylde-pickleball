@@ -535,6 +535,7 @@ const fetchPreviousMatches = async () => {
 
         if (!error && Array.isArray(data)) {
           setSeasonSummaries(data);
+          setSeasonLoadInfo({ source: 'supabase', count: Array.isArray(data) ? data.length : 0 });
           if (data.length > 0) {
             setSelectedSeasonId(data[0].id);
             setSelectedSeason(data[0]);
@@ -556,6 +557,7 @@ const fetchPreviousMatches = async () => {
         }).filter(Boolean);
         console.debug("[seasons] local items loaded:", items.length);
         setSeasonSummaries(items);
+        setSeasonLoadInfo({ source: 'localStorage', count: items.length });
         if (items.length > 0) {
           setSelectedSeasonId(items[0].id);
           setSelectedSeason(items[0]);
@@ -567,6 +569,8 @@ const fetchPreviousMatches = async () => {
 
     load();
   }, [activeTab]);
+
+  const [seasonLoadInfo, setSeasonLoadInfo] = useState({ source: null, count: 0 });
 
   const createNewSeason = async () => {
     // Prevent creating a new season if one is already running
@@ -3063,7 +3067,10 @@ const activePlayerCount = players.filter((p) => p.active).length;
             </div>
 
             {filteredSeasonSummaries.length === 0 ? (
-              <p className="text-gray-300 italic text-sm">No previous seasons yet...</p>
+              <div>
+                <p className="text-gray-300 italic text-sm">No previous seasons yet...</p>
+                <p className="text-xs text-gray-400 mt-2">Loaded {seasonLoadInfo.count} summaries ({seasonLoadInfo.source || 'none'}) — {filteredSeasonSummaries.length} for Division {division}</p>
+              </div>
             ) : (
               <div className="space-y-8">
                 {filteredSeasonSummaries.map((s, idx) => {
