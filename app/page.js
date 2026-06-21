@@ -3668,7 +3668,10 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         console.error("Error ending season:", err);
                         setResetError("Error ending season");
                       }}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm">End Season</button>
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm"
+              >
+                End Season
+              </button>
                     {showEndSeasonChoiceModal && (
                   <>
                   <select
