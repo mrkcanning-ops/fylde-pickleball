@@ -3050,148 +3050,170 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 )}
 
-        {/* Seasons */}
+        {/* Seasons (styled like Previous Matches) */}
         {activeTab === "Seasons" && (
-          <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-4">
-            <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4 flex items-center justify-between">
-              <div className="font-bold text-yellow-500 text-lg">📜 Seasons</div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Archived season</label>
-                  <select
-                    value={selectedSeasonId || ""}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setSelectedSeasonId(id);
-                      const found = (seasonSummaries || []).find((s) => String(s.id) === id);
-                      setSelectedSeason(found || null);
-                    }}
-                    className="bg-white border border-gray-300 rounded px-3 py-2"
-                  >
-                    {filteredSeasonSummaries.length === 0 && <option value="">No seasons for this division</option>}
-                    {filteredSeasonSummaries.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {`Division ${s.division} • ${new Date(s.timestamp).toLocaleString()}`}
-                      </option>
-                    ))}
-                  </select>
-                <button
-                  onClick={createNewSeason}
-                  disabled={!!currentSeason}
-                  className={`ml-3 px-3 py-2 rounded text-sm font-semibold transition ${
-                    currentSeason ? "bg-gray-300 text-gray-600 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-500"
-                  }`}
-                >
-                  ➕ Add New Season
-                </button>
-                {currentSeason && (
-                  <div className="ml-3 text-sm text-gray-600">Running: {currentSeason.name}</div>
-                )}
-              </div>
+          <div className="bg-gray-700 rounded shadow p-4">
+            <div className="flex justify-center mb-4">
+              <button
+                onClick={() => setShowAddMatchPasscodeModal(true)}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded"
+              >
+                ➕ Add Season
+              </button>
             </div>
 
             {filteredSeasonSummaries.length === 0 ? (
-              <div className="text-gray-600">No archived seasons for this division yet. End a season from the admin panel to create a summary.</div>
+              <p className="text-gray-300 italic text-sm">No previous seasons yet...</p>
             ) : (
-              <div className="space-y-3">
-                {filteredSeasonSummaries.map((s) => (
-                  <details key={s.id} className="bg-gray-100 p-3 rounded">
-                    <summary className="font-semibold text-yellow-600">Division {s.division} — {new Date(s.timestamp).toLocaleString()}</summary>
+              <div className="space-y-8">
+                {filteredSeasonSummaries.map((s, idx) => {
+                  const date = new Date(s.timestamp).toLocaleString();
+                  const isOpen = openDates.includes(s.id);
+                  const totalMatches = (s.matches || []).length;
 
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-3 bg-white rounded md:col-span-2">
-                        <h4 className="font-semibold text-gray-700">Final Standings</h4>
-                        <ol className="text-gray-700 mt-2">
-                          {(s.finalStandings || s.final_standings || []).map((p) => (
-                            <li key={p.id || p.name}>{p.position}. {p.name} — {p.points} pts ({p.wins}W {p.losses}L)</li>
-                          ))}
-                        </ol>
-                      </div>
+                  return (
+                    <div key={`season-${s.id}-${idx}`} className="space-y-4">
+                      <div className="text-sm font-bold text-yellow-400">Season</div>
+                      <details
+                        key={s.id}
+                        open={isOpen}
+                        onToggle={(e) => {
+                          if (e.currentTarget.open) {
+                            setOpenDates((prev) => (prev.includes(s.id) ? prev : [...prev, s.id]));
+                          } else {
+                            setOpenDates((prev) => prev.filter((d) => d !== s.id));
+                          }
+                        }}
+                        className="mb-3 rounded-xl border border-gray-600 bg-gray-800 overflow-hidden"
+                      >
+                        <summary className="list-none cursor-pointer select-none px-4 py-4 flex flex-col items-start gap-3 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+                            <span className="text-xl">📜</span>
+                            <div className="min-w-0">
+                              <div className="font-extrabold text-yellow-300 truncate">Division {s.division} — {date}</div>
+                            </div>
+                          </div>
 
-                      <div className="p-3 bg-white rounded md:col-span-2">
-                        <h4 className="font-semibold text-gray-700">Tracker (positions after each match)</h4>
-                        <div className="text-gray-700 mt-2 space-y-2">
-                          {(s.tracker || s.tracker || []).map((snap, i) => (
-                            <details key={i} className="bg-gray-50 p-2 rounded">
-                              <summary className="font-medium">Match {snap.matchIndex + 1} — {snap.timestamp ? new Date(snap.timestamp).toLocaleString() : 'unknown'}</summary>
-                              <ol className="mt-2 text-sm">
-                                {(snap.positions || []).slice(0, 50).map((pos) => (
-                                  <li key={pos.id || pos.name}>{pos.position}. {pos.name} — {pos.points ?? pos.points} pts</li>
+                          <div className="w-full flex items-center justify-between sm:w-auto sm:justify-end sm:gap-2">
+                            <span className="shrink-0 text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">
+                              {totalMatches} match{totalMatches === 1 ? "" : "es"}
+                            </span>
+
+                            <span className="shrink-0 flex items-center gap-2">
+                              <span className="text-sm font-bold text-white bg-yellow-600 px-3 py-1 rounded-lg">
+                                {isOpen ? "Hide" : "Show"}
+                              </span>
+                              <span
+                                className={`text-yellow-300 text-2xl transition-transform duration-200 ${
+                                  isOpen ? "rotate-180" : "rotate-0"
+                                }`}
+                                aria-hidden="true"
+                              >
+                                ▾
+                              </span>
+                            </span>
+                          </div>
+                        </summary>
+
+                        <div className="p-4 bg-gray-700">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-3 bg-white rounded md:col-span-2">
+                              <h4 className="font-semibold text-gray-700">Final Standings</h4>
+                              <ol className="text-gray-700 mt-2">
+                                {(s.finalStandings || s.final_standings || []).map((p) => (
+                                  <li key={p.id || p.name}>{p.position}. {p.name} — {p.points} pts ({p.wins}W {p.losses}L)</li>
                                 ))}
                               </ol>
-                            </details>
-                          ))}
-                        </div>
-                      </div>
+                            </div>
 
-                      <div className="p-3 bg-white rounded">
-                        <h4 className="font-semibold text-gray-700">Top By Points</h4>
-                        <ol className="text-gray-700 mt-2">
-                          {(s.topByPoints || s.top_by_points || []).map((p) => (
-                            <li key={p.id || p.name}>{p.name} — {p.points ?? p.points}</li>
-                          ))}
-                        </ol>
-                      </div>
+                            <div className="p-3 bg-white rounded md:col-span-2">
+                              <h4 className="font-semibold text-gray-700">Tracker (positions after each match)</h4>
+                              <div className="text-gray-700 mt-2 space-y-2">
+                                {(s.tracker || []).map((snap, i) => (
+                                  <details key={i} className="bg-gray-50 p-2 rounded">
+                                    <summary className="font-medium">Match {snap.matchIndex + 1} — {snap.timestamp ? new Date(snap.timestamp).toLocaleString() : 'unknown'}</summary>
+                                    <ol className="mt-2 text-sm">
+                                      {(snap.positions || []).slice(0, 50).map((pos) => (
+                                        <li key={pos.id || pos.name}>{pos.position}. {pos.name} — {pos.points ?? pos.points} pts</li>
+                                      ))}
+                                    </ol>
+                                  </details>
+                                ))}
+                              </div>
+                            </div>
 
-                      <div className="p-3 bg-white rounded">
-                        <h4 className="font-semibold text-gray-700">Top By Wins</h4>
-                        <ol className="text-gray-700 mt-2">
-                          {(s.topByWins || s.top_by_wins || []).map((p) => (
-                            <li key={p.id || p.name}>{p.name} — {p.wins ?? p.wins}</li>
-                          ))}
-                        </ol>
-                      </div>
+                            <div className="p-3 bg-white rounded">
+                              <h4 className="font-semibold text-gray-700">Top By Points</h4>
+                              <ol className="text-gray-700 mt-2">
+                                {(s.topByPoints || s.top_by_points || []).map((p) => (
+                                  <li key={p.id || p.name}>{p.name} — {p.points ?? p.points}</li>
+                                ))}
+                              </ol>
+                            </div>
 
-                      <div className="p-3 bg-white rounded md:col-span-2">
-                        <h4 className="font-semibold text-gray-700">Highest Scoring Match</h4>
-                        {s.highestScoringMatch ? (
-                          <div className="text-gray-700 mt-2">
-                            <div>{(s.highestScoringMatch.players || []).join(' vs ')}</div>
-                            <div className="text-sm text-gray-500">Score: {s.highestScoringMatch.scores?.team1 ?? '-'} — {s.highestScoringMatch.scores?.team2 ?? '-'}</div>
-                            <div className="text-sm text-gray-500">Total: {s.highestScoringMatch.total}</div>
+                            <div className="p-3 bg-white rounded">
+                              <h4 className="font-semibold text-gray-700">Top By Wins</h4>
+                              <ol className="text-gray-700 mt-2">
+                                {(s.topByWins || s.top_by_wins || []).map((p) => (
+                                  <li key={p.id || p.name}>{p.name} — {p.wins ?? p.wins}</li>
+                                ))}
+                              </ol>
+                            </div>
+
+                            <div className="p-3 bg-white rounded md:col-span-2">
+                              <h4 className="font-semibold text-gray-700">Highest Scoring Match</h4>
+                              {s.highestScoringMatch ? (
+                                <div className="text-gray-700 mt-2">
+                                  <div>{(s.highestScoringMatch.players || []).join(' vs ')}</div>
+                                  <div className="text-sm text-gray-500">Score: {s.highestScoringMatch.scores?.team1 ?? '-'} — {s.highestScoringMatch.scores?.team2 ?? '-'}</div>
+                                  <div className="text-sm text-gray-500">Total: {s.highestScoringMatch.total}</div>
+                                </div>
+                              ) : (
+                                <div className="text-gray-500">No matches recorded.</div>
+                              )}
+                            </div>
+
+                            <div className="p-3 bg-white rounded">
+                              <h4 className="font-semibold text-gray-700">Average Points / Match</h4>
+                              <div className="text-gray-700 mt-2">{s.avgPoints ?? s.avg_points}</div>
+                            </div>
+
+                            <div className="p-3 bg-white rounded">
+                              <h4 className="font-semibold text-gray-700">Most Active Player</h4>
+                              <div className="text-gray-700 mt-2">{(s.mostActive ?? s.most_active) || '—'}</div>
+                            </div>
+
+                            <div className="md:col-span-2 mt-4">
+                              <h4 className="font-semibold text-gray-700">Full Match List</h4>
+                              <div className="overflow-x-auto mt-2 bg-white p-2 rounded">
+                                <table className="w-full text-left text-gray-700 text-sm">
+                                  <thead className="text-gray-500 text-xs uppercase border-b border-gray-200">
+                                    <tr>
+                                      <th className="p-2">#</th>
+                                      <th className="p-2">Players</th>
+                                      <th className="p-2">Score</th>
+                                      <th className="p-2">Date</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {(s.matches || []).map((m, i) => (
+                                      <tr key={i} className="border-b border-gray-200">
+                                        <td className="p-2 align-top">{i + 1}</td>
+                                        <td className="p-2">{(m.players || []).join(' vs ')}</td>
+                                        <td className="p-2">{m.scores?.team1 ?? '-'} — {m.scores?.team2 ?? '-'}</td>
+                                        <td className="p-2">{m.created_at ? new Date(m.created_at).toLocaleString() : '-'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
                           </div>
-                        ) : (
-                          <div className="text-gray-500">No matches recorded.</div>
-                        )}
-                      </div>
-
-                      <div className="p-3 bg-white rounded">
-                        <h4 className="font-semibold text-gray-700">Average Points / Match</h4>
-                        <div className="text-gray-700 mt-2">{s.avgPoints ?? s.avg_points}</div>
-                      </div>
-
-                      <div className="p-3 bg-white rounded">
-                        <h4 className="font-semibold text-gray-700">Most Active Player</h4>
-                        <div className="text-gray-700 mt-2">{(s.mostActive ?? s.most_active) || '—'}</div>
-                      </div>
-
-                      <div className="md:col-span-2 mt-4">
-                        <h4 className="font-semibold text-gray-700">Full Match List</h4>
-                        <div className="overflow-x-auto mt-2 bg-white p-2 rounded">
-                          <table className="w-full text-left text-gray-700 text-sm">
-                            <thead className="text-gray-500 text-xs uppercase border-b border-gray-200">
-                              <tr>
-                                <th className="p-2">#</th>
-                                <th className="p-2">Players</th>
-                                <th className="p-2">Score</th>
-                                <th className="p-2">Date</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(s.matches || s.matches || []).map((m, i) => (
-                                <tr key={i} className="border-b border-gray-200">
-                                  <td className="p-2 align-top">{i + 1}</td>
-                                  <td className="p-2">{(m.players || []).join(' vs ')}</td>
-                                  <td className="p-2">{m.scores?.team1 ?? '-'} — {m.scores?.team2 ?? '-'}</td>
-                                  <td className="p-2">{m.created_at ? new Date(m.created_at).toLocaleString() : '-'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
                         </div>
-                      </div>
+                      </details>
                     </div>
-                  </details>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
