@@ -4184,6 +4184,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
             <div className="flex justify-end mt-4">
               <button onClick={() => { setShowEndSeasonChoiceModal(false); setEndSummaryContext(null); }} className="text-sm text-gray-400 underline">Cancel</button>
             </div>
+            )}
           </div>
         </div>
       )}
