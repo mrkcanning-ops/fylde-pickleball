@@ -289,21 +289,84 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
     }
   }, [divisions, division]);
 
-  const resetLeaderboard = () => {
+  const resetLeaderboard = async () => {
     const code = prompt("Enter admin passcode to end season:");
     if (!code) return;
 
     const envPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
 
-    if (code.trim() === envPasscode?.trim()) {
-      const confirmed = confirm("Are you sure you want to end the season and reset the leaderboard?");
-      if (!confirmed) return;
+    if (code.trim() !== envPasscode?.trim()) {
+      alert("Incorrect passcode ❌");
+      return;
+    }
 
+    const confirmed = confirm("Are you sure you want to end the season and reset the leaderboard?");
+    if (!confirmed) return;
+
+    try {
+      // Build season summary payload from current leaderboard
+      const summaryId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const timestamp = new Date().toISOString();
+
+      const finalStandings = (leaderboard || []).map((p, i) => ({
+        position: i + 1,
+        id: p.id,
+        name: p.name,
+        points: p.points ?? 0,
+        wins: p.wins ?? 0,
+        losses: p.losses ?? 0,
+      }));
+
+      // optional summary extras
+      const topByPoints = [...finalStandings].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 5);
+      const topByWins = [...finalStandings].sort((a, b) => (b.wins || 0) - (a.wins || 0)).slice(0, 5);
+
+      // attempt to include full matches for this division (best-effort)
+      let matchesForDivision = [];
+      try {
+        const { data: matches } = await db("previous_matches").select("*").eq("division", division).order("created_at", { ascending: true });
+        if (Array.isArray(matches)) matchesForDivision = matches;
+      } catch (e) {
+        console.warn('Failed to load matches for summary:', e);
+      }
+
+      const payload = {
+        id: summaryId,
+        division,
+        timestamp,
+        final_standings: finalStandings,
+        top_by_points: topByPoints,
+        top_by_wins: topByWins,
+        matches: matchesForDivision,
+      };
+
+      // persist to Supabase (table picked by viewMode automatically by `db` helper)
+      try {
+        const { data: inserted, error: insErr } = await db("season_summaries").insert(payload).select();
+        if (insErr) throw insErr;
+        console.info('Saved season summary to DB', inserted?.[0]?.id || summaryId);
+      } catch (e) {
+        console.warn('Failed to save season summary to DB, will save to localStorage index as fallback', e);
+      }
+
+      // update localStorage index and raw summary for offline fallback
+      try {
+        const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
+        const existing = getLSJson(idxKey, []);
+        const next = [summaryId].concat(existing || []);
+        setLSJson(idxKey, next);
+        setLSJson(summaryId, payload);
+      } catch (e) {
+        console.warn('Failed to persist season summary to localStorage', e);
+      }
+
+      // clear leaderboard and notify
       setLeaderboard([]);
       removeLS("leaderboard");
-      alert("Season ended ✅");
-    } else {
-      alert("Incorrect passcode ❌");
+      alert("Season ended and summary saved ✅");
+    } catch (err) {
+      console.error('End season error:', err);
+      alert('Failed to end season. See console for details.');
     }
   };
 
