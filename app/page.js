@@ -4168,7 +4168,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                       );
                     })}
                   </select>
-            <p className="text-gray-300 mb-4">A season summary has been archived. What would you like to do next for Division {endSummaryContext ? endSummaryContext.division : ""}?</p>
+            <p className="text-gray-300 mb-4">A season summary has been archived. What would you like to do next for Division {endSummaryContext && `${endSummaryContext.division}?`}</p>
 
             <div className="mb-3">
               <label className="text-sm text-gray-300">New season name (if starting new)</label>
