@@ -688,9 +688,13 @@ useEffect(() => {
     const load = async () => {
       // Try server API first, fall back to localStorage
       try {
-        const viewParam = viewMode === 'doubles' ? '?view=doubles' : '';
-        console.debug('[PreviousSeasons:page] fetching server API /api/season-summaries' + viewParam);
-        const res = await fetch(`/api/season-summaries${viewParam}`, { cache: 'no-store' });
+        const viewParam = viewMode === 'doubles' ? 'view=doubles' : '';
+        const q = new URLSearchParams();
+        if (viewParam) q.set('view', 'doubles');
+        q.set('division', String(division));
+        const qs = q.toString() ? `?${q.toString()}` : '';
+        console.debug('[PreviousSeasons:page] fetching server API /api/season-summaries' + qs);
+        const res = await fetch(`/api/season-summaries${qs}`, { cache: 'no-store' });
         const payload = await res.json().catch(() => ({}));
         if (res.ok && payload && Array.isArray(payload.data) && payload.data.length > 0) {
           console.debug('[PreviousSeasons:page] server returned', payload.data.length);
@@ -716,11 +720,12 @@ useEffect(() => {
           return raw ? JSON.parse(raw) : null;
         }).filter(Boolean);
         console.debug("[PreviousSeasons:page] local items loaded:", items.length);
-        setSeasonSummaries(items);
-        setSeasonLoadInfo({ source: 'localStorage', count: items.length });
-        if (items.length > 0) {
-          setSelectedSeasonId(items[0].id);
-          setSelectedSeason(items[0]);
+        const filtered = (items || []).filter((s) => Number(s.division) === Number(division));
+        setSeasonSummaries(filtered);
+        setSeasonLoadInfo({ source: 'localStorage', count: filtered.length });
+        if (filtered.length > 0) {
+          setSelectedSeasonId(filtered[0].id);
+          setSelectedSeason(filtered[0]);
         }
       } catch (e) {
         console.warn("No season summaries in localStorage", e);
@@ -728,7 +733,7 @@ useEffect(() => {
     };
 
     load();
-  }, [activeTab]);
+  }, [activeTab, division, viewMode]);
 
   const [seasonLoadInfo, setSeasonLoadInfo] = useState({ source: null, count: 0 });
 

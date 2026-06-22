@@ -16,7 +16,10 @@ export async function GET(request) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data, error } = await supabase.from(table).select('*').order('timestamp', { ascending: false });
+    const division = url.searchParams.get('division');
+    let query = supabase.from(table).select('*').order('timestamp', { ascending: false });
+    if (division) query = query.eq('division', division);
+    const { data, error } = await query;
     if (error) {
       return NextResponse.json({ error: error.message || String(error) }, { status: 500 });
     }
