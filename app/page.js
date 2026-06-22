@@ -2499,6 +2499,13 @@ const hasGeneratedFixtures =
   court4Matches.length > 0;
 const activePlayerCount = players.filter((p) => p.active).length;
 
+  useEffect(() => {
+    console.debug('[PreviousSeasons:overlay] activeTab changed', activeTab);
+    if (activeTab === 'Previous Seasons') {
+      console.debug('[PreviousSeasons:overlay] overlay should show, summaries:', (seasonSummaries||[]).length, seasonSummaries && seasonSummaries[0]);
+    }
+  }, [activeTab, seasonSummaries]);
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
       {!hydrated && (
@@ -2607,12 +2614,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </div>
       )}
 
-  useEffect(() => {
-    console.debug('[PreviousSeasons:overlay] activeTab changed', activeTab);
-    if (activeTab === 'Previous Seasons') {
-      console.debug('[PreviousSeasons:overlay] overlay should show, summaries:', (seasonSummaries||[]).length, seasonSummaries && seasonSummaries[0]);
-    }
-  }, [activeTab, seasonSummaries]);
+  
 
       <HeaderStats stats={stats} />
 
