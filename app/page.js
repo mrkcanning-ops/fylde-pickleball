@@ -3152,12 +3152,13 @@ const activePlayerCount = players.filter((p) => p.active).length;
 )}
 
         {activeTab === "Previous Seasons" && (
+          (console.debug('[PreviousSeasons:view] activeTab', activeTab, 'seasonSummaries.length', seasonSummaries.length, 'seasonLoadInfo', seasonLoadInfo),
           <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-6">
             <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4">
               <div className="font-bold text-yellow-500 text-lg">📜 Previous Seasons</div>
             </div>
             <div className="text-gray-600">Previous Seasons placeholder — data loading temporarily disabled. Use the End Season button to create a summary or check server API.</div>
-          </div>
+          </div>)
         )}
 
     <div className="mt-8 px-6 py-6 flex justify-center gap-4 border-t border-gray-200 bg-red-50">
