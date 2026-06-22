@@ -483,6 +483,10 @@ const fetchPreviousMatches = async () => {
 
     load();
   }, [activeTab]);
+  const [seasonSummaries, setSeasonSummaries] = useState([]);
+  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
+  const [selectedSeason, setSelectedSeason] = useState(null);
+  const filteredSeasonSummaries = (seasonSummaries || []).filter((s) => Number(s.division) === Number(division));
 
   const [seasonLoadInfo, setSeasonLoadInfo] = useState({ source: null, count: 0 });
 
