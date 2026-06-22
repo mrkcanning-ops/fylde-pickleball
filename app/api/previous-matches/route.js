@@ -5,6 +5,7 @@ export async function GET(request) {
   try {
     const url = new URL(request.url);
     const division = url.searchParams.get('division');
+    const view = url.searchParams.get('view') || 'singles';
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -15,7 +16,8 @@ export async function GET(request) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let query = supabase.from('previous_matches').select('*').order('created_at', { ascending: true });
+    const table = view === 'doubles' ? 'previous_matches_doubles' : 'previous_matches';
+    let query = supabase.from(table).select('*').order('created_at', { ascending: true });
     if (division) query = query.eq('division', division);
 
     const { data, error } = await query;

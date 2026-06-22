@@ -640,8 +640,9 @@ const fetchPreviousMatches = async () => {
 
   // Fallback to server-side API route (uses service key on server)
   try {
-    console.debug('[PreviousSeasons:page] falling back to /api/previous-matches?division=' + division);
-    const res = await fetch(`/api/previous-matches?division=${division}`, { cache: 'no-store' });
+    const viewParam = viewMode === 'doubles' ? '&view=doubles' : '';
+    console.debug('[PreviousSeasons:page] falling back to /api/previous-matches?division=' + division + viewParam);
+    const res = await fetch(`/api/previous-matches?division=${division}${viewParam}`, { cache: 'no-store' });
     const payload = await res.json().catch(() => ({}));
     if (res.ok && payload && Array.isArray(payload.data)) {
       setPreviousMatches(payload.data || []);
