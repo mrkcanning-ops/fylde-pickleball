@@ -758,7 +758,6 @@ const fetchPreviousMatches = async () => {
       setShowEndSeasonChoiceModal(false);
       setEndSummaryContext(null);
       setNewSeasonName("");
-      router.push("/season-summaries");
     } catch (err) {
       console.error("Failed to start new season:", err);
       alert("Failed to start new season.");
@@ -788,7 +787,6 @@ const fetchPreviousMatches = async () => {
       alert("Players cleared for division.");
       setShowEndSeasonChoiceModal(false);
       setEndSummaryContext(null);
-      router.push("/season-summaries");
     } catch (err) {
       console.error("Failed to clear players:", err);
       alert("Failed to clear players.");
@@ -4208,7 +4206,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                           setResetPasswordInput("");
                         } catch (e) {
                           console.error("Error opening post-end modal:", e);
-                          router.push("/season-summaries");
+                          // If the modal can't open, keep user on the current page and log the error.
                         }
                       } catch (err) {
                         console.error("Error ending season:", err);
