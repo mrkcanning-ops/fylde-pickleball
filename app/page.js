@@ -2506,6 +2506,14 @@ const activePlayerCount = players.filter((p) => p.active).length;
       )}
       {hydrated && (
         <>
+      <div style={{position: 'fixed', right: 12, top: 12, zIndex: 9999}} className="hidden sm:block">
+        <div className="bg-black bg-opacity-60 text-white text-xs p-2 rounded">
+          <div>activeTab: {activeTab}</div>
+          <div>division: {division}</div>
+          <div>seasonSummaries: {(seasonSummaries || []).length}</div>
+          <div>seasonLoad: {seasonLoadInfo?.source || 'null'} ({seasonLoadInfo?.count || 0})</div>
+        </div>
+      </div>
       {/* Header (click title to toggle mode) */}
       <header className="mb-8 sm:mb-10 relative">
         <button
