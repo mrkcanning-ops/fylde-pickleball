@@ -647,8 +647,27 @@ const fetchPreviousMatches = async () => {
     if (activeTab !== "Previous Seasons") return;
 
     const load = async () => {
-      // Do NOT query Supabase for archived summaries here — load from localStorage only.
-      const idxKey = "season_summaries_index";
+      // Try server API first, fall back to localStorage
+      try {
+        const viewParam = viewMode === 'doubles' ? '?view=doubles' : '';
+        console.debug('[PreviousSeasons:page] fetching server API /api/season-summaries' + viewParam);
+        const res = await fetch(`/api/season-summaries${viewParam}`, { cache: 'no-store' });
+        const payload = await res.json().catch(() => ({}));
+        if (res.ok && payload && Array.isArray(payload.data) && payload.data.length > 0) {
+          console.debug('[PreviousSeasons:page] server returned', payload.data.length);
+          setSeasonSummaries(payload.data);
+          setSeasonLoadInfo({ source: 'server-api', count: payload.data.length });
+          setSelectedSeasonId(payload.data[0].id);
+          setSelectedSeason(payload.data[0]);
+          return;
+        }
+        console.debug('[PreviousSeasons:page] server API empty or error:', payload?.error || 'empty');
+      } catch (e) {
+        console.debug('[PreviousSeasons:page] server fetch failed:', e?.message || e);
+      }
+
+      // Fallback to localStorage index
+      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
       try {
         const idx = getLSJson(idxKey, []);
         console.debug("[PreviousSeasons:page] loading from localStorage index:", idxKey, idx);
