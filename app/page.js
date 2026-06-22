@@ -3078,7 +3078,20 @@ const activePlayerCount = players.filter((p) => p.active).length;
             </div>
 
             {seasonSummaries.length === 0 ? (
-              <div className="text-gray-600">No archived seasons yet.</div>
+              (() => {
+                const divisionPlayers = (players || []).filter((p) => Number(p.division) === Number(division));
+                const top = divisionPlayers.slice().sort((a, b) => (b.points || 0) - (a.points || 0))[0];
+                if (!top) {
+                  return <div className="text-gray-600">No archived seasons yet.</div>;
+                }
+                return (
+                  <div className="p-4">
+                    <div className="text-sm text-gray-500 mb-1">Current winner (division {division})</div>
+                    <div className="font-bold text-xl text-gray-900">{top.name}</div>
+                    <div className="text-sm text-gray-600">{(top.points || 0)} pts</div>
+                  </div>
+                );
+              })()
             ) : (
               <div className="space-y-3">
                 {seasonSummaries.map((s) => {
