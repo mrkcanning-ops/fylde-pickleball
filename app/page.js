@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import HeaderStats from "../components/HeaderStats";
 import { supabase } from "../lib/supabase";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode } from "../lib/ls";
@@ -137,6 +137,14 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const [viewMode, setViewMode] = useState(() => {
     try { return getViewMode(); } catch (e) { return "league"; }
   });
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    try {
+      const t = searchParams?.get?.('tab');
+      if (t) setActiveTab(t);
+    } catch (e) {}
+  }, [searchParams]);
 
   // Helper to pick table name depending on view mode (league or doubles)
   // Force literal suffix to avoid environment mismatch during development
