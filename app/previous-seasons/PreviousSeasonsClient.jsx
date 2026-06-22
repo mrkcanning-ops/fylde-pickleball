@@ -19,7 +19,9 @@ export default function PreviousSeasonsClient({ division }) {
       const idxKey = `season_summaries_index${viewMode === "doubles" ? DOUBLES_SUFFIX : ""}`;
 
       try {
+        console.debug('[PreviousSeasons] querying table:', seasonsTable, 'viewMode:', viewMode, 'idxKey:', idxKey);
         const { data, error } = await supabase.from(seasonsTable).select("*").order("timestamp", { ascending: false });
+        console.debug('[PreviousSeasons] supabase returned:', Array.isArray(data) ? data.length : 'no-data', 'error:', error);
         if (!error && Array.isArray(data)) {
           setSeasonSummaries(data);
           setSeasonLoadInfo({ source: 'supabase', count: data.length });
