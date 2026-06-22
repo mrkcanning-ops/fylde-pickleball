@@ -156,6 +156,112 @@ const [previousMatches, setPreviousMatches] = useState([]);
     }
   }, [hydrated, divisions, division]);
 
+  // Fetch players and matches for a division and compute leaderboard stats
+  const fetchAllDivisionPlayers = async (divisionId = division) => {
+    if (!supabase) return;
+    try {
+      const { data: playerData, error: playerError } = await db("players")
+        .select("*")
+        .eq("division", divisionId)
+        .order("name", { ascending: true });
+
+      if (playerError) {
+        console.error("Error fetching players:", playerError);
+        setPlayers([]);
+        setAllDivisionPlayers([]);
+      } else {
+        setPlayers(playerData || []);
+        setAllDivisionPlayers(playerData || []);
+      }
+
+      const { data: matchData, error: matchError } = await db("previous_matches")
+        .select("*")
+        .eq("division", divisionId)
+        .order("created_at", { ascending: true });
+
+      if (matchError) {
+        console.error("Error fetching previous matches:", matchError);
+        setPreviousMatches([]);
+      } else {
+        setPreviousMatches(matchData || []);
+      }
+
+      // Compute simple stats from matches and players
+      const statsById = {};
+      (playerData || []).forEach((p) => {
+        statsById[p.id] = {
+          id: p.id,
+          name: p.name,
+          wins: 0,
+          losses: 0,
+          draws: 0,
+          points: 0,
+          points_for: 0,
+          points_against: 0,
+          win_streak: 0,
+        };
+      });
+
+      (matchData || []).forEach((m) => {
+        const playersArr = Array.isArray(m.players)
+          ? m.players
+          : (() => {
+              try {
+                return JSON.parse(m.players || "[]");
+              } catch (e) {
+                return [];
+              }
+            })();
+
+        const team1 = playersArr.slice(0, 2).map(String);
+        const team2 = playersArr.slice(2, 4).map(String);
+        const score1 = Number(m.scores?.team1 ?? m.scores?.[0] ?? 0);
+        const score2 = Number(m.scores?.team2 ?? m.scores?.[1] ?? 0);
+
+        let result1 = "draw";
+        let result2 = "draw";
+        if (score1 > score2) {
+          result1 = "win";
+          result2 = "loss";
+        } else if (score1 < score2) {
+          result1 = "loss";
+          result2 = "win";
+        }
+
+        const update = (id, res, scored, conceded) => {
+          const s = statsById[id];
+          if (!s) return;
+          if (res === "win") {
+            s.wins += 1;
+            s.points += 3;
+            s.win_streak += 1;
+          } else if (res === "loss") {
+            s.losses += 1;
+            s.win_streak = 0;
+          } else {
+            s.draws += 1;
+            s.points += 1;
+            s.win_streak = 0;
+          }
+          s.points_for += scored;
+          s.points_against += conceded;
+        };
+
+        team1.forEach((id) => update(String(id), result1, score1, score2));
+        team2.forEach((id) => update(String(id), result2, score2, score1));
+      });
+
+      const ranked = sortPlayersByStats(Object.values(statsById));
+      setLeaderboard(ranked || []);
+    } catch (e) {
+      console.error("fetchAllDivisionPlayers error:", e);
+      setPlayers([]);
+      setAllDivisionPlayers([]);
+      setPreviousMatches([]);
+      setLeaderboard([]);
+    }
+  };
+
   const toggleDate = (date) => {
     setOpenDates((prev) =>
       prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date]
