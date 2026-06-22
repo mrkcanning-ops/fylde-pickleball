@@ -619,15 +619,37 @@ const verifyAdminCode = () => {
 };
 
 const fetchPreviousMatches = async () => {
-  const { data, error } = await db("previous_matches")
-    .select("*")
-    .eq("division", division)
-    .order("created_at", { ascending: false }); // Most recent first
+  // Try Supabase client first; if unavailable or returns error, fallback to server API
+  if (supabase) {
+    try {
+      const { data, error } = await db("previous_matches")
+        .select("*")
+        .eq("division", division)
+        .order("created_at", { ascending: false }); // Most recent first
 
-  if (error) {
-    console.error("Error fetching previous matches:", error);
-  } else {
-    setPreviousMatches(data || []);
+      if (error) {
+        console.error("Error fetching previous matches from supabase:", error);
+      } else {
+        setPreviousMatches(data || []);
+        return;
+      }
+    } catch (e) {
+      console.error('Supabase previous_matches fetch failed:', e);
+    }
+  }
+
+  // Fallback to server-side API route (uses service key on server)
+  try {
+    console.debug('[PreviousSeasons:page] falling back to /api/previous-matches?division=' + division);
+    const res = await fetch(`/api/previous-matches?division=${division}`, { cache: 'no-store' });
+    const payload = await res.json().catch(() => ({}));
+    if (res.ok && payload && Array.isArray(payload.data)) {
+      setPreviousMatches(payload.data || []);
+      return;
+    }
+    console.error('Previous matches API error:', payload?.error || 'unknown');
+  } catch (e) {
+    console.error('Failed to fetch previous matches from API:', e);
   }
 };
 
