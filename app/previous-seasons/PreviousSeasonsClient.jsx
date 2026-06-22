@@ -58,6 +58,42 @@ export default function PreviousSeasonsClient({ division, initialSummaries = [],
       } catch (e) {
         console.warn('Failed to load season summaries from localStorage', e);
       }
+      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
+      // Try server API first (preferred) then fallback to localStorage
+      try {
+        const viewParam = viewMode === 'doubles' ? '?view=doubles' : '';
+        console.debug('[PreviousSeasons] fetching server API /api/season-summaries' + viewParam);
+        const res = await fetch(`/api/season-summaries${viewParam}`, { cache: 'no-store' });
+        const payload = await res.json().catch(() => ({}));
+        if (res.ok && payload && Array.isArray(payload.data) && payload.data.length > 0) {
+          console.debug('[PreviousSeasons] server returned', payload.data.length, payload.data[0]);
+          setSeasonSummaries(payload.data);
+          setSeasonLoadInfo({ source: 'server-api', count: payload.data.length });
+          setSelectedSeasonId(payload.data[0].id);
+          setSelectedSeason(payload.data[0]);
+          return;
+        }
+      } catch (e) {
+        console.warn('[PreviousSeasons] server fetch failed', e);
+      }
+
+      // Fallback to localStorage index
+      try {
+        const idx = getLSJson(idxKey, []);
+        console.debug('[PreviousSeasons] local index key:', idxKey, 'idx:', idx);
+        if (Array.isArray(idx) && idx.length > 0) {
+          const items = idx.map((id) => getLSJson(id, null)).filter(Boolean);
+          console.debug('[PreviousSeasons] loaded items from LS:', items.length);
+          setSeasonSummaries(items);
+          setSeasonLoadInfo({ source: 'local', count: items.length });
+          if (items.length > 0) {
+            setSelectedSeasonId(items[0].id);
+            setSelectedSeason(items[0]);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load season summaries from localStorage', e);
+      }
     };
 
     load();
@@ -100,16 +136,40 @@ export default function PreviousSeasonsClient({ division, initialSummaries = [],
     setSeasonSummaries((prev) => (prev || []).map((s) => (s.id === selectedSeasonId ? updated : s)));
     try { setLSJson(updated.id, updated); } catch (e) { console.warn('Failed to update season in localStorage', e); }
   };
+      const doCreate = async () => {
+        // Try server create API first
+        try {
+          const viewParam = viewMode === 'doubles' ? '?view=doubles' : '';
+          const res = await fetch(`/api/season-summaries${viewParam}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newSummary),
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (res.ok && payload && Array.isArray(payload.data) && payload.data.length > 0) {
+            const created = payload.data[0];
+            setSeasonSummaries((prev) => [created, ...(prev || [])]);
+            setSeasonLoadInfo({ source: 'server-api', count: (seasonSummaries || []).length + 1 });
+            return;
+          }
+        } catch (e) {
+          console.warn('[PreviousSeasons] server create failed, falling back to localStorage', e);
+        }
 
-  const handleRemoveSeason = () => {
-    if (!selectedSeasonId) {
-      alert('Select a season first (click a season entry)');
-      return;
-    }
-    const confirmed = window.confirm('Permanently remove selected season?');
-    if (!confirmed) return;
-    setSeasonSummaries((prev) => (prev || []).filter((s) => s.id !== selectedSeasonId));
-    try {
+        // Fallback to LS
+        try {
+          setSeasonSummaries((prev) => [newSummary, ...(prev || [])]);
+          const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
+          const existingIndex = getLSJson(idxKey, []);
+          existingIndex.unshift(newSummary.id);
+          setLSJson(idxKey, existingIndex);
+          setLSJson(newSummary.id, newSummary);
+        } catch (e) {
+          console.warn('Failed to persist new season to localStorage', e);
+        }
+      };
+
+      doCreate();
       const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
       const existingIndex = getLSJson(idxKey, []);
       const next = (existingIndex || []).filter((id) => id !== selectedSeasonId);
@@ -121,8 +181,28 @@ export default function PreviousSeasonsClient({ division, initialSummaries = [],
     setSelectedSeasonId(null);
     setSelectedSeason(null);
   };
+      const doUpdate = async () => {
+        try {
+          const viewParam = viewMode === 'doubles' ? '?view=doubles' : '';
+          const res = await fetch(`/api/season-summaries${viewParam}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updated),
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (res.ok && payload && Array.isArray(payload.data) && payload.data.length > 0) {
+            const upd = payload.data[0];
+            setSeasonSummaries((prev) => (prev || []).map((s) => (s.id === selectedSeasonId ? upd : s)));
+            return;
+          }
+        } catch (e) {
+          console.warn('[PreviousSeasons] server update failed, falling back to localStorage', e);
+        }
 
-  return (
+        try { setSeasonSummaries((prev) => (prev || []).map((s) => (s.id === selectedSeasonId ? updated : s))); setLSJson(updated.id, updated); } catch (e) { console.warn('Failed to update season in localStorage', e); }
+      };
+
+      doUpdate();
     <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-4">
       <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4">
         <div className="flex items-center justify-between">
@@ -132,16 +212,37 @@ export default function PreviousSeasonsClient({ division, initialSummaries = [],
             <button onClick={handleEditSeason} className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white rounded text-sm" disabled={!selectedSeasonId}>Edit</button>
             <button onClick={handleRemoveSeason} className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-sm" disabled={!selectedSeasonId}>Remove</button>
           </div>
-        </div>
-      </div>
+      const doDelete = async () => {
+        try {
+          const viewParam = viewMode === 'doubles' ? '&view=doubles' : '';
+          const res = await fetch(`/api/season-summaries?id=${encodeURIComponent(selectedSeasonId)}${viewParam}`, { method: 'DELETE' });
+          const payload = await res.json().catch(() => ({}));
+          if (res.ok) {
+            setSeasonSummaries((prev) => (prev || []).filter((s) => s.id !== selectedSeasonId));
+            setSelectedSeasonId(null);
+            setSelectedSeason(null);
+            return;
+          }
+        } catch (e) {
+          console.warn('[PreviousSeasons] server delete failed, falling back to localStorage', e);
+        }
 
-      {seasonSummaries.length === 0 ? (
-        <div className="text-gray-600">No archived seasons yet.</div>
-      ) : (
-        <div className="space-y-3">
-          {seasonSummaries.map((s) => {
-            const final = s.finalStandings || s.final_standings || [];
-            const title = s.name || s.title || new Date(s.timestamp).toLocaleString();
+        try {
+          setSeasonSummaries((prev) => (prev || []).filter((s) => s.id !== selectedSeasonId));
+          const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
+          const existingIndex = getLSJson(idxKey, []);
+          const next = (existingIndex || []).filter((id) => id !== selectedSeasonId);
+          setLSJson(idxKey, next);
+          removeLS(selectedSeasonId);
+        } catch (e) {
+          console.warn('Failed to remove season from localStorage', e);
+        }
+
+        setSelectedSeasonId(null);
+        setSelectedSeason(null);
+      };
+
+      doDelete();
             return (
               <div
                 key={s.id}
