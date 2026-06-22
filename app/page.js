@@ -2724,12 +2724,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
       {/* Content */}
       <section className="bg-gray-900 rounded-b-lg shadow overflow-hidden p-4 sm:p-6 text-gray-300">
 
-        {activeTab === "Previous Seasons" && (
-          (console.debug('[PreviousSeasons:view] rendering blank banner, activeTab', activeTab),
-          <div id="previous-seasons-blank" className="w-full mb-4 p-4 bg-yellow-50 border border-yellow-200 text-center text-gray-700 rounded">
-            <strong>Previous Seasons</strong> is disabled — this page intentionally contains no data.
-          </div>)
-        )}
+        {activeTab === "Previous Seasons" && null}
 
         {/* Standings */}
 {activeTab === "Standings" && (
