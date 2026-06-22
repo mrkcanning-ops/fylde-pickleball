@@ -630,6 +630,7 @@ const fetchPreviousMatches = async () => {
       if (error) {
         console.error("Error fetching previous matches from supabase:", error);
       } else {
+        console.debug('[PreviousSeasons:page] supabase previous_matches count:', Array.isArray(data) ? data.length : 'no-data', data && data[0]);
         setPreviousMatches(data || []);
         return;
       }
@@ -644,7 +645,9 @@ const fetchPreviousMatches = async () => {
     console.debug('[PreviousSeasons:page] falling back to /api/previous-matches?division=' + division + viewParam);
     const res = await fetch(`/api/previous-matches?division=${division}${viewParam}`, { cache: 'no-store' });
     const payload = await res.json().catch(() => ({}));
+    console.debug('[PreviousSeasons:page] /api/previous-matches response ok:', res.ok, 'payload keys:', Object.keys(payload || {}));
     if (res.ok && payload && Array.isArray(payload.data)) {
+      console.debug('[PreviousSeasons:page] server returned previous_matches count:', payload.data.length, payload.data && payload.data[0]);
       setPreviousMatches(payload.data || []);
       return;
     }
