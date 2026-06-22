@@ -2772,6 +2772,15 @@ const activePlayerCount = players.filter((p) => p.active).length;
         <span className="text-cyan-600 font-black text-xs">Win %</span>
       </>
     )}
+
+      {activeTab === "Previous Seasons" && (
+        <div style={{position: 'fixed', left: 0, right: 0, top: 0, zIndex: 99999, background: '#ff4444', color: '#ffffff', padding: '8px', textAlign: 'center'}}>
+          <div style={{fontWeight: 700}}>DEBUG: PREVIOUS SEASONS ACTIVE — { (seasonSummaries || []).length } summaries</div>
+          <div style={{fontSize: 12, maxHeight: 120, overflow: 'auto', textAlign: 'left', marginTop: 6, padding: '6px 12px', background: 'rgba(0,0,0,0.05)', color: '#fff'}}>
+            {seasonSummaries && seasonSummaries.length > 0 ? JSON.stringify(seasonSummaries[0], null, 2) : 'no-summary'}
+          </div>
+        </div>
+      )}
   </div>
 
   {(() => {
