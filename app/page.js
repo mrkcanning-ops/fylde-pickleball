@@ -676,6 +676,34 @@ const fetchPreviousMatches = async () => {
   }
 };
 
+// Fetch players for the current division (simple loader used across the UI)
+const fetchPlayers = async (divisionId = division) => {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await db("players")
+      .select("*")
+      .eq("division", divisionId)
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching players:", error);
+      setPlayers([]);
+      setAllDivisionPlayers([]);
+      return [];
+    }
+
+    const playersData = data || [];
+    setPlayers(playersData);
+    setAllDivisionPlayers(playersData);
+    return playersData;
+  } catch (e) {
+    console.error("fetchPlayers error:", e);
+    setPlayers([]);
+    setAllDivisionPlayers([]);
+    return [];
+  }
+};
+
   useEffect(() => {
     const syncAndFetchData = async () => {
       const fetchedPlayers = await fetchPlayers();
