@@ -125,27 +125,42 @@ const [adminError, setAdminError] = useState("");
 
   useEffect(() => {
     // Load saved season summaries for the current division when Season Archive tab is active
-    try {
-      if (activeTab === "Season Archive") {
-        const suffix = viewMode === 'doubles' ? '_doubles' : '';
-        const idxKey = `season_summaries_index${suffix}`;
-        const idx = getLSJson(idxKey, []) || [];
-        const items = (idx || []).map((id) => {
-          const raw = getLSRaw(id);
-          if (!raw) return null;
-          try { return JSON.parse(raw); } catch (e) { return null; }
-        }).filter(Boolean).filter((s) => Number(s.division) === Number(division));
-        setSeasonSummariesList(items);
-        setSelectedSeasonSummaryId(items[0]?.id || null);
+    const fetchSummariesFromDb = async (vm = null) => {
+      try {
+        const viewParam = (vm || (() => { try { return getViewMode(); } catch (e) { return 'singles'; } })()) === 'doubles' ? 'doubles' : 'singles';
+        const res = await fetch(`/api/season-summaries?division=${division}&view=${viewParam}`, { cache: 'no-store' });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || payload.error) {
+          console.error('Season summaries API error:', payload?.error || 'unknown');
+          setSeasonSummariesList([]);
+          setSelectedSeasonSummaryId(null);
+          setServerError('Failed to load Season Archive from server.');
+          return;
+        }
+
+        const data = Array.isArray(payload.data) ? payload.data : [];
+        setSeasonSummariesList(data);
+        setSelectedSeasonSummaryId(data[0]?.id || null);
+        setServerError(null);
+      } catch (e) {
+        console.error('Failed to fetch season summaries from API:', e);
+        setSeasonSummariesList([]);
+        setSelectedSeasonSummaryId(null);
+        setServerError('Failed to load Season Archive.');
       }
-    } catch (e) {
-      setSeasonSummariesList([]);
-      setSelectedSeasonSummaryId(null);
+    };
+
+    if (activeTab === 'Season Archive') {
+      // use local read of view mode to avoid referencing hook-initialized `viewMode` too early
+      const vm = (() => { try { return getViewMode(); } catch (e) { return 'singles'; } })();
+      // inject viewMode into the fetch function via refetch with selected mode
+      fetchSummariesFromDb(vm);
     }
+
     // load running season for current division on mount and when division changes
     loadRunningSeasonFromDb(division);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [division]);
+  }, [division, activeTab]);
 
   
 
