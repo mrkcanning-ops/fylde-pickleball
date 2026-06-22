@@ -3,6 +3,7 @@
 import { useState, useEffect, useLayoutEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import HeaderStats from "../components/HeaderStats";
+import PreviousSeasonsClient from "./previous-seasons/PreviousSeasonsClient";
 import { supabase } from "../lib/supabase";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode } from "../lib/ls";
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
@@ -3203,34 +3204,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
 )}
 
         {activeTab === "Previous Seasons" && (
-          <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-6">
-            <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4">
-              <div className="font-bold text-yellow-500 text-lg">📜 Previous Seasons</div>
-            </div>
-
-            {filteredSeasonSummaries.length === 0 ? (
-              <div className="text-gray-600">No archived seasons for this division.</div>
-            ) : (
-              <div className="space-y-3">
-                {filteredSeasonSummaries.map((s) => {
-                  const title = s.name || s.title || new Date(s.timestamp).toLocaleString();
-                  const final = s.finalStandings || s.final_standings || [];
-                  return (
-                    <div key={s.id} className={`p-3 rounded border cursor-pointer ${selectedSeasonId === s.id ? 'ring-2 ring-yellow-400 bg-yellow-50' : 'bg-white border-gray-200'}`} onClick={() => { setSelectedSeasonId(s.id); setSelectedSeason(s); }}>
-                      <div className="flex items-center justify-between">
-                        <div className="font-semibold">{title}</div>
-                        <div className="text-sm text-gray-500">Division {s.division}</div>
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1">{final.length} players · {Array.isArray(s.matches) ? s.matches.length : 0} matches</div>
-                      {selectedSeasonId === s.id && selectedSeason && (
-                        <pre className="mt-3 p-3 bg-gray-50 rounded text-xs overflow-auto">{JSON.stringify(selectedSeason, null, 2)}</pre>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <PreviousSeasonsClient division={division} />
         )}
 
     <div className="mt-8 px-6 py-6 flex justify-center gap-4 border-t border-gray-200 bg-red-50">
