@@ -11,6 +11,7 @@ export default function Tabs() {
     { name: "Players", href: "/players" },
     { name: "Matches", href: "/matches" },
     { name: "Previous Matches", href: "/previous-matches" },
+    { name: "Season Archive", href: "/season-archive" },
   ];
 
   return (
