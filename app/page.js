@@ -2674,6 +2674,15 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         )}
 
+        {/* Quick debug indicator to help diagnose Previous Seasons rendering */}
+        {activeTab === "Previous Seasons" && (
+          <div className="mt-2 text-xs text-gray-300 bg-gray-800 bg-opacity-40 rounded px-3 py-2">
+            <div>Debug: activeTab: {activeTab}</div>
+            <div>seasonSummaries: {(seasonSummaries || []).length}</div>
+            <div>filtered: {filteredSeasonSummaries.length}</div>
+          </div>
+        )}
+
         {activeTab === "Matches" && (
           <div className="mt-4 flex flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
