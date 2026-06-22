@@ -852,141 +852,9 @@ const fetchPreviousMatches = async () => {
       if (bWinPct !== aWinPct) return bWinPct - aWinPct;
       // 2. Point diff (descending)
       if (bDiff !== aDiff) return bDiff - aDiff;
-      // 3. Games played (descending)
-      if (bGP !== aGP) return bGP - aGP;
-      // 4. Alphabetically
-      return (a.name || "").localeCompare(b.name || "");
     });
 
     return [...eligible, ...ineligible];
-  };
-
-  const fetchPlayers = async () => {
-    const { data, error } = await db("players")
-      .select("*")
-      .eq("division", division); // filter by current division
-
-    if (!error) {
-      const processed = (data || []).map((p) => ({
-        ...p,
-        win_streak: p.win_streak || 0,
-        improved: 0,
-      }));
-
-      // Build rank maps based on matches so we can compute position changes.
-      const { data: divisionMatches, error: matchesError } = await db("previous_matches")
-        .select("players,scores,created_at")
-        .eq("division", division)
-        .order("created_at", { ascending: true });
-
-      const computeRankMapFromMatches = (matchesList) => {
-        const running = {};
-        processed.forEach((p) => {
-          running[p.id] = { wins: 0, losses: 0, draws: 0, points: 0, points_for: 0, points_against: 0 };
-        });
-
-        for (const match of matchesList) {
-          const playersArray = Array.isArray(match.players) ? match.players : JSON.parse(match.players || "[]");
-          const team1 = playersArray.slice(0, 2);
-          const team2 = playersArray.slice(2, 4);
-          const score1 = Number(match.scores?.team1 || 0);
-          const score2 = Number(match.scores?.team2 || 0);
-
-          const apply = (playerId, scored, conceded, result) => {
-            if (!running[playerId]) return;
-            running[playerId].points_for += scored;
-            running[playerId].points_against += conceded;
-            if (result === "win") {
-              running[playerId].wins += 1;
-              running[playerId].points += 3;
-            } else if (result === "loss") {
-              running[playerId].losses += 1;
-            } else {
-              running[playerId].draws += 1;
-              running[playerId].points += 1;
-            }
-          };
-
-          if (score1 > score2) {
-            team1.forEach((id) => apply(id, score1, score2, "win"));
-            team2.forEach((id) => apply(id, score2, score1, "loss"));
-          } else if (score1 < score2) {
-            team1.forEach((id) => apply(id, score1, score2, "loss"));
-            team2.forEach((id) => apply(id, score2, score1, "win"));
-          } else {
-            team1.forEach((id) => apply(id, score1, score2, "draw"));
-            team2.forEach((id) => apply(id, score2, score1, "draw"));
-          }
-        }
-
-        const ranked = sortPlayersByStats(
-          processed.map((p) => ({ ...p, ...running[p.id] }))
-        );
-        const map = {};
-        ranked.forEach((p, idx) => (map[p.id] = idx + 1));
-        return map;
-      };
-
-      let prevPositions = {};
-
-      if (!matchesError && Array.isArray(divisionMatches) && divisionMatches.length > 0) {
-        const allMatches = divisionMatches.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        // determine date (yyyy-mm-dd) of most recent match
-        const latestDate = new Date(allMatches[allMatches.length - 1].created_at).toISOString().split("T")[0];
-        const matchesBeforeLatest = allMatches.filter((m) => {
-          const d = new Date(m.created_at).toISOString().split("T")[0];
-          return d < latestDate;
-        });
-
-        if (matchesBeforeLatest.length > 0) {
-          prevPositions = computeRankMapFromMatches(matchesBeforeLatest);
-        } else {
-          // If there are no earlier matches, leave prevPositions empty so changes will show as 0/—
-          prevPositions = {};
-        }
-      }
-
-      // Sort using new criteria and calculate positionChange based on new positions (current = all matches)
-      const sorted = sortPlayersByStats(processed);
-      const withPositionChange = sorted.map((p, index) => ({
-        ...p,
-        positionChange: prevPositions[p.id] !== undefined ? prevPositions[p.id] - (index + 1) : 0,
-      }));
-
-      setPlayers(withPositionChange);
-      return withPositionChange;
-    }
-
-    return [];
-  };
-
-  const toggleDivision = () => {
-    // Cycle through available divisions defined in `divisions`
-    const idx = divisions.findIndex((d) => d.id === division);
-    const nextIdx = (idx + 1) % divisions.length;
-    const newDivision = divisions[nextIdx].id;
-    setDivision(newDivision);
-    fetchAllDivisionPlayers(newDivision);
-  };
-
-  const prevDivision = () => {
-    if (!divisions || divisions.length === 0) return;
-    const idx = divisions.findIndex((d) => d.id === division);
-    const prevIdx = (idx - 1 + divisions.length) % divisions.length;
-    const newDivision = divisions[prevIdx].id;
-    setDivision(newDivision);
-    fetchAllDivisionPlayers(newDivision);
-  };
-
-  const fetchAllDivisionPlayers = async (divisionNum = division) => {
-    const { data, error } = await db("players")
-      .select("*")
-      .eq("division", divisionNum)
-      .order("name", { ascending: true });
-
-    if (!error) {
-      setAllDivisionPlayers(data || []);
-    }
   };
 
   const handleAddPlayer = async () => {
@@ -1019,6 +887,20 @@ const fetchPreviousMatches = async () => {
     setPlayers((prev) =>
       prev.map((p) => (String(p.id) === String(id) ? { ...p, active: newActive } : p))
     );
+  };
+
+  const prevDivision = () => {
+    if (!divisions || divisions.length === 0) return;
+    const idx = divisions.findIndex((d) => d.id === division);
+    const prevIdx = idx > 0 ? idx - 1 : divisions.length - 1;
+    setDivision(divisions[prevIdx].id);
+  };
+
+  const toggleDivision = () => {
+    if (!divisions || divisions.length === 0) return;
+    const idx = divisions.findIndex((d) => d.id === division);
+    const nextIdx = (idx + 1) % divisions.length;
+    setDivision(divisions[nextIdx].id);
   };
 
   const currentLeader = players[0]?.name || "—";
