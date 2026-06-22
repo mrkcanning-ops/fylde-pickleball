@@ -103,7 +103,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
         .select("*")
         .eq("division", divisionNum)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!error && data) {
         try {
@@ -546,7 +546,7 @@ const updatePlayerStatsFromMatches = async () => {
 
     // Helper to update stats by player id
     const updateStats = async (playerId, result, scored, conceded) => {
-      const { data: player, error } = await db("players").select("*").eq("id", playerId).single();
+      const { data: player, error } = await db("players").select("*").eq("id", playerId).maybeSingle();
 
       console.log("Looking for player id:", playerId);
       console.log("Found player:", player, "error:", error);
