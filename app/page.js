@@ -1130,7 +1130,7 @@ useEffect(() => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Season Archive"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
