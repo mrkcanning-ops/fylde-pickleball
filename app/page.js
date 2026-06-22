@@ -15,11 +15,6 @@ export default function HomePage() {
   const [standingsView, setStandingsView] = useState("Leaderboard");
   const [division, setDivision] = useState(1); // numeric id of current division
   const [divisions, setDivisions] = useState([]);
-  const [seasonSummaries, setSeasonSummaries] = useState([]);
-  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
-  const [selectedSeason, setSelectedSeason] = useState(null);
-  const [seasonLoadInfo, setSeasonLoadInfo] = useState({ source: null, count: 0 });
-  const filteredSeasonSummaries = (seasonSummaries || []).filter((s) => Number(s.division) === Number(division));
   // division list with display names; new divisions can be added at runtime
         {/* Previous Seasons: list + selected winner (minimal UI) */}
         {activeTab === "Previous Seasons" && (
