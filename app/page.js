@@ -92,6 +92,10 @@ const [adminError, setAdminError] = useState("");
     }
   });
 
+  // Season Archive (localStorage-only) state — simple dropdown UI for saved summaries
+  const [seasonSummariesList, setSeasonSummariesList] = useState([]);
+  const [selectedSeasonSummaryId, setSelectedSeasonSummaryId] = useState(null);
+
   // Try to load running season from Supabase for this division (fallback to localStorage)
   const loadRunningSeasonFromDb = async (divisionNum = division) => {
     if (!supabase) return;
@@ -120,6 +124,24 @@ const [adminError, setAdminError] = useState("");
   };
 
   useEffect(() => {
+    // Load saved season summaries for the current division when Season Archive tab is active
+    try {
+      if (activeTab === "Season Archive") {
+        const suffix = viewMode === 'doubles' ? '_doubles' : '';
+        const idxKey = `season_summaries_index${suffix}`;
+        const idx = getLSJson(idxKey, []) || [];
+        const items = (idx || []).map((id) => {
+          const raw = getLSRaw(id);
+          if (!raw) return null;
+          try { return JSON.parse(raw); } catch (e) { return null; }
+        }).filter(Boolean).filter((s) => Number(s.division) === Number(division));
+        setSeasonSummariesList(items);
+        setSelectedSeasonSummaryId(items[0]?.id || null);
+      }
+    } catch (e) {
+      setSeasonSummariesList([]);
+      setSelectedSeasonSummaryId(null);
+    }
     // load running season for current division on mount and when division changes
     loadRunningSeasonFromDb(division);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2620,6 +2642,26 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         )}
 
+        {activeTab === "Season Archive" && (
+          <div className="mt-4">
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-gray-300">Saved Summaries for Division</label>
+              <select
+                value={selectedSeasonSummaryId || ''}
+                onChange={(e) => setSelectedSeasonSummaryId(e.target.value || null)}
+                className="bg-gray-800 text-white border border-gray-600 rounded px-3 py-2 outline-none"
+              >
+                <option value="">-- Select saved summary --</option>
+                {seasonSummariesList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {new Date(s.timestamp).toLocaleString()} — Division {s.division}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
         {/* Previous Seasons tab removed */}
 
         {activeTab === "Matches" && (
@@ -3125,6 +3167,70 @@ const activePlayerCount = players.filter((p) => p.active).length;
         <div className="p-6 text-center text-gray-500">Tracker temporarily disabled to avoid Turbopack parsing issues.</div>
       )}
     </div>
+  </div>
+)}
+
+{/* Season Archive content panel */}
+{activeTab === "Season Archive" && (
+  <div className="p-4 bg-gray-800 rounded">
+    {selectedSeasonSummaryId ? (
+      (() => {
+        const sel = seasonSummariesList.find((s) => String(s.id) === String(selectedSeasonSummaryId));
+        if (!sel) return <div className="text-gray-300">Selected summary not found.</div>;
+        return (
+          <div>
+            <h3 className="text-lg font-bold text-yellow-400 mb-2">Summary — Division {sel.division} • {new Date(sel.timestamp).toLocaleString()}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-3 bg-gray-900 rounded">
+                <h4 className="font-semibold text-gray-200">Top By Points</h4>
+                <ol className="text-gray-300 mt-2">
+                  {(sel.topByPoints || sel.top_by_points || []).map((p) => (
+                    <li key={p.id}>{p.name} — {p.points ?? p.points}</li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="p-3 bg-gray-900 rounded">
+                <h4 className="font-semibold text-gray-200">Top By Wins</h4>
+                <ol className="text-gray-300 mt-2">
+                  {(sel.topByWins || sel.top_by_wins || []).map((p) => (
+                    <li key={p.id}>{p.name} — {p.wins ?? p.wins}</li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="md:col-span-2">
+                <h4 className="font-semibold text-gray-200">Matches ({(sel.matches || []).length})</h4>
+                <div className="overflow-x-auto mt-2 bg-gray-800 p-2 rounded">
+                  <table className="w-full text-left text-gray-200 text-sm">
+                    <thead className="text-gray-400 text-xs uppercase border-b border-gray-700">
+                      <tr>
+                        <th className="p-2">#</th>
+                        <th className="p-2">Players</th>
+                        <th className="p-2">Score</th>
+                        <th className="p-2">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(sel.matches || []).map((m, i) => (
+                        <tr key={i} className="border-b border-gray-700">
+                          <td className="p-2 align-top">{i + 1}</td>
+                          <td className="p-2">{(m.players || []).join(' vs ')}</td>
+                          <td className="p-2">{m.scores?.team1 ?? '-'} — {m.scores?.team2 ?? '-'}</td>
+                          <td className="p-2">{m.created_at ? new Date(m.created_at).toLocaleString() : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()
+    ) : (
+      <div className="text-gray-300">No saved summary selected for this division.</div>
+    )}
   </div>
 )}
 
