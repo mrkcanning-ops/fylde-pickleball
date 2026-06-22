@@ -1933,11 +1933,40 @@ const syncDivisions = async (vmOverride) => {
 
     const vm = vmOverride || getViewMode();
     const tableName = `divisions${vm === 'doubles' ? DOUBLES_SUFFIX : ''}`;
-      const { data: dbDivs, error } = await supabase.from(tableName)
-        .select("id,name,min_qualify_games")
-        .order("id", { ascending: true });
+      // If client-side Supabase is not configured, fall back to a REST fetch
+      if (!supabase) {
+        console.debug('syncDivisions: supabase client not configured on client, using REST fallback');
+        try {
+          const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/+$/,'')}/rest/v1/${tableName}`;
+          const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+          const resp = await fetch(url + '?select=id,name,min_qualify_games&order=id', {
+            headers: {
+              apikey: key,
+              Authorization: `Bearer ${key}`,
+              Accept: 'application/json'
+            }
+          });
+          const json = await resp.json().catch(() => null);
+          const dbDivs = Array.isArray(json) ? json : [];
+          const error = resp.ok ? null : { message: `REST fetch failed ${resp.status}` };
+          console.debug('syncDivisions: rest response', { dbDivs, error });
+          var finalDbDivs = dbDivs;
+          var finalError = error;
+        } catch (restErr) {
+          console.error('syncDivisions: REST fetch failed', restErr);
+          setServerError(`Failed to fetch divisions: ${restErr?.message || restErr}`);
+          return;
+        }
+      } else {
+        const { data: dbDivs, error } = await supabase.from(tableName)
+          .select("id,name,min_qualify_games")
+          .order("id", { ascending: true });
 
-      console.debug("syncDivisions: supabase response", { dbDivs, error });
+        console.debug("syncDivisions: supabase response", { dbDivs, error });
+
+        var finalDbDivs = dbDivs;
+        var finalError = error;
+      }
 
       // If missing column error, retry without column to recover older tables
       let finalDbDivs = dbDivs;
