@@ -3190,108 +3190,144 @@ const activePlayerCount = players.filter((p) => p.active).length;
   <div className="bg-gray-700 rounded shadow p-4">
     <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">📜 Season Archive</h2>
 
-    {seasonSummariesList.length === 0 ? (
-      <p className="text-gray-300 italic text-sm">No saved season summaries for this division.</p>
+    {divisions.length === 0 ? (
+      <p className="text-gray-300 italic text-sm">No divisions configured.</p>
     ) : (
       <div className="space-y-8">
-        {seasonSummariesList.map((sel, idx) => {
-          const date = sel.timestamp ? new Date(sel.timestamp).toLocaleString() : 'Unknown date';
-          const key = `season-${sel.id}`;
-          const isOpen = openDates.includes(key);
-          const totalMatches = (sel.matches || []).length;
+        {divisions.map((d) => {
+          const divKey = `division-${d.id}`;
+          const divOpen = openDates.includes(divKey);
+          const items = (seasonSummariesList || []).filter((s) => Number(s.division) === Number(d.id));
 
           return (
-            <div key={sel.id} className="space-y-4">
+            <div key={d.id} className="space-y-4">
+              <div className="text-sm font-bold text-yellow-400">{d.name}</div>
+
               <details
-                key={key}
-                open={isOpen}
+                key={divKey}
+                open={divOpen}
                 onToggle={(e) => {
+                  const date = divKey;
                   if (e.currentTarget.open) {
-                    // Make this accordion exclusive: opening one collapses others
-                    setOpenDates([key]);
+                    setOpenDates((prev) => (prev.includes(date) ? prev : [...prev, date]));
                   } else {
-                    setOpenDates((prev) => prev.filter((d) => d !== key));
+                    setOpenDates((prev) => prev.filter((dd) => dd !== date));
                   }
                 }}
                 className="mb-3 rounded-xl border border-gray-600 bg-gray-800 overflow-hidden"
               >
-                <summary className="list-none cursor-pointer select-none px-4 py-4 flex flex-col items-start gap-3 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-                    <span className="text-xl">📦</span>
+                <summary className="list-none cursor-pointer select-none px-4 py-3 flex items-center justify-between hover:bg-gray-700">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">📂</span>
                     <div className="min-w-0">
-                      <div className="font-extrabold text-yellow-300 truncate">{date}</div>
-                      <div className="text-xs text-gray-400">Division {sel.division}</div>
+                      <div className="font-semibold text-gray-200">{d.name}</div>
+                      <div className="text-xs text-gray-400">{items.length} saved summary{items.length === 1 ? '' : 'ies'}</div>
                     </div>
                   </div>
-
-                  <div className="w-full flex items-center justify-between sm:w-auto sm:justify-end sm:gap-2">
-                    <span className="shrink-0 text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">
-                      {totalMatches} match{totalMatches === 1 ? '' : 'es'}
-                    </span>
-
-                    <span className="shrink-0 flex items-center gap-2">
-                      <span className="text-sm font-bold text-white bg-yellow-600 px-3 py-1 rounded-lg">
-                        {isOpen ? 'Hide' : 'Show'}
-                      </span>
-                      <span className={`text-yellow-300 text-2xl transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'}`} aria-hidden="true">▾</span>
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">{items.length}</span>
+                    <span className={`text-yellow-300 text-2xl ${divOpen ? 'rotate-180' : 'rotate-0'}`}>▾</span>
                   </div>
                 </summary>
 
                 <div className="p-4 bg-gray-700">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <div className="p-3 bg-gray-900 rounded">
-                        <h4 className="font-semibold text-gray-200">Top By Points</h4>
-                        <ol className="text-gray-300 mt-2">
-                          {(sel.topByPoints || sel.top_by_points || []).map((p) => (
-                            <li key={p.id}>{p.name} — {p.points ?? p.points}</li>
-                          ))}
-                        </ol>
-                      </div>
-                    </div>
+                  {items.length === 0 ? (
+                    <p className="text-gray-300 italic">No saved summaries for this division.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {items.map((sel) => {
+                        const sKey = `season-${sel.id}`;
+                        const sOpen = openDates.includes(sKey);
+                        const totalMatches = (sel.matches || []).length;
 
-                    <div>
-                      <div className="p-3 bg-gray-900 rounded">
-                        <h4 className="font-semibold text-gray-200">Top By Wins</h4>
-                        <ol className="text-gray-300 mt-2">
-                          {(sel.topByWins || sel.top_by_wins || []).map((p) => (
-                            <li key={p.id}>{p.name} — {p.wins ?? p.wins}</li>
-                          ))}
-                        </ol>
-                      </div>
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <h4 className="font-semibold text-gray-200">Matches</h4>
-                      <div className="mt-2 bg-gray-800 p-2 rounded">
-                        {(sel.matches || []).length === 0 ? (
-                          <p className="text-gray-300 italic">No matches recorded.</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {(sel.matches || []).map((m, i) => (
-                              <div key={i} className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300">
-                                <div className="flex items-center justify-between mb-1">
-                                  <div className="font-semibold">Division {m.division ?? sel.division}</div>
-                                  <div className="text-xs text-gray-500">{m.created_at ? new Date(m.created_at).toLocaleString() : '-'}</div>
+                        return (
+                          <details
+                            key={sKey}
+                            open={sOpen}
+                            onToggle={(e) => {
+                              const date = sKey;
+                              if (e.currentTarget.open) {
+                                setOpenDates((prev) => (prev.includes(date) ? prev : [...prev, date]));
+                              } else {
+                                setOpenDates((prev) => prev.filter((dd) => dd !== date));
+                              }
+                            }}
+                            className="mb-2 rounded-lg border border-gray-600 bg-gray-800 overflow-hidden"
+                          >
+                            <summary className="list-none cursor-pointer select-none px-3 py-3 flex items-center justify-between hover:bg-gray-700">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <span className="text-lg">📦</span>
+                                <div className="min-w-0">
+                                  <div className="font-bold text-yellow-300 truncate">{sel.timestamp ? new Date(sel.timestamp).toLocaleString() : 'Unknown'}</div>
+                                  <div className="text-xs text-gray-400">Division {sel.division}</div>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-                                  <div className="text-center">
-                                    <div className="font-bold text-base text-gray-700">{(m.players || []).slice(0,2).join(' & ')}</div>
-                                    <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team1 ?? '—'}</div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">{totalMatches}</span>
+                                <span className={`text-yellow-300 text-2xl ${sOpen ? 'rotate-180' : 'rotate-0'}`}>▾</span>
+                              </div>
+                            </summary>
+
+                            <div className="p-3 bg-gray-700">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <div className="p-3 bg-gray-900 rounded">
+                                    <h4 className="font-semibold text-gray-200">Top By Points</h4>
+                                    <ol className="text-gray-300 mt-2">
+                                      {(sel.topByPoints || sel.top_by_points || []).map((p) => (
+                                        <li key={p.id}>{p.name} — {p.points ?? p.points}</li>
+                                      ))}
+                                    </ol>
                                   </div>
-                                  <div className="text-center">
-                                    <div className="font-bold text-base text-gray-700">{(m.players || []).slice(2,4).join(' & ')}</div>
-                                    <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team2 ?? '—'}</div>
+                                </div>
+
+                                <div>
+                                  <div className="p-3 bg-gray-900 rounded">
+                                    <h4 className="font-semibold text-gray-200">Top By Wins</h4>
+                                    <ol className="text-gray-300 mt-2">
+                                      {(sel.topByWins || sel.top_by_wins || []).map((p) => (
+                                        <li key={p.id}>{p.name} — {p.wins ?? p.wins}</li>
+                                      ))}
+                                    </ol>
+                                  </div>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                  <h4 className="font-semibold text-gray-200">Matches</h4>
+                                  <div className="mt-2 bg-gray-800 p-2 rounded">
+                                    {(sel.matches || []).length === 0 ? (
+                                      <p className="text-gray-300 italic">No matches recorded.</p>
+                                    ) : (
+                                      <div className="space-y-2">
+                                        {(sel.matches || []).map((m, i) => (
+                                          <div key={i} className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300">
+                                            <div className="flex items-center justify-between mb-1">
+                                              <div className="font-semibold">Division {m.division ?? sel.division}</div>
+                                              <div className="text-xs text-gray-500">{m.created_at ? new Date(m.created_at).toLocaleString() : '-'}</div>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                                              <div className="text-center">
+                                                <div className="font-bold text-base text-gray-700">{(m.players || []).slice(0,2).join(' & ')}</div>
+                                                <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team1 ?? '—'}</div>
+                                              </div>
+                                              <div className="text-center">
+                                                <div className="font-bold text-base text-gray-700">{(m.players || []).slice(2,4).join(' & ')}</div>
+                                                <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team2 ?? '—'}</div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                            </div>
+                          </details>
+                        );
+                      })}
                     </div>
-                  </div>
+                  )}
                 </div>
               </details>
             </div>
