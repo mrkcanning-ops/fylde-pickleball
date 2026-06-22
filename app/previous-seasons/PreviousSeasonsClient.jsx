@@ -23,8 +23,10 @@ export default function PreviousSeasonsClient({ division }) {
         const { data, error } = await supabase.from(seasonsTable).select("*").order("timestamp", { ascending: false });
         console.debug('[PreviousSeasons] supabase returned:', Array.isArray(data) ? data.length : 'no-data', 'error:', error);
         if (!error && Array.isArray(data)) {
-          setSeasonSummaries(data);
-          setSeasonLoadInfo({ source: 'supabase', count: data.length });
+          console.debug('[PreviousSeasons] first item:', data[0]);
+          const normalized = data.map((d) => ({ ...d, id: d.id ? String(d.id) : `no-id-${Math.random().toString(36).slice(2,8)}`, timestamp: d.timestamp || d.created_at || new Date().toISOString() }));
+          setSeasonSummaries(normalized);
+          setSeasonLoadInfo({ source: 'supabase', count: normalized.length });
           if (data.length > 0) {
             setSelectedSeasonId(data[0].id);
             setSelectedSeason(data[0]);
