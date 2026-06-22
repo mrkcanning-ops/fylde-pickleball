@@ -16,56 +16,7 @@ export default function HomePage() {
   const [division, setDivision] = useState(1); // numeric id of current division
   const [divisions, setDivisions] = useState([]);
   // division list with display names; new divisions can be added at runtime
-        {/* Previous Seasons: list + selected winner (minimal UI) */}
-        {activeTab === "Previous Seasons" && (
-          <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-4">
-            <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4">
-              <div className="font-bold text-yellow-500 text-lg">📜 Previous Seasons</div>
-            </div>
-
-            <div className="flex gap-6">
-              <div className="w-1/3">
-                <div className="text-sm text-gray-500 mb-2">Source: {seasonLoadInfo.source || 'n/a'} ({seasonLoadInfo.count || 0})</div>
-                {filteredSeasonSummaries.length === 0 ? (
-                  <div className="text-gray-600">No archived seasons for this division.</div>
-                ) : (
-                  <ul className="space-y-2">
-                    {filteredSeasonSummaries.map((s) => (
-                      <li key={s.id}>
-                        <button
-                          onClick={() => { setSelectedSeasonId(s.id); setSelectedSeason(s); }}
-                          className={`w-full text-left p-2 rounded ${selectedSeasonId === s.id ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'}`}
-                        >
-                          <div className="font-semibold">{s.name || s.id}</div>
-                          <div className="text-xs text-gray-500">{s.division ? `Division ${s.division}` : ''} {s.timestamp ? `— ${new Date(s.timestamp).toLocaleString()}` : ''}</div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="flex-1">
-                {selectedSeason ? (
-                  (() => {
-                    const final = selectedSeason.finalStandings || selectedSeason.final_standings || [];
-                    const winner = Array.isArray(final) && final.length > 0 ? final[0] : null;
-                    if (!winner) return <div className="text-gray-600">No final standings available for the selected season.</div>;
-                    return (
-                      <div className="p-4">
-                        <div className="text-sm text-gray-500">Winner</div>
-                        <div className="font-bold text-2xl text-gray-900">{winner.name}</div>
-                        <div className="text-sm text-gray-600">{(winner.points || 0)} pts</div>
-                      </div>
-                    );
-                  })()
-                ) : (
-                  <div className="text-gray-600">Select a season to view details.</div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        
 const [resetPasswordInput, setResetPasswordInput] = useState("");
 const [resetError, setResetError] = useState("");
   const router = useRouter();
