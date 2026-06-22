@@ -1937,7 +1937,12 @@ const syncDivisions = async (vmOverride) => {
       if (!supabase) {
         console.debug('syncDivisions: supabase client not configured on client, using REST fallback');
         try {
-          const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/+$/,'')}/rest/v1/${tableName}`;
+          const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+          if (!base) {
+            setServerError('Missing Supabase URL (NEXT_PUBLIC_SUPABASE_URL)');
+            return;
+          }
+          const url = `${base.replace(/\/+$/,'')}/rest/v1/${tableName}`;
           const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
           const resp = await fetch(url + '?select=id,name,min_qualify_games&order=id', {
             headers: {
@@ -1979,7 +1984,12 @@ const syncDivisions = async (vmOverride) => {
         console.error("Failed to fetch divisions via supabase client:", finalError);
       // Try a direct REST fetch to help debug CORS/permission issues
       try {
-        const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/+$/,'')}/rest/v1/divisions`;
+        const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (!base) {
+          setServerError('Missing Supabase URL (NEXT_PUBLIC_SUPABASE_URL)');
+          return;
+        }
+        const url = `${base.replace(/\/+$/,'')}/rest/v1/divisions`;
         const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
         console.debug("syncDivisions: attempting direct REST fetch", { url });
         const resp = await fetch(url, {
