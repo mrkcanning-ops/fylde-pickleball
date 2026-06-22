@@ -19,6 +19,15 @@ export default async function PreviousSeasonPage() {
     initialLoadInfo = { source: 'fetch-failed', count: 0 };
   }
 
-  return <PreviousSeasonsClient initialSummaries={initialSummaries} initialLoadInfo={initialLoadInfo} />;
+  return (
+    <>
+      <div className="mb-4 p-3 rounded bg-yellow-50 border border-yellow-200 text-sm text-gray-700">
+        <div><strong>PreviousSeasons (server)</strong></div>
+        <div>source: {initialLoadInfo.source || 'none'}</div>
+        <div>count: {initialLoadInfo.count || 0}</div>
+      </div>
+      <PreviousSeasonsClient initialSummaries={initialSummaries} initialLoadInfo={initialLoadInfo} />
+    </>
+  );
 }
 
