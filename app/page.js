@@ -181,6 +181,30 @@ const [adminError, setAdminError] = useState("");
     } catch (e) {}
   }, []);
 
+  // When a saved summary is selected from the dropdown, open its division
+  // and the summary accordion so the user sees the saved data immediately.
+  useEffect(() => {
+    if (!selectedSeasonSummaryId) return;
+    const sKey = `season-${selectedSeasonSummaryId}`;
+    const sel = (seasonSummariesList || []).find((s) => String(s.id) === String(selectedSeasonSummaryId));
+    if (!sel) return;
+    const divKey = `division-${sel.division}`;
+    setOpenDates((prev) => {
+      const next = new Set(prev || []);
+      next.add(divKey);
+      next.add(sKey);
+      return Array.from(next);
+    });
+
+    // scroll into view after a short delay to allow the details to open
+    setTimeout(() => {
+      try {
+        const el = document.getElementById(sKey) || document.getElementById(divKey);
+        if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (e) {}
+    }, 120);
+  }, [selectedSeasonSummaryId, seasonSummariesList]);
+
   // Helper to pick table name depending on view mode (league or doubles)
   // Force literal suffix to avoid environment mismatch during development
   const DOUBLES_SUFFIX = "_doubles";
@@ -3205,6 +3229,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
               <details
                 key={divKey}
+                id={divKey}
                 open={divOpen}
                 onToggle={(e) => {
                   const date = divKey;
@@ -3243,6 +3268,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         return (
                           <details
                             key={sKey}
+                            id={sKey}
                             open={sOpen}
                             onToggle={(e) => {
                               const date = sKey;
@@ -3298,26 +3324,84 @@ const activePlayerCount = players.filter((p) => p.active).length;
                                     {(sel.matches || []).length === 0 ? (
                                       <p className="text-gray-300 italic">No matches recorded.</p>
                                     ) : (
-                                      <div className="space-y-2">
-                                        {(sel.matches || []).map((m, i) => (
-                                          <div key={i} className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300">
-                                            <div className="flex items-center justify-between mb-1">
-                                              <div className="font-semibold">Division {m.division ?? sel.division}</div>
-                                              <div className="text-xs text-gray-500">{m.created_at ? new Date(m.created_at).toLocaleString() : '-'}</div>
-                                            </div>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-                                              <div className="text-center">
-                                                <div className="font-bold text-base text-gray-700">{(m.players || []).slice(0,2).join(' & ')}</div>
-                                                <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team1 ?? '—'}</div>
+                                      (() => {
+                                        const courtMatches = { court1: [], court2: [] };
+                                        try {
+                                          (sel.matches || []).forEach((m) => {
+                                            const court = (m.court || 'court1').toLowerCase();
+                                            if (court === 'court2') courtMatches.court2.push(m);
+                                            else courtMatches.court1.push(m);
+                                          });
+                                        } catch (e) {
+                                          // fall back
+                                        }
+
+                                        return (
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                              <div className="bg-blue-100 text-blue-900 font-bold px-3 py-2 rounded mb-2 text-center">🎾 Court 1</div>
+                                              <div className="space-y-2">
+                                                {courtMatches.court1.length === 0 ? (
+                                                  <p className="text-gray-300 text-sm italic">No matches</p>
+                                                ) : (
+                                                  courtMatches.court1.map((m, idx) => (
+                                                    <div key={idx} className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300">
+                                                      <div className="flex items-center justify-between mb-1">
+                                                        <div className="text-blue-600 font-semibold">Division {m.division ?? sel.division}</div>
+                                                      </div>
+                                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                                                        <div className="text-center">
+                                                          <div className="font-bold text-base text-gray-700">
+                                                            {Array.isArray(m.players) ? m.players.slice(0,2).map((id) => (typeof id === 'object' ? id.name : getPlayerNameFromId(id))).join(' & ') : String((m.players || []).slice(0,2)).replace(/,/g, ' & ')}
+                                                          </div>
+                                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team1 ?? '—'}</div>
+                                                        </div>
+                                                        <div className="text-center">
+                                                          <div className="font-bold text-base text-gray-700">
+                                                            {Array.isArray(m.players) ? m.players.slice(2,4).map((id) => (typeof id === 'object' ? id.name : getPlayerNameFromId(id))).join(' & ') : String((m.players || []).slice(2,4)).replace(/,/g, ' & ')}
+                                                          </div>
+                                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team2 ?? '—'}</div>
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  ))
+                                                )}
                                               </div>
-                                              <div className="text-center">
-                                                <div className="font-bold text-base text-gray-700">{(m.players || []).slice(2,4).join(' & ')}</div>
-                                                <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team2 ?? '—'}</div>
+                                            </div>
+
+                                            <div>
+                                              <div className="bg-purple-100 text-purple-900 font-bold px-3 py-2 rounded mb-2 text-center">🎾 Court 2</div>
+                                              <div className="space-y-2">
+                                                {courtMatches.court2.length === 0 ? (
+                                                  <p className="text-gray-300 text-sm italic">No matches</p>
+                                                ) : (
+                                                  courtMatches.court2.map((m, idx) => (
+                                                    <div key={idx} className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300">
+                                                      <div className="flex items-center justify-between mb-1">
+                                                        <div className="text-purple-600 font-semibold">Division {m.division ?? sel.division}</div>
+                                                      </div>
+                                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                                                        <div className="text-center">
+                                                          <div className="font-bold text-base text-gray-700">
+                                                            {Array.isArray(m.players) ? m.players.slice(0,2).map((id) => (typeof id === 'object' ? id.name : getPlayerNameFromId(id))).join(' & ') : String((m.players || []).slice(0,2)).replace(/,/g, ' & ')}
+                                                          </div>
+                                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team1 ?? '—'}</div>
+                                                        </div>
+                                                        <div className="text-center">
+                                                          <div className="font-bold text-base text-gray-700">
+                                                            {Array.isArray(m.players) ? m.players.slice(2,4).map((id) => (typeof id === 'object' ? id.name : getPlayerNameFromId(id))).join(' & ') : String((m.players || []).slice(2,4)).replace(/,/g, ' & ')}
+                                                          </div>
+                                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team2 ?? '—'}</div>
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  ))
+                                                )}
                                               </div>
                                             </div>
                                           </div>
-                                        ))}
-                                      </div>
+                                        );
+                                      })()
                                     )}
                                   </div>
                                 </div>
