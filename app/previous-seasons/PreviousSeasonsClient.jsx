@@ -8,6 +8,7 @@ const DOUBLES_SUFFIX = "_doubles";
 
 export default function PreviousSeasonsClient({ division }) {
   const [seasonSummaries, setSeasonSummaries] = useState([]);
+  const [seasonLoadInfo, setSeasonLoadInfo] = useState({ source: null, count: 0 });
   const [selectedSeasonId, setSelectedSeasonId] = useState(null);
   const [selectedSeason, setSelectedSeason] = useState(null);
   const viewMode = getViewMode();
@@ -21,6 +22,7 @@ export default function PreviousSeasonsClient({ division }) {
         const { data, error } = await supabase.from(seasonsTable).select("*").order("timestamp", { ascending: false });
         if (!error && Array.isArray(data)) {
           setSeasonSummaries(data);
+          setSeasonLoadInfo({ source: 'supabase', count: data.length });
           if (data.length > 0) {
             setSelectedSeasonId(data[0].id);
             setSelectedSeason(data[0]);
@@ -34,9 +36,12 @@ export default function PreviousSeasonsClient({ division }) {
       // fallback to localStorage index
       try {
         const idx = getLSJson(idxKey, []);
+        console.debug('[PreviousSeasons] local index key:', idxKey, 'idx:', idx);
         if (Array.isArray(idx) && idx.length > 0) {
           const items = idx.map((id) => getLSJson(id, null)).filter(Boolean);
+          console.debug('[PreviousSeasons] loaded items from LS:', items.length);
           setSeasonSummaries(items);
+          setSeasonLoadInfo({ source: 'local', count: items.length });
           if (items.length > 0) {
             setSelectedSeasonId(items[0].id);
             setSelectedSeason(items[0]);
@@ -144,6 +149,9 @@ export default function PreviousSeasonsClient({ division }) {
             );
           })}
         </div>
+      )}
+      {seasonLoadInfo.source && (
+        <div className="mt-2 text-xs text-gray-400">Loaded from: {seasonLoadInfo.source} ({seasonLoadInfo.count})</div>
       )}
     </div>
   );
