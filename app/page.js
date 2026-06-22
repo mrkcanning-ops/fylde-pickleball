@@ -162,6 +162,66 @@ const [previousMatches, setPreviousMatches] = useState([]);
     );
   }; 
 
+  // Handlers for Previous Seasons actions
+  const handleAddSeason = () => {
+    const name = window.prompt("New season name (optional):");
+    if (name === null) return;
+    const id = `season_summary_${division}_${Date.now()}`;
+    const newSummary = {
+      id,
+      division,
+      timestamp: new Date().toISOString(),
+      name,
+      players: [],
+      matches: [],
+      final_standings: [],
+    };
+    setSeasonSummaries((prev) => [newSummary, ...(prev || [])]);
+    try {
+      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
+      const existingIndex = getLSJson(idxKey, []);
+      existingIndex.unshift(newSummary.id);
+      setLSJson(idxKey, existingIndex);
+      setLSJson(newSummary.id, newSummary);
+    } catch (e) {
+      console.warn('Failed to persist new season to localStorage', e);
+    }
+  };
+
+  const handleEditSeason = () => {
+    if (!selectedSeasonId) {
+      alert('Select a season first (click a season entry)');
+      return;
+    }
+    const current = (seasonSummaries || []).find((s) => s.id === selectedSeasonId) || {};
+    const newName = window.prompt('Edit season name:', current.name || current.title || '');
+    if (newName === null) return;
+    const updated = { ...current, name: newName };
+    setSeasonSummaries((prev) => (prev || []).map((s) => (s.id === selectedSeasonId ? updated : s)));
+    try { setLSJson(updated.id, updated); } catch (e) { console.warn('Failed to update season in localStorage', e); }
+  };
+
+  const handleRemoveSeason = () => {
+    if (!selectedSeasonId) {
+      alert('Select a season first (click a season entry)');
+      return;
+    }
+    const confirmed = window.confirm('Permanently remove selected season?');
+    if (!confirmed) return;
+    setSeasonSummaries((prev) => (prev || []).filter((s) => s.id !== selectedSeasonId));
+    try {
+      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
+      const existingIndex = getLSJson(idxKey, []);
+      const next = (existingIndex || []).filter((id) => id !== selectedSeasonId);
+      setLSJson(idxKey, next);
+      removeLS(selectedSeasonId);
+    } catch (e) {
+      console.warn('Failed to remove season from localStorage', e);
+    }
+    setSelectedSeasonId(null);
+    setSelectedSeason(null);
+  };
+
   const [showResetModal, setShowResetModal] = useState(false);
   const [showEndSeasonChoiceModal, setShowEndSeasonChoiceModal] = useState(false);
   const [endSummaryContext, setEndSummaryContext] = useState(null);
@@ -3074,7 +3134,31 @@ const activePlayerCount = players.filter((p) => p.active).length;
         {activeTab === "Previous Seasons" && (
           <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-4">
             <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4">
-              <div className="font-bold text-yellow-500 text-lg">📜 Previous Seasons</div>
+              <div className="flex items-center justify-between">
+                <div className="font-bold text-yellow-500 text-lg">📜 Previous Seasons</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleAddSeason}
+                    className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded text-sm"
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={handleEditSeason}
+                    className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white rounded text-sm"
+                    disabled={!selectedSeasonId}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={handleRemoveSeason}
+                    className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-sm"
+                    disabled={!selectedSeasonId}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
             </div>
 
             {seasonSummaries.length === 0 ? (
