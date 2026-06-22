@@ -647,8 +647,9 @@ const fetchPreviousMatches = async () => {
     if (activeTab !== "Previous Seasons") return;
 
     const load = async () => {
-      const seasonsTable = viewMode === 'doubles' ? `season_summaries${DOUBLES_SUFFIX}` : "season_summaries";
-      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ""}`;
+      // Always read archived summaries from the canonical `season_summaries` table
+      const seasonsTable = "season_summaries";
+      const idxKey = "season_summaries_index";
       try {
         const { data, error } = await supabase
           .from(seasonsTable)

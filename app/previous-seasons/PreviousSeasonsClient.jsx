@@ -15,8 +15,9 @@ export default function PreviousSeasonsClient({ division, initialSummaries = [],
 
   useEffect(() => {
     const load = async () => {
-      const seasonsTable = viewMode === "doubles" ? `season_summaries${DOUBLES_SUFFIX}` : "season_summaries";
-      const idxKey = `season_summaries_index${viewMode === "doubles" ? DOUBLES_SUFFIX : ""}`;
+      // Use the canonical `season_summaries` table for Previous Seasons (no viewMode suffix)
+      const seasonsTable = "season_summaries";
+      const idxKey = "season_summaries_index";
 
       try {
         console.debug('[PreviousSeasons] querying table:', seasonsTable, 'viewMode:', viewMode, 'idxKey:', idxKey);
