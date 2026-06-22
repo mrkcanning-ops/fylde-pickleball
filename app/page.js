@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import HeaderStats from "../components/HeaderStats";
 import { supabase } from "../lib/supabase";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode } from "../lib/ls";
@@ -135,13 +135,13 @@ const [adminError, setAdminError] = useState("");
     try { return getViewMode(); } catch (e) { return "league"; }
   });
 
-  const searchParams = useSearchParams();
   useEffect(() => {
     try {
-      const t = searchParams?.get?.('tab');
+      const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const t = sp?.get?.('tab');
       if (t) setActiveTab(t);
     } catch (e) {}
-  }, [searchParams]);
+  }, []);
 
   // Helper to pick table name depending on view mode (league or doubles)
   // Force literal suffix to avoid environment mismatch during development
@@ -1969,9 +1969,7 @@ const syncDivisions = async (vmOverride) => {
       }
 
       // If missing column error, retry without column to recover older tables
-      let finalDbDivs = dbDivs;
-      let finalError = error;
-      if (error && String(error?.code) === "42703") {
+      if (finalError && String(finalError?.code) === "42703") {
         const fallback = await supabase.from(tableName).select("id,name").order("id", { ascending: true });
         finalDbDivs = fallback.data;
         finalError = fallback.error;
