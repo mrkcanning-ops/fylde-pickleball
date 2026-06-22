@@ -131,6 +131,7 @@ const [adminError, setAdminError] = useState("");
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
   const [hydrated, setHydrated] = useState(false);
   const [serverError, setServerError] = useState(null);
+  const supabaseConfigured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) && Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const [viewMode, setViewMode] = useState(() => {
     try { return getViewMode(); } catch (e) { return "league"; }
   });
@@ -226,6 +227,28 @@ const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
 
       const savedDivisions = getLSJson(`divisions_${viewMode}`, null);
       const savedDivisionId = Number(getLSRaw("division"));
+
+      // If Supabase is not configured for this environment, skip server fetch
+      // and load divisions from localStorage only. This prevents runtime
+      // errors in environments without NEXT_PUBLIC_SUPABASE_URL set.
+      if (!supabaseConfigured) {
+        try {
+          const savedDivisions = getLSJson(`divisions_${viewMode}`, null);
+          if (Array.isArray(savedDivisions) && savedDivisions.length > 0) {
+            setDivisions(savedDivisions);
+            const savedDivisionId = Number(getLSRaw("division")) || savedDivisions[0].id;
+            setDivision(savedDivisionId);
+          } else {
+            setDivisions([]);
+          }
+        } catch (e) {
+          console.warn('Failed to load divisions from localStorage fallback', e);
+          setDivisions([]);
+        }
+        setServerError('Supabase not configured: using localStorage fallback for divisions. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to enable full functionality.');
+        setHydrated(true);
+        return;
+      }
 
       // Server-first: attempt to load canonical divisions from Supabase
       // so all clients (different origins) see the same data. If the
