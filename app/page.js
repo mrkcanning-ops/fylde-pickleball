@@ -619,6 +619,7 @@ const verifyAdminCode = () => {
 };
 
 const fetchPreviousMatches = async () => {
+  console.debug('[PreviousSeasons:page] fetchPreviousMatches start', { division, viewMode, supabase: !!supabase });
   // Try Supabase client first; if unavailable or returns error, fallback to server API
   if (supabase) {
     try {
@@ -656,6 +657,10 @@ const fetchPreviousMatches = async () => {
     console.error('Failed to fetch previous matches from API:', e);
   }
 };
+
+useEffect(() => {
+  console.debug('[PreviousSeasons:page] previousMatches changed', { length: (previousMatches || []).length, first: previousMatches && previousMatches[0] });
+}, [previousMatches]);
 
   useEffect(() => {
     const syncAndFetchData = async () => {
