@@ -651,13 +651,13 @@ const fetchPreviousMatches = async () => {
       const idxKey = "season_summaries_index";
       try {
         const idx = getLSJson(idxKey, []);
-        console.debug("[seasons] loading from localStorage index:", idxKey, idx);
+        console.debug("[PreviousSeasons:page] loading from localStorage index:", idxKey, idx);
         const items = (idx || []).map((id) => {
           const raw = getLSRaw(id);
-          console.debug("[seasons] local item", id, raw ? 'present' : 'missing');
+          console.debug("[PreviousSeasons:page] local item", id, raw ? 'present' : 'missing');
           return raw ? JSON.parse(raw) : null;
         }).filter(Boolean);
-        console.debug("[seasons] local items loaded:", items.length);
+        console.debug("[PreviousSeasons:page] local items loaded:", items.length);
         setSeasonSummaries(items);
         setSeasonLoadInfo({ source: 'localStorage', count: items.length });
         if (items.length > 0) {

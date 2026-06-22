@@ -20,8 +20,9 @@ export default function PreviousSeasonsClient({ division, initialSummaries = [],
 
       // Try Supabase first
       try {
+        console.debug('[PreviousSeasons] supabase client present?', !!supabase);
         console.debug('[PreviousSeasons] querying supabase table:', seasonsTable);
-        const { data, error } = await supabase.from(seasonsTable).select("*").order("timestamp", { ascending: false });
+        const { data, error } = await (supabase ? supabase.from(seasonsTable).select("*").order("timestamp", { ascending: false }) : { data: null, error: 'supabase client missing' });
         console.debug('[PreviousSeasons] supabase returned:', Array.isArray(data) ? data.length : 'no-data', 'error:', error);
         if (!error && Array.isArray(data) && data.length > 0) {
           const normalized = data.map((d) => ({
