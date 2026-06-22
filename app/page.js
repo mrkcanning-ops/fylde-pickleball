@@ -3192,7 +3192,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 open={isOpen}
                 onToggle={(e) => {
                   if (e.currentTarget.open) {
-                    setOpenDates((prev) => (prev.includes(key) ? prev : [...prev, key]));
+                    // Make this accordion exclusive: opening one collapses others
+                    setOpenDates([key]);
                   } else {
                     setOpenDates((prev) => prev.filter((d) => d !== key));
                   }
