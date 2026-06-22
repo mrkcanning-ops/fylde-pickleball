@@ -2607,6 +2607,13 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </div>
       )}
 
+  useEffect(() => {
+    console.debug('[PreviousSeasons:overlay] activeTab changed', activeTab);
+    if (activeTab === 'Previous Seasons') {
+      console.debug('[PreviousSeasons:overlay] overlay should show, summaries:', (seasonSummaries||[]).length, seasonSummaries && seasonSummaries[0]);
+    }
+  }, [activeTab, seasonSummaries]);
+
       <HeaderStats stats={stats} />
 
       {process.env.NODE_ENV === "development" && hydrated && (
