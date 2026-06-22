@@ -3131,7 +3131,13 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 )}
 
-        {activeTab === "Previous Seasons" && <PreviousSeasonsClient division={division} />}
+        {activeTab === "Previous Seasons" && (
+          <PreviousSeasonsClient
+            division={division}
+            initialSummaries={seasonSummaries}
+            initialLoadInfo={seasonLoadInfo}
+          />
+        )}
 
     <div className="mt-8 px-6 py-6 flex justify-center gap-4 border-t border-gray-200 bg-red-50">
       <button

@@ -6,9 +6,9 @@ import { getLSJson, setLSJson, removeLS, getViewMode } from "../../lib/ls";
 
 const DOUBLES_SUFFIX = "_doubles";
 
-export default function PreviousSeasonsClient({ division }) {
-  const [seasonSummaries, setSeasonSummaries] = useState([]);
-  const [seasonLoadInfo, setSeasonLoadInfo] = useState({ source: null, count: 0 });
+export default function PreviousSeasonsClient({ division, initialSummaries = [], initialLoadInfo = { source: null, count: 0 } }) {
+  const [seasonSummaries, setSeasonSummaries] = useState(initialSummaries || []);
+  const [seasonLoadInfo, setSeasonLoadInfo] = useState(initialLoadInfo || { source: null, count: 0 });
   const [selectedSeasonId, setSelectedSeasonId] = useState(null);
   const [selectedSeason, setSelectedSeason] = useState(null);
   const viewMode = getViewMode();
