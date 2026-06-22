@@ -156,112 +156,6 @@ const [previousMatches, setPreviousMatches] = useState([]);
     }
   }, [hydrated, divisions, division]);
 
-  // Fetch players and matches for a division and compute leaderboard stats
-  const fetchAllDivisionPlayers = async (divisionId = division) => {
-    if (!supabase) return;
-    try {
-      const { data: playerData, error: playerError } = await db("players")
-        .select("*")
-        .eq("division", divisionId)
-        .order("name", { ascending: true });
-
-      if (playerError) {
-        console.error("Error fetching players:", playerError);
-        setPlayers([]);
-        setAllDivisionPlayers([]);
-      } else {
-        setPlayers(playerData || []);
-        setAllDivisionPlayers(playerData || []);
-      }
-
-      const { data: matchData, error: matchError } = await db("previous_matches")
-        .select("*")
-        .eq("division", divisionId)
-        .order("created_at", { ascending: true });
-
-      if (matchError) {
-        console.error("Error fetching previous matches:", matchError);
-        setPreviousMatches([]);
-      } else {
-        setPreviousMatches(matchData || []);
-      }
-
-      // Compute simple stats from matches and players
-      const statsById = {};
-      (playerData || []).forEach((p) => {
-        statsById[p.id] = {
-          id: p.id,
-          name: p.name,
-          wins: 0,
-          losses: 0,
-          draws: 0,
-          points: 0,
-          points_for: 0,
-          points_against: 0,
-          win_streak: 0,
-        };
-      });
-
-      (matchData || []).forEach((m) => {
-        const playersArr = Array.isArray(m.players)
-          ? m.players
-          : (() => {
-              try {
-                return JSON.parse(m.players || "[]");
-              } catch (e) {
-                return [];
-              }
-            })();
-
-        const team1 = playersArr.slice(0, 2).map(String);
-        const team2 = playersArr.slice(2, 4).map(String);
-        const score1 = Number(m.scores?.team1 ?? m.scores?.[0] ?? 0);
-        const score2 = Number(m.scores?.team2 ?? m.scores?.[1] ?? 0);
-
-        let result1 = "draw";
-        let result2 = "draw";
-        if (score1 > score2) {
-          result1 = "win";
-          result2 = "loss";
-        } else if (score1 < score2) {
-          result1 = "loss";
-          result2 = "win";
-        }
-
-        const update = (id, res, scored, conceded) => {
-          const s = statsById[id];
-          if (!s) return;
-          if (res === "win") {
-            s.wins += 1;
-            s.points += 3;
-            s.win_streak += 1;
-          } else if (res === "loss") {
-            s.losses += 1;
-            s.win_streak = 0;
-          } else {
-            s.draws += 1;
-            s.points += 1;
-            s.win_streak = 0;
-          }
-          s.points_for += scored;
-          s.points_against += conceded;
-        };
-
-        team1.forEach((id) => update(String(id), result1, score1, score2));
-        team2.forEach((id) => update(String(id), result2, score2, score1));
-      });
-
-      const ranked = sortPlayersByStats(Object.values(statsById));
-      setLeaderboard(ranked || []);
-    } catch (e) {
-      console.error("fetchAllDivisionPlayers error:", e);
-      setPlayers([]);
-      setAllDivisionPlayers([]);
-      setPreviousMatches([]);
-      setLeaderboard([]);
-    }
-  };
-
   const toggleDate = (date) => {
     setOpenDates((prev) =>
       prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date]
@@ -676,34 +570,6 @@ const fetchPreviousMatches = async () => {
   }
 };
 
-// Fetch players for the current division (simple loader used across the UI)
-const fetchPlayers = async (divisionId = division) => {
-  if (!supabase) return [];
-  try {
-    const { data, error } = await db("players")
-      .select("*")
-      .eq("division", divisionId)
-      .order("name", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching players:", error);
-      setPlayers([]);
-      setAllDivisionPlayers([]);
-      return [];
-    }
-
-    const playersData = data || [];
-    setPlayers(playersData);
-    setAllDivisionPlayers(playersData);
-    return playersData;
-  } catch (e) {
-    console.error("fetchPlayers error:", e);
-    setPlayers([]);
-    setAllDivisionPlayers([]);
-    return [];
-  }
-};
-
   useEffect(() => {
     const syncAndFetchData = async () => {
       const fetchedPlayers = await fetchPlayers();
@@ -986,9 +852,141 @@ const fetchPlayers = async (divisionId = division) => {
       if (bWinPct !== aWinPct) return bWinPct - aWinPct;
       // 2. Point diff (descending)
       if (bDiff !== aDiff) return bDiff - aDiff;
+      // 3. Games played (descending)
+      if (bGP !== aGP) return bGP - aGP;
+      // 4. Alphabetically
+      return (a.name || "").localeCompare(b.name || "");
     });
 
     return [...eligible, ...ineligible];
+  };
+
+  const fetchPlayers = async () => {
+    const { data, error } = await db("players")
+      .select("*")
+      .eq("division", division); // filter by current division
+
+    if (!error) {
+      const processed = (data || []).map((p) => ({
+        ...p,
+        win_streak: p.win_streak || 0,
+        improved: 0,
+      }));
+
+      // Build rank maps based on matches so we can compute position changes.
+      const { data: divisionMatches, error: matchesError } = await db("previous_matches")
+        .select("players,scores,created_at")
+        .eq("division", division)
+        .order("created_at", { ascending: true });
+
+      const computeRankMapFromMatches = (matchesList) => {
+        const running = {};
+        processed.forEach((p) => {
+          running[p.id] = { wins: 0, losses: 0, draws: 0, points: 0, points_for: 0, points_against: 0 };
+        });
+
+        for (const match of matchesList) {
+          const playersArray = Array.isArray(match.players) ? match.players : JSON.parse(match.players || "[]");
+          const team1 = playersArray.slice(0, 2);
+          const team2 = playersArray.slice(2, 4);
+          const score1 = Number(match.scores?.team1 || 0);
+          const score2 = Number(match.scores?.team2 || 0);
+
+          const apply = (playerId, scored, conceded, result) => {
+            if (!running[playerId]) return;
+            running[playerId].points_for += scored;
+            running[playerId].points_against += conceded;
+            if (result === "win") {
+              running[playerId].wins += 1;
+              running[playerId].points += 3;
+            } else if (result === "loss") {
+              running[playerId].losses += 1;
+            } else {
+              running[playerId].draws += 1;
+              running[playerId].points += 1;
+            }
+          };
+
+          if (score1 > score2) {
+            team1.forEach((id) => apply(id, score1, score2, "win"));
+            team2.forEach((id) => apply(id, score2, score1, "loss"));
+          } else if (score1 < score2) {
+            team1.forEach((id) => apply(id, score1, score2, "loss"));
+            team2.forEach((id) => apply(id, score2, score1, "win"));
+          } else {
+            team1.forEach((id) => apply(id, score1, score2, "draw"));
+            team2.forEach((id) => apply(id, score2, score1, "draw"));
+          }
+        }
+
+        const ranked = sortPlayersByStats(
+          processed.map((p) => ({ ...p, ...running[p.id] }))
+        );
+        const map = {};
+        ranked.forEach((p, idx) => (map[p.id] = idx + 1));
+        return map;
+      };
+
+      let prevPositions = {};
+
+      if (!matchesError && Array.isArray(divisionMatches) && divisionMatches.length > 0) {
+        const allMatches = divisionMatches.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        // determine date (yyyy-mm-dd) of most recent match
+        const latestDate = new Date(allMatches[allMatches.length - 1].created_at).toISOString().split("T")[0];
+        const matchesBeforeLatest = allMatches.filter((m) => {
+          const d = new Date(m.created_at).toISOString().split("T")[0];
+          return d < latestDate;
+        });
+
+        if (matchesBeforeLatest.length > 0) {
+          prevPositions = computeRankMapFromMatches(matchesBeforeLatest);
+        } else {
+          // If there are no earlier matches, leave prevPositions empty so changes will show as 0/—
+          prevPositions = {};
+        }
+      }
+
+      // Sort using new criteria and calculate positionChange based on new positions (current = all matches)
+      const sorted = sortPlayersByStats(processed);
+      const withPositionChange = sorted.map((p, index) => ({
+        ...p,
+        positionChange: prevPositions[p.id] !== undefined ? prevPositions[p.id] - (index + 1) : 0,
+      }));
+
+      setPlayers(withPositionChange);
+      return withPositionChange;
+    }
+
+    return [];
+  };
+
+  const toggleDivision = () => {
+    // Cycle through available divisions defined in `divisions`
+    const idx = divisions.findIndex((d) => d.id === division);
+    const nextIdx = (idx + 1) % divisions.length;
+    const newDivision = divisions[nextIdx].id;
+    setDivision(newDivision);
+    fetchAllDivisionPlayers(newDivision);
+  };
+
+  const prevDivision = () => {
+    if (!divisions || divisions.length === 0) return;
+    const idx = divisions.findIndex((d) => d.id === division);
+    const prevIdx = (idx - 1 + divisions.length) % divisions.length;
+    const newDivision = divisions[prevIdx].id;
+    setDivision(newDivision);
+    fetchAllDivisionPlayers(newDivision);
+  };
+
+  const fetchAllDivisionPlayers = async (divisionNum = division) => {
+    const { data, error } = await db("players")
+      .select("*")
+      .eq("division", divisionNum)
+      .order("name", { ascending: true });
+
+    if (!error) {
+      setAllDivisionPlayers(data || []);
+    }
   };
 
   const handleAddPlayer = async () => {
@@ -1021,20 +1019,6 @@ const fetchPlayers = async (divisionId = division) => {
     setPlayers((prev) =>
       prev.map((p) => (String(p.id) === String(id) ? { ...p, active: newActive } : p))
     );
-  };
-
-  const prevDivision = () => {
-    if (!divisions || divisions.length === 0) return;
-    const idx = divisions.findIndex((d) => d.id === division);
-    const prevIdx = idx > 0 ? idx - 1 : divisions.length - 1;
-    setDivision(divisions[prevIdx].id);
-  };
-
-  const toggleDivision = () => {
-    if (!divisions || divisions.length === 0) return;
-    const idx = divisions.findIndex((d) => d.id === division);
-    const nextIdx = (idx + 1) % divisions.length;
-    setDivision(divisions[nextIdx].id);
   };
 
   const currentLeader = players[0]?.name || "—";
@@ -3080,85 +3064,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
       {bumpChartData.weeks.length === 0 ? (
         <p className="text-gray-500">No tracker data yet. Save a week of matches to build the chart.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <svg
-            viewBox={`0 0 ${Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180)} 420`}
-            className="w-full"
-            style={{ minWidth: `${Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180)}px` }}
-            role="img"
-            aria-label="Ranking bump chart"
-          >
-            <defs>
-              <linearGradient id="chartGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#facc15" />
-                <stop offset="100%" stopColor="#38bdf8" />
-              </linearGradient>
-            </defs>
-            <rect x="0" y="0" width={Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180)} height="420" fill="#111827" rx="24" />
-            {(() => {
-              const stepX = bumpChartData.weeks.length > 1 ? Math.min(120, Math.max(70, 640 / (bumpChartData.weeks.length - 1))) : 0;
-              const chartWidth = Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * stepX + 180);
-              return bumpChartData.weeks.map((week, index) => {
-                const x = 100 + index * stepX;
-                return (
-                  <g key={week}>
-                    <line x1={x} y1={60} x2={x} y2={380} stroke="#334155" strokeDasharray="4 4" />
-                    <text x={x} y={395} fill="#cbd5e1" fontSize="12" textAnchor="middle">{index + 1}</text>
-                  </g>
-                );
-              });
-            })()}
-            <text x={Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180) / 2} y={415} fill="#cbd5e1" fontSize="14" fontWeight="700" textAnchor="middle">
-              Week
-            </text>
-            {(() => {
-              const maxRank = Math.max(
-                1,
-                ...bumpChartData.lines.flatMap((line) => line.positions.map((pos) => pos.rank))
-              );
-              const height = 320;
-              const top = 60;
-              const left = 100;
-              const stepX = bumpChartData.weeks.length > 1 ? Math.min(120, Math.max(70, 640 / (bumpChartData.weeks.length - 1))) : 0;
-              const chartWidth = Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * stepX + 180);
-              const yForRank = (rank) => top + ((rank - 1) / (maxRank - 1 || 1)) * height;
-              return bumpChartData.lines.map((line) => {
-                const pathD = line.positions
-                  .map((pos, index) => {
-                    const x = left + pos.weekIndex * stepX;
-                    const y = yForRank(pos.rank);
-                    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-                  })
-                  .join(' ');
-
-                return (
-                  <g key={line.id}>
-                    <path d={pathD} fill="none" stroke={line.color} strokeWidth="2.5" />
-                    {line.positions.map((pos, index) => {
-                      const x = left + pos.weekIndex * stepX;
-                      const y = yForRank(pos.rank);
-                      const isLast = index === line.positions.length - 1;
-                      const labelX = Math.min(x + 10, chartWidth - 60);
-                      return (
-                        <g key={`${line.id}-${index}`}>
-                          <circle cx={x} cy={y} r="10" fill={line.color} />
-                          <text x={x} y={y + 4} fill="#111827" fontSize="9" fontWeight="700" textAnchor="middle">
-                            {pos.rank}
-                          </text>
-                          {isLast && (
-                            <text x={labelX} y={y + 4} fill="#f8fafc" fontSize="11" fontWeight="700" textAnchor="start">
-                              {line.name}
-                            </text>
-                          )}
-                        </g>
-                      );
-                    })}
-                  </g>
-                );
-              });
-            })()}
-          </svg>
-        </div>
+        <div className="p-6 text-center text-gray-500">Tracker temporarily disabled to avoid Turbopack parsing issues.</div>
       )}
     </div>
   </div>
