@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabase";
 import { getLSJson, setLSJson, removeLS, getViewMode } from "../../lib/ls";
 
 const DOUBLES_SUFFIX = "_doubles";
@@ -15,30 +14,8 @@ export default function PreviousSeasonsClient({ division, initialSummaries = [],
 
   useEffect(() => {
     const load = async () => {
-      // Use the canonical `season_summaries` table for Previous Seasons (no viewMode suffix)
-      const seasonsTable = "season_summaries";
+      // Do NOT query Supabase here — load archived summaries from localStorage only.
       const idxKey = "season_summaries_index";
-
-      try {
-        console.debug('[PreviousSeasons] querying table:', seasonsTable, 'viewMode:', viewMode, 'idxKey:', idxKey);
-        const { data, error } = await supabase.from(seasonsTable).select("*").order("timestamp", { ascending: false });
-        console.debug('[PreviousSeasons] supabase returned:', Array.isArray(data) ? data.length : 'no-data', 'error:', error);
-        if (!error && Array.isArray(data)) {
-          console.debug('[PreviousSeasons] first item:', data[0]);
-          const normalized = data.map((d) => ({ ...d, id: d.id ? String(d.id) : `no-id-${Math.random().toString(36).slice(2,8)}`, timestamp: d.timestamp || d.created_at || new Date().toISOString() }));
-          setSeasonSummaries(normalized);
-          setSeasonLoadInfo({ source: 'supabase', count: normalized.length });
-          if (data.length > 0) {
-            setSelectedSeasonId(data[0].id);
-            setSelectedSeason(data[0]);
-          }
-          return;
-        }
-      } catch (e) {
-        console.warn("Failed to load season summaries from Supabase", e);
-      }
-
-      // fallback to localStorage index
       try {
         const idx = getLSJson(idxKey, []);
         console.debug('[PreviousSeasons] local index key:', idxKey, 'idx:', idx);

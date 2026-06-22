@@ -647,34 +647,11 @@ const fetchPreviousMatches = async () => {
     if (activeTab !== "Previous Seasons") return;
 
     const load = async () => {
-      // Always read archived summaries from the canonical `season_summaries` table
-      const seasonsTable = "season_summaries";
+      // Do NOT query Supabase for archived summaries here — load from localStorage only.
       const idxKey = "season_summaries_index";
       try {
-        const { data, error } = await supabase
-          .from(seasonsTable)
-          .select("*")
-          .order("timestamp", { ascending: false });
-
-        console.debug("[seasons] supabase response:", { data, error });
-
-        if (!error && Array.isArray(data)) {
-          setSeasonSummaries(data);
-          setSeasonLoadInfo({ source: 'supabase', count: Array.isArray(data) ? data.length : 0 });
-          if (data.length > 0) {
-            setSelectedSeasonId(data[0].id);
-            setSelectedSeason(data[0]);
-          }
-          return;
-        }
-      } catch (e) {
-        console.warn("Failed to load season summaries:", e);
-      }
-
-      // fallback to localStorage index (namespaced per mode)
-      try {
         const idx = getLSJson(idxKey, []);
-        console.debug("[seasons] local index:", idx);
+        console.debug("[seasons] loading from localStorage index:", idxKey, idx);
         const items = (idx || []).map((id) => {
           const raw = getLSRaw(id);
           console.debug("[seasons] local item", id, raw ? 'present' : 'missing');
