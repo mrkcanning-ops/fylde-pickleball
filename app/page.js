@@ -14,9 +14,158 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState("Standings");
   const [standingsView, setStandingsView] = useState("Leaderboard");
   const [division, setDivision] = useState(1); // numeric id of current division
-  const [divisions, setDivisions] = useState([]);
   // division list with display names; new divisions can be added at runtime
-        
+  const [divisions, setDivisions] = useState([
+    { id: 1, name: "Division 1" },
+    { id: 2, name: "Division 2" },
+  ]);
+  const [showAddDivisionModal, setShowAddDivisionModal] = useState(false);
+  const [newDivisionName, setNewDivisionName] = useState("");
+  const [showAddDivisionPasscodeModal, setShowAddDivisionPasscodeModal] = useState(false);
+  const [addDivisionPasscode, setAddDivisionPasscode] = useState("");
+  const [addDivisionPasscodeError, setAddDivisionPasscodeError] = useState("");
+  const [showRemoveDivisionPasscodeModal, setShowRemoveDivisionPasscodeModal] = useState(false);
+  const [removeDivisionPasscode, setRemoveDivisionPasscode] = useState("");
+  const [removeDivisionPasscodeError, setRemoveDivisionPasscodeError] = useState("");
+  const [showSelectDivisionModal, setShowSelectDivisionModal] = useState(false);
+  const [selectedDivisionToRemove, setSelectedDivisionToRemove] = useState(null);
+  const [showConfirmRemoveDivisionModal, setShowConfirmRemoveDivisionModal] = useState(false);
+  const [players, setPlayers] = useState([]);
+  const [numCourts, setNumCourts] = useState(2);
+
+  const [court1Matches, setCourt1Matches] = useState([]);
+  const [court2Matches, setCourt2Matches] = useState([]);
+  const [court3Matches, setCourt3Matches] = useState([]);
+  const [court4Matches, setCourt4Matches] = useState([]);
+
+  const [court1Scores, setCourt1Scores] = useState([]);
+  const [court2Scores, setCourt2Scores] = useState([]);
+  const [court3Scores, setCourt3Scores] = useState([]);
+  const [court4Scores, setCourt4Scores] = useState([]);
+
+  const [court1Round, setCourt1Round] = useState(0);
+  const [court2Round, setCourt2Round] = useState(0);
+  const [court3Round, setCourt3Round] = useState(0);
+  const [court4Round, setCourt4Round] = useState(0);
+
+  const [currentRound, setCurrentRound] = useState(0);
+  const [roundMatches, setRoundMatches] = useState([]); // flattened all matches by round
+
+  // Mobile bottom-sheet modal control for NQ explanation
+  const [showNqModalFor, setShowNqModalFor] = useState(null);
+  // Editable minimum games to qualify (per-division, persisted to localStorage)
+  const [minQualifyByDivision, setMinQualifyByDivision] = useState(() => {
+    try {
+      return getLSJson("min_qualify_by_division", {});
+    } catch (e) {
+      return {};
+    }
+  });
+  // current division value (kept in sync)
+  const [minQualifyGames, setMinQualifyGames] = useState(() => {
+    try {
+      const v = getLSRaw("min_qualify_games");
+      return v ? parseInt(v, 10) || MIN_QUALIFY_GAMES : MIN_QUALIFY_GAMES;
+    } catch (e) {
+      return MIN_QUALIFY_GAMES;
+    }
+  });
+  const [showEditMinModal, setShowEditMinModal] = useState(false);
+  const [minQualifyInput, setMinQualifyInput] = useState(String(minQualifyGames));
+  const [showVerifyMinPasscodeModal, setShowVerifyMinPasscodeModal] = useState(false);
+  const [pendingMinSave, setPendingMinSave] = useState(null); // { division, value }
+  const [verifyMinPasscode, setVerifyMinPasscode] = useState("");
+  const [verifyMinError, setVerifyMinError] = useState("");
+
+const [isAdmin, setIsAdmin] = useState(false);
+const [showAdminModal, setShowAdminModal] = useState(false);
+const [adminCode, setAdminCode] = useState("");
+const [adminError, setAdminError] = useState("");
+
+const [previousMatches, setPreviousMatches] = useState([]);
+  const [seasonSummaries, setSeasonSummaries] = useState([]);
+  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
+  const [selectedSeason, setSelectedSeason] = useState(null);
+  const [currentSeason, setCurrentSeason] = useState(() => {
+    try {
+      return getLSJson("current_season", null);
+    } catch (e) {
+      return null;
+    }
+  });
+
+  // Try to load running season from Supabase for this division (fallback to localStorage)
+  const loadRunningSeasonFromDb = async (divisionNum = division) => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await db("running_seasons")
+        .select("*")
+        .eq("division", divisionNum)
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        try {
+          setLSJson("current_season", data);
+        } catch (e) {}
+        setCurrentSeason(data);
+        return;
+      }
+    } catch (e) {
+      // table may not exist or network error — ignore and rely on localStorage
+    }
+
+    try {
+      const raw = getLSJson("current_season", null);
+      if (raw) setCurrentSeason(raw);
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    // load running season for current division on mount and when division changes
+    loadRunningSeasonFromDb(division);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [division]);
+
+  const filteredSeasonSummaries = (seasonSummaries || []).filter((s) => Number(s.division) === Number(division));
+
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [openDates, setOpenDates] = useState([]); // dates that are expanded
+  const [hydrated, setHydrated] = useState(false);
+  const [serverError, setServerError] = useState(null);
+  const [viewMode, setViewMode] = useState(() => {
+    try { return getViewMode(); } catch (e) { return "league"; }
+  });
+
+  // Helper to pick table name depending on view mode (league or doubles)
+  // Force literal suffix to avoid environment mismatch during development
+  const DOUBLES_SUFFIX = "_doubles";
+  const db = (table) => supabase.from(`${table}${viewMode === "doubles" ? DOUBLES_SUFFIX : ""}`);
+
+  // Dev-only debug: log and expose divisions state to diagnose mobile/desktop mismatch
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!hydrated) return;
+    console.debug("[debug] divisions (state):", divisions);
+    console.debug("[debug] division (state):", division);
+    try {
+      console.debug("[debug] divisions (localStorage):", getLSJson(`divisions_${viewMode}`, null));
+      console.debug("[debug] division (localStorage):", getLSRaw("division"));
+    } catch (e) {
+      console.debug("[debug] localStorage parse error", e);
+    }
+  }, [hydrated, divisions, division]);
+
+  const toggleDate = (date) => {
+    setOpenDates((prev) =>
+      prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date]
+    );
+  }; 
+
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [showEndSeasonChoiceModal, setShowEndSeasonChoiceModal] = useState(false);
+  const [endSummaryContext, setEndSummaryContext] = useState(null);
+  const [newSeasonName, setNewSeasonName] = useState("");
 const [resetPasswordInput, setResetPasswordInput] = useState("");
 const [resetError, setResetError] = useState("");
   const router = useRouter();
@@ -483,29 +632,8 @@ const fetchPreviousMatches = async () => {
 
     load();
   }, [activeTab]);
-  const [seasonSummaries, setSeasonSummaries] = useState([]);
-  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
-  const [selectedSeason, setSelectedSeason] = useState(null);
-  const filteredSeasonSummaries = (seasonSummaries || []).filter((s) => Number(s.division) === Number(division));
 
   const [seasonLoadInfo, setSeasonLoadInfo] = useState({ source: null, count: 0 });
-
-  // Keep selectedSeason in sync with filteredSeasonSummaries when viewing the tab
-  useEffect(() => {
-    if (activeTab !== "Previous Seasons") return;
-    if ((filteredSeasonSummaries || []).length === 0) {
-      setSelectedSeasonId(null);
-      setSelectedSeason(null);
-      return;
-    }
-    const found = (filteredSeasonSummaries || []).find((s) => s.id === selectedSeasonId) || filteredSeasonSummaries[0];
-    if (found) {
-      setSelectedSeasonId(found.id);
-      setSelectedSeason(found);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, filteredSeasonSummaries]);
-
 
   const createNewSeason = async () => {
     // Prevent creating a new season if one is already running
@@ -2936,7 +3064,85 @@ const activePlayerCount = players.filter((p) => p.active).length;
       {bumpChartData.weeks.length === 0 ? (
         <p className="text-gray-500">No tracker data yet. Save a week of matches to build the chart.</p>
       ) : (
-        <div className="p-6 text-center text-gray-500">Tracker temporarily disabled to avoid Turbopack parsing issues.</div>
+        <div className="overflow-x-auto">
+          <svg
+            viewBox={`0 0 ${Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180)} 420`}
+            className="w-full"
+            style={{ minWidth: `${Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180)}px` }}
+            role="img"
+            aria-label="Ranking bump chart"
+          >
+            <defs>
+              <linearGradient id="chartGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#facc15" />
+                <stop offset="100%" stopColor="#38bdf8" />
+              </linearGradient>
+            </defs>
+            <rect x="0" y="0" width={Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180)} height="420" fill="#111827" rx="24" />
+            {(() => {
+              const stepX = bumpChartData.weeks.length > 1 ? Math.min(120, Math.max(70, 640 / (bumpChartData.weeks.length - 1))) : 0;
+              const chartWidth = Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * stepX + 180);
+              return bumpChartData.weeks.map((week, index) => {
+                const x = 100 + index * stepX;
+                return (
+                  <g key={week}>
+                    <line x1={x} y1={60} x2={x} y2={380} stroke="#334155" strokeDasharray="4 4" />
+                    <text x={x} y={395} fill="#cbd5e1" fontSize="12" textAnchor="middle">{index + 1}</text>
+                  </g>
+                );
+              });
+            })()}
+            <text x={Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * 90 + 180) / 2} y={415} fill="#cbd5e1" fontSize="14" fontWeight="700" textAnchor="middle">
+              Week
+            </text>
+            {(() => {
+              const maxRank = Math.max(
+                1,
+                ...bumpChartData.lines.flatMap((line) => line.positions.map((pos) => pos.rank))
+              );
+              const height = 320;
+              const top = 60;
+              const left = 100;
+              const stepX = bumpChartData.weeks.length > 1 ? Math.min(120, Math.max(70, 640 / (bumpChartData.weeks.length - 1))) : 0;
+              const chartWidth = Math.max(700, 100 + Math.max(0, bumpChartData.weeks.length - 1) * stepX + 180);
+              const yForRank = (rank) => top + ((rank - 1) / (maxRank - 1 || 1)) * height;
+              return bumpChartData.lines.map((line) => {
+                const pathD = line.positions
+                  .map((pos, index) => {
+                    const x = left + pos.weekIndex * stepX;
+                    const y = yForRank(pos.rank);
+                    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+                  })
+                  .join(' ');
+
+                return (
+                  <g key={line.id}>
+                    <path d={pathD} fill="none" stroke={line.color} strokeWidth="2.5" />
+                    {line.positions.map((pos, index) => {
+                      const x = left + pos.weekIndex * stepX;
+                      const y = yForRank(pos.rank);
+                      const isLast = index === line.positions.length - 1;
+                      const labelX = Math.min(x + 10, chartWidth - 60);
+                      return (
+                        <g key={`${line.id}-${index}`}>
+                          <circle cx={x} cy={y} r="10" fill={line.color} />
+                          <text x={x} y={y + 4} fill="#111827" fontSize="9" fontWeight="700" textAnchor="middle">
+                            {pos.rank}
+                          </text>
+                          {isLast && (
+                            <text x={labelX} y={y + 4} fill="#f8fafc" fontSize="11" fontWeight="700" textAnchor="start">
+                              {line.name}
+                            </text>
+                          )}
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              });
+            })()}
+          </svg>
+        </div>
       )}
     </div>
   </div>
@@ -2950,20 +3156,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
             </div>
 
             {seasonSummaries.length === 0 ? (
-              (() => {
-                const divisionPlayers = (players || []).filter((p) => Number(p.division) === Number(division));
-                const top = divisionPlayers.slice().sort((a, b) => (b.points || 0) - (a.points || 0))[0];
-                if (!top) {
-                  return <div className="text-gray-600">No archived seasons yet.</div>;
-                }
-                return (
-                  <div className="p-4">
-                    <div className="text-sm text-gray-500 mb-1">Current winner (division {division})</div>
-                    <div className="font-bold text-xl text-gray-900">{top.name}</div>
-                    <div className="text-sm text-gray-600">{(top.points || 0)} pts</div>
-                  </div>
-                );
-              })()
+              <div className="text-gray-600">No archived seasons yet.</div>
             ) : (
               <div className="space-y-3">
                 {seasonSummaries.map((s) => {
