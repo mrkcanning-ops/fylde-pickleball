@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import HeaderStats from "../components/HeaderStats";
 import { supabase } from "../lib/supabase";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode } from "../lib/ls";
@@ -83,10 +83,7 @@ const [showAdminModal, setShowAdminModal] = useState(false);
 const [adminCode, setAdminCode] = useState("");
 const [adminError, setAdminError] = useState("");
 
-const [previousMatches, setPreviousMatches] = useState([]);
-  const [seasonSummaries, setSeasonSummaries] = useState([]);
-  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
-  const [selectedSeason, setSelectedSeason] = useState(null);
+  const [previousMatches, setPreviousMatches] = useState([]);
   const [currentSeason, setCurrentSeason] = useState(() => {
     try {
       return getLSJson("current_season", null);
@@ -128,7 +125,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [division]);
 
-  const filteredSeasonSummaries = (seasonSummaries || []).filter((s) => Number(s.division) === Number(division));
+  
 
   const [leaderboard, setLeaderboard] = useState([]);
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
@@ -137,6 +134,14 @@ const [previousMatches, setPreviousMatches] = useState([]);
   const [viewMode, setViewMode] = useState(() => {
     try { return getViewMode(); } catch (e) { return "league"; }
   });
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    try {
+      const t = searchParams?.get?.('tab');
+      if (t) setActiveTab(t);
+    } catch (e) {}
+  }, [searchParams]);
 
   // Helper to pick table name depending on view mode (league or doubles)
   // Force literal suffix to avoid environment mismatch during development
@@ -163,65 +168,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
     );
   }; 
 
-  // Handlers for Previous Seasons actions
-  const handleAddSeason = () => {
-    const name = window.prompt("New season name (optional):");
-    if (name === null) return;
-    const id = `season_summary_${division}_${Date.now()}`;
-    const newSummary = {
-      id,
-      division,
-      timestamp: new Date().toISOString(),
-      name,
-      players: [],
-      matches: [],
-      final_standings: [],
-    };
-    setSeasonSummaries((prev) => [newSummary, ...(prev || [])]);
-    try {
-      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
-      const existingIndex = getLSJson(idxKey, []);
-      existingIndex.unshift(newSummary.id);
-      setLSJson(idxKey, existingIndex);
-      setLSJson(newSummary.id, newSummary);
-    } catch (e) {
-      console.warn('Failed to persist new season to localStorage', e);
-    }
-  };
-
-  const handleEditSeason = () => {
-    if (!selectedSeasonId) {
-      alert('Select a season first (click a season entry)');
-      return;
-    }
-    const current = (seasonSummaries || []).find((s) => s.id === selectedSeasonId) || {};
-    const newName = window.prompt('Edit season name:', current.name || current.title || '');
-    if (newName === null) return;
-    const updated = { ...current, name: newName };
-    setSeasonSummaries((prev) => (prev || []).map((s) => (s.id === selectedSeasonId ? updated : s)));
-    try { setLSJson(updated.id, updated); } catch (e) { console.warn('Failed to update season in localStorage', e); }
-  };
-
-  const handleRemoveSeason = () => {
-    if (!selectedSeasonId) {
-      alert('Select a season first (click a season entry)');
-      return;
-    }
-    const confirmed = window.confirm('Permanently remove selected season?');
-    if (!confirmed) return;
-    setSeasonSummaries((prev) => (prev || []).filter((s) => s.id !== selectedSeasonId));
-    try {
-      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
-      const existingIndex = getLSJson(idxKey, []);
-      const next = (existingIndex || []).filter((id) => id !== selectedSeasonId);
-      setLSJson(idxKey, next);
-      removeLS(selectedSeasonId);
-    } catch (e) {
-      console.warn('Failed to remove season from localStorage', e);
-    }
-    setSelectedSeasonId(null);
-    setSelectedSeason(null);
-  };
+  
 
   const [showResetModal, setShowResetModal] = useState(false);
   const [showEndSeasonChoiceModal, setShowEndSeasonChoiceModal] = useState(false);
@@ -673,56 +620,7 @@ useEffect(() => {
     syncAndFetchData();
   }, [division]);
 
-  // Load season summaries when user opens the Seasons tab
-  useEffect(() => {
-    if (activeTab !== "Previous Seasons") return;
-
-    const load = async () => {
-      // Try server API first, fall back to localStorage
-      try {
-        const viewParam = viewMode === 'doubles' ? '?view=doubles' : '';
-        console.debug('[PreviousSeasons:page] fetching server API /api/season-summaries' + viewParam);
-        const res = await fetch(`/api/season-summaries${viewParam}`, { cache: 'no-store' });
-        const payload = await res.json().catch(() => ({}));
-        if (res.ok && payload && Array.isArray(payload.data) && payload.data.length > 0) {
-          console.debug('[PreviousSeasons:page] server returned', payload.data.length);
-          setSeasonSummaries(payload.data);
-          setSeasonLoadInfo({ source: 'server-api', count: payload.data.length });
-          setSelectedSeasonId(payload.data[0].id);
-          setSelectedSeason(payload.data[0]);
-          return;
-        }
-        console.debug('[PreviousSeasons:page] server API empty or error:', payload?.error || 'empty');
-      } catch (e) {
-        console.debug('[PreviousSeasons:page] server fetch failed:', e?.message || e);
-      }
-
-      // Fallback to localStorage index
-      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
-      try {
-        const idx = getLSJson(idxKey, []);
-        console.debug("[PreviousSeasons:page] loading from localStorage index:", idxKey, idx);
-        const items = (idx || []).map((id) => {
-          const raw = getLSRaw(id);
-          console.debug("[PreviousSeasons:page] local item", id, raw ? 'present' : 'missing');
-          return raw ? JSON.parse(raw) : null;
-        }).filter(Boolean);
-        console.debug("[PreviousSeasons:page] local items loaded:", items.length);
-        setSeasonSummaries(items);
-        setSeasonLoadInfo({ source: 'localStorage', count: items.length });
-        if (items.length > 0) {
-          setSelectedSeasonId(items[0].id);
-          setSelectedSeason(items[0]);
-        }
-      } catch (e) {
-        console.warn("No season summaries in localStorage", e);
-      }
-    };
-
-    load();
-  }, [activeTab]);
-
-  const [seasonLoadInfo, setSeasonLoadInfo] = useState({ source: null, count: 0 });
+  
 
   const createNewSeason = async () => {
     // Prevent creating a new season if one is already running
@@ -1209,7 +1107,7 @@ useEffect(() => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Previous Seasons"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -2035,11 +1933,40 @@ const syncDivisions = async (vmOverride) => {
 
     const vm = vmOverride || getViewMode();
     const tableName = `divisions${vm === 'doubles' ? DOUBLES_SUFFIX : ''}`;
-      const { data: dbDivs, error } = await supabase.from(tableName)
-        .select("id,name,min_qualify_games")
-        .order("id", { ascending: true });
+      // If client-side Supabase is not configured, fall back to a REST fetch
+      if (!supabase) {
+        console.debug('syncDivisions: supabase client not configured on client, using REST fallback');
+        try {
+          const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/+$/,'')}/rest/v1/${tableName}`;
+          const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+          const resp = await fetch(url + '?select=id,name,min_qualify_games&order=id', {
+            headers: {
+              apikey: key,
+              Authorization: `Bearer ${key}`,
+              Accept: 'application/json'
+            }
+          });
+          const json = await resp.json().catch(() => null);
+          const dbDivs = Array.isArray(json) ? json : [];
+          const error = resp.ok ? null : { message: `REST fetch failed ${resp.status}` };
+          console.debug('syncDivisions: rest response', { dbDivs, error });
+          var finalDbDivs = dbDivs;
+          var finalError = error;
+        } catch (restErr) {
+          console.error('syncDivisions: REST fetch failed', restErr);
+          setServerError(`Failed to fetch divisions: ${restErr?.message || restErr}`);
+          return;
+        }
+      } else {
+        const { data: dbDivs, error } = await supabase.from(tableName)
+          .select("id,name,min_qualify_games")
+          .order("id", { ascending: true });
 
-      console.debug("syncDivisions: supabase response", { dbDivs, error });
+        console.debug("syncDivisions: supabase response", { dbDivs, error });
+
+        var finalDbDivs = dbDivs;
+        var finalError = error;
+      }
 
       // If missing column error, retry without column to recover older tables
       let finalDbDivs = dbDivs;
@@ -2507,12 +2434,7 @@ const hasGeneratedFixtures =
   court4Matches.length > 0;
 const activePlayerCount = players.filter((p) => p.active).length;
 
-  useEffect(() => {
-    console.debug('[PreviousSeasons:overlay] activeTab changed', activeTab);
-    if (activeTab === 'Previous Seasons') {
-      console.debug('[PreviousSeasons:overlay] overlay should show, summaries:', (seasonSummaries||[]).length, seasonSummaries && seasonSummaries[0]);
-    }
-  }, [activeTab, seasonSummaries]);
+  
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
@@ -2521,14 +2443,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
       )}
       {hydrated && (
         <>
-      <div style={{position: 'fixed', right: 12, top: 12, zIndex: 9999}} className="hidden sm:block">
-        <div className="bg-black bg-opacity-60 text-white text-xs p-2 rounded">
-          <div>activeTab: {activeTab}</div>
-          <div>division: {division}</div>
-          <div>seasonSummaries: {(seasonSummaries || []).length}</div>
-          <div>seasonLoad: {seasonLoadInfo?.source || 'null'} ({seasonLoadInfo?.count || 0})</div>
-        </div>
-      </div>
+      
       {/* Header (click title to toggle mode) */}
       <header className="mb-8 sm:mb-10 relative">
         <button
@@ -2674,6 +2589,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         )}
 
+        {/* Previous Seasons tab removed */}
+
         {activeTab === "Matches" && (
           <div className="mt-4 flex flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
@@ -2724,7 +2641,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
       {/* Content */}
       <section className="bg-gray-900 rounded-b-lg shadow overflow-hidden p-4 sm:p-6 text-gray-300">
 
-        {activeTab === "Previous Seasons" && null}
+        
 
         {/* Standings */}
 {activeTab === "Standings" && (
@@ -3180,36 +3097,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 )}
 
-        {activeTab === "Previous Seasons" && (
-          <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden p-6">
-            <div className="px-2 py-2 border-b border-gray-200 bg-gray-50 mb-4">
-              <div className="font-bold text-yellow-500 text-lg">📜 Previous Seasons</div>
-            </div>
-
-            {filteredSeasonSummaries.length === 0 ? (
-              <div className="text-gray-600">No archived seasons for this division.</div>
-            ) : (
-              <div className="space-y-3">
-                {filteredSeasonSummaries.map((s) => {
-                  const title = s.name || s.title || new Date(s.timestamp).toLocaleString();
-                  const final = s.finalStandings || s.final_standings || [];
-                  return (
-                    <div key={s.id} className={`p-3 rounded border cursor-pointer ${selectedSeasonId === s.id ? 'ring-2 ring-yellow-400 bg-yellow-50' : 'bg-white border-gray-200'}`} onClick={() => { setSelectedSeasonId(s.id); setSelectedSeason(s); }}>
-                      <div className="flex items-center justify-between">
-                        <div className="font-semibold">{title}</div>
-                        <div className="text-sm text-gray-500">Division {s.division}</div>
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1">{final.length} players · {Array.isArray(s.matches) ? s.matches.length : 0} matches</div>
-                      {selectedSeasonId === s.id && selectedSeason && (
-                        <pre className="mt-3 p-3 bg-gray-50 rounded text-xs overflow-auto">{JSON.stringify(selectedSeason, null, 2)}</pre>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+        
 
     <div className="mt-8 px-6 py-6 flex justify-center gap-4 border-t border-gray-200 bg-red-50">
       <button
