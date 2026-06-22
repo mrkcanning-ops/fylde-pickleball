@@ -3,7 +3,6 @@
 import { useState, useEffect, useLayoutEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import HeaderStats from "../components/HeaderStats";
-import PreviousSeasonsClient from "./previous-seasons/PreviousSeasonsClient";
 import { supabase } from "../lib/supabase";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode } from "../lib/ls";
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
@@ -84,10 +83,7 @@ const [showAdminModal, setShowAdminModal] = useState(false);
 const [adminCode, setAdminCode] = useState("");
 const [adminError, setAdminError] = useState("");
 
-const [previousMatches, setPreviousMatches] = useState([]);
-  const [seasonSummaries, setSeasonSummaries] = useState([]);
-  const [selectedSeasonId, setSelectedSeasonId] = useState(null);
-  const [selectedSeason, setSelectedSeason] = useState(null);
+  const [previousMatches, setPreviousMatches] = useState([]);
   const [currentSeason, setCurrentSeason] = useState(() => {
     try {
       return getLSJson("current_season", null);
@@ -129,7 +125,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [division]);
 
-  const filteredSeasonSummaries = (seasonSummaries || []).filter((s) => Number(s.division) === Number(division));
+  
 
   const [leaderboard, setLeaderboard] = useState([]);
   const [openDates, setOpenDates] = useState([]); // dates that are expanded
@@ -172,65 +168,7 @@ const [previousMatches, setPreviousMatches] = useState([]);
     );
   }; 
 
-  // Handlers for Previous Seasons actions
-  const handleAddSeason = () => {
-    const name = window.prompt("New season name (optional):");
-    if (name === null) return;
-    const id = `season_summary_${division}_${Date.now()}`;
-    const newSummary = {
-      id,
-      division,
-      timestamp: new Date().toISOString(),
-      name,
-      players: [],
-      matches: [],
-      final_standings: [],
-    };
-    setSeasonSummaries((prev) => [newSummary, ...(prev || [])]);
-    try {
-      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
-      const existingIndex = getLSJson(idxKey, []);
-      existingIndex.unshift(newSummary.id);
-      setLSJson(idxKey, existingIndex);
-      setLSJson(newSummary.id, newSummary);
-    } catch (e) {
-      console.warn('Failed to persist new season to localStorage', e);
-    }
-  };
-
-  const handleEditSeason = () => {
-    if (!selectedSeasonId) {
-      alert('Select a season first (click a season entry)');
-      return;
-    }
-    const current = (seasonSummaries || []).find((s) => s.id === selectedSeasonId) || {};
-    const newName = window.prompt('Edit season name:', current.name || current.title || '');
-    if (newName === null) return;
-    const updated = { ...current, name: newName };
-    setSeasonSummaries((prev) => (prev || []).map((s) => (s.id === selectedSeasonId ? updated : s)));
-    try { setLSJson(updated.id, updated); } catch (e) { console.warn('Failed to update season in localStorage', e); }
-  };
-
-  const handleRemoveSeason = () => {
-    if (!selectedSeasonId) {
-      alert('Select a season first (click a season entry)');
-      return;
-    }
-    const confirmed = window.confirm('Permanently remove selected season?');
-    if (!confirmed) return;
-    setSeasonSummaries((prev) => (prev || []).filter((s) => s.id !== selectedSeasonId));
-    try {
-      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
-      const existingIndex = getLSJson(idxKey, []);
-      const next = (existingIndex || []).filter((id) => id !== selectedSeasonId);
-      setLSJson(idxKey, next);
-      removeLS(selectedSeasonId);
-    } catch (e) {
-      console.warn('Failed to remove season from localStorage', e);
-    }
-    setSelectedSeasonId(null);
-    setSelectedSeason(null);
-  };
+  
 
   const [showResetModal, setShowResetModal] = useState(false);
   const [showEndSeasonChoiceModal, setShowEndSeasonChoiceModal] = useState(false);
@@ -682,61 +620,7 @@ useEffect(() => {
     syncAndFetchData();
   }, [division]);
 
-  // Load season summaries when user opens the Seasons tab
-  useEffect(() => {
-    if (activeTab !== "Previous Seasons") return;
-
-    const load = async () => {
-      // Try server API first, fall back to localStorage
-      try {
-        const viewParam = viewMode === 'doubles' ? 'view=doubles' : '';
-        const q = new URLSearchParams();
-        if (viewParam) q.set('view', 'doubles');
-        q.set('division', String(division));
-        const qs = q.toString() ? `?${q.toString()}` : '';
-        console.debug('[PreviousSeasons:page] fetching server API /api/season-summaries' + qs);
-        const res = await fetch(`/api/season-summaries${qs}`, { cache: 'no-store' });
-        const payload = await res.json().catch(() => ({}));
-        if (res.ok && payload && Array.isArray(payload.data) && payload.data.length > 0) {
-          console.debug('[PreviousSeasons:page] server returned', payload.data.length);
-          setSeasonSummaries(payload.data);
-          setSeasonLoadInfo({ source: 'server-api', count: payload.data.length });
-          setSelectedSeasonId(payload.data[0].id);
-          setSelectedSeason(payload.data[0]);
-          return;
-        }
-        console.debug('[PreviousSeasons:page] server API empty or error:', payload?.error || 'empty');
-      } catch (e) {
-        console.debug('[PreviousSeasons:page] server fetch failed:', e?.message || e);
-      }
-
-      // Fallback to localStorage index
-      const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
-      try {
-        const idx = getLSJson(idxKey, []);
-        console.debug("[PreviousSeasons:page] loading from localStorage index:", idxKey, idx);
-        const items = (idx || []).map((id) => {
-          const raw = getLSRaw(id);
-          console.debug("[PreviousSeasons:page] local item", id, raw ? 'present' : 'missing');
-          return raw ? JSON.parse(raw) : null;
-        }).filter(Boolean);
-        console.debug("[PreviousSeasons:page] local items loaded:", items.length);
-        const filtered = (items || []).filter((s) => Number(s.division) === Number(division));
-        setSeasonSummaries(filtered);
-        setSeasonLoadInfo({ source: 'localStorage', count: filtered.length });
-        if (filtered.length > 0) {
-          setSelectedSeasonId(filtered[0].id);
-          setSelectedSeason(filtered[0]);
-        }
-      } catch (e) {
-        console.warn("No season summaries in localStorage", e);
-      }
-    };
-
-    load();
-  }, [activeTab, division, viewMode]);
-
-  const [seasonLoadInfo, setSeasonLoadInfo] = useState({ source: null, count: 0 });
+  
 
   const createNewSeason = async () => {
     // Prevent creating a new season if one is already running
@@ -1223,7 +1107,7 @@ useEffect(() => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Previous Seasons"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -2521,12 +2405,7 @@ const hasGeneratedFixtures =
   court4Matches.length > 0;
 const activePlayerCount = players.filter((p) => p.active).length;
 
-  useEffect(() => {
-    console.debug('[PreviousSeasons:overlay] activeTab changed', activeTab);
-    if (activeTab === 'Previous Seasons') {
-      console.debug('[PreviousSeasons:overlay] overlay should show, summaries:', (seasonSummaries||[]).length, seasonSummaries && seasonSummaries[0]);
-    }
-  }, [activeTab, seasonSummaries]);
+  
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
@@ -2535,14 +2414,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
       )}
       {hydrated && (
         <>
-      <div style={{position: 'fixed', right: 12, top: 12, zIndex: 9999}} className="hidden sm:block">
-        <div className="bg-black bg-opacity-60 text-white text-xs p-2 rounded">
-          <div>activeTab: {activeTab}</div>
-          <div>division: {division}</div>
-          <div>seasonSummaries: {(seasonSummaries || []).length}</div>
-          <div>seasonLoad: {seasonLoadInfo?.source || 'null'} ({seasonLoadInfo?.count || 0})</div>
-        </div>
-      </div>
+      
       {/* Header (click title to toggle mode) */}
       <header className="mb-8 sm:mb-10 relative">
         <button
@@ -2688,14 +2560,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         )}
 
-        {/* Quick debug indicator to help diagnose Previous Seasons rendering */}
-        {activeTab === "Previous Seasons" && (
-          <div className="mt-2 text-xs text-gray-300 bg-gray-800 bg-opacity-40 rounded px-3 py-2">
-            <div>Debug: activeTab: {activeTab}</div>
-            <div>seasonSummaries: {(seasonSummaries || []).length}</div>
-            <div>filtered: {filteredSeasonSummaries.length}</div>
-          </div>
-        )}
+        {/* Previous Seasons tab removed */}
 
         {activeTab === "Matches" && (
           <div className="mt-4 flex flex-row items-center justify-between gap-4">
@@ -2747,7 +2612,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
       {/* Content */}
       <section className="bg-gray-900 rounded-b-lg shadow overflow-hidden p-4 sm:p-6 text-gray-300">
 
-        {activeTab === "Previous Seasons" && null}
+        
 
         {/* Standings */}
 {activeTab === "Standings" && (
@@ -3203,9 +3068,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 )}
 
-        {activeTab === "Previous Seasons" && (
-          <PreviousSeasonsClient division={division} />
-        )}
+        
 
     <div className="mt-8 px-6 py-6 flex justify-center gap-4 border-t border-gray-200 bg-red-50">
       <button
