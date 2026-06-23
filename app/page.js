@@ -4,6 +4,7 @@ import { useState, useEffect, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 import HeaderStats from "../components/HeaderStats";
 import { supabase } from "../lib/supabase";
+import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode } from "../lib/ls";
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
@@ -96,6 +97,35 @@ const [adminError, setAdminError] = useState("");
   const [seasonSummariesList, setSeasonSummariesList] = useState([]);
   const [selectedSeasonSummaryId, setSelectedSeasonSummaryId] = useState(null);
 
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return getViewMode();
+    } catch (e) {
+      return 'singles';
+    }
+  });
+
+  const [hydrated, setHydrated] = useState(false);
+
+  // Testing tab controls: cascading dropdown for data selection
+  const [testingSource, setTestingSource] = useState('previous_matches');
+  const [testingOptions, setTestingOptions] = useState([]);
+  const [testingOption, setTestingOption] = useState('');
+
+  useEffect(() => {
+    // populate secondary options based on selected source
+    if (testingSource === 'previous_matches') {
+      setTestingOptions(['Last 10 matches', 'This week', 'All matches']);
+    } else if (testingSource === 'season_summaries') {
+      setTestingOptions(['Latest summary', 'By division', 'All summaries']);
+    } else if (testingSource === 'players') {
+      setTestingOptions(['All players', 'Active players', 'Top by points']);
+    } else {
+      setTestingOptions([]);
+    }
+    setTestingOption('');
+  }, [testingSource]);
+
   // Try to load running season from Supabase for this division (fallback to localStorage)
   const loadRunningSeasonFromDb = async (divisionNum = division) => {
     if (!supabase) return;
@@ -130,6 +160,7 @@ const [adminError, setAdminError] = useState("");
         const viewParam = (vm || (() => { try { return getViewMode(); } catch (e) { return 'singles'; } })()) === 'doubles' ? 'doubles' : 'singles';
         const res = await fetch(`/api/season-summaries?division=${division}&view=${viewParam}`, { cache: 'no-store' });
         const payload = await res.json().catch(() => ({}));
+
         if (!res.ok || payload.error) {
           console.error('Season summaries API error:', payload?.error || 'unknown');
           setSeasonSummariesList([]);
@@ -151,9 +182,7 @@ const [adminError, setAdminError] = useState("");
     };
 
     if (activeTab === 'Season Archive') {
-      // use local read of view mode to avoid referencing hook-initialized `viewMode` too early
       const vm = (() => { try { return getViewMode(); } catch (e) { return 'singles'; } })();
-      // inject viewMode into the fetch function via refetch with selected mode
       fetchSummariesFromDb(vm);
     }
 
@@ -161,215 +190,6 @@ const [adminError, setAdminError] = useState("");
     loadRunningSeasonFromDb(division);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [division, activeTab]);
-
-  
-
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [openDates, setOpenDates] = useState([]); // dates that are expanded
-  const [hydrated, setHydrated] = useState(false);
-  const [serverError, setServerError] = useState(null);
-  const supabaseConfigured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) && Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-  const [viewMode, setViewMode] = useState(() => {
-    try { return getViewMode(); } catch (e) { return "league"; }
-  });
-
-  useEffect(() => {
-    try {
-      const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-      const t = sp?.get?.('tab');
-      if (t) setActiveTab(t);
-    } catch (e) {}
-  }, []);
-
-  // When a saved summary is selected from the dropdown, open its division
-  // and the summary accordion so the user sees the saved data immediately.
-  useEffect(() => {
-    if (!selectedSeasonSummaryId) return;
-    const sKey = `season-${selectedSeasonSummaryId}`;
-    const sel = (seasonSummariesList || []).find((s) => String(s.id) === String(selectedSeasonSummaryId));
-    if (!sel) return;
-    const divKey = `division-${sel.division}`;
-    setOpenDates((prev) => {
-      const next = new Set(prev || []);
-      next.add(divKey);
-      next.add(sKey);
-      return Array.from(next);
-    });
-
-    // scroll into view after a short delay to allow the details to open
-    setTimeout(() => {
-      try {
-        const el = document.getElementById(sKey) || document.getElementById(divKey);
-        if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } catch (e) {}
-    }, 120);
-  }, [selectedSeasonSummaryId, seasonSummariesList]);
-
-  // Helper to pick table name depending on view mode (league or doubles)
-  // Force literal suffix to avoid environment mismatch during development
-  const DOUBLES_SUFFIX = "_doubles";
-  const db = (table) => supabase.from(`${table}${viewMode === "doubles" ? DOUBLES_SUFFIX : ""}`);
-
-  // Dev-only debug: log and expose divisions state to diagnose mobile/desktop mismatch
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!hydrated) return;
-    console.debug("[debug] divisions (state):", divisions);
-    console.debug("[debug] division (state):", division);
-    try {
-      console.debug("[debug] divisions (localStorage):", getLSJson(`divisions_${viewMode}`, null));
-      console.debug("[debug] division (localStorage):", getLSRaw("division"));
-    } catch (e) {
-      console.debug("[debug] localStorage parse error", e);
-    }
-  }, [hydrated, divisions, division]);
-
-  const toggleDate = (date) => {
-    setOpenDates((prev) =>
-      prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date]
-    );
-  }; 
-
-  
-
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [showEndSeasonChoiceModal, setShowEndSeasonChoiceModal] = useState(false);
-  const [endSummaryContext, setEndSummaryContext] = useState(null);
-  const [newSeasonName, setNewSeasonName] = useState("");
-const [resetPasswordInput, setResetPasswordInput] = useState("");
-const [resetError, setResetError] = useState("");
-  const router = useRouter();
-const [showRecalculateModal, setShowRecalculateModal] = useState(false);
-const [recalculatePasswordInput, setRecalculatePasswordInput] = useState("");
-const [recalculateError, setRecalculateError] = useState("");
-
-const [showAddMatchModal, setShowAddMatchModal] = useState(false);
-const [showAddMatchPasscodeModal, setShowAddMatchPasscodeModal] = useState(false);
-const [addMatchPasscode, setAddMatchPasscode] = useState("");
-const [addMatchPasscodeError, setAddMatchPasscodeError] = useState("");
-const [addMatchError, setAddMatchError] = useState("");
-const [showEditMatchPasscodeModal, setShowEditMatchPasscodeModal] = useState(false);
-const [editMatchPasscode, setEditMatchPasscode] = useState("");
-const [editMatchPasscodeError, setEditMatchPasscodeError] = useState("");
-const [pendingEditMatch, setPendingEditMatch] = useState(null);
-const [showEditMatchModal, setShowEditMatchModal] = useState(false);
-const [editMatchError, setEditMatchError] = useState("");
-const [editingMatchId, setEditingMatchId] = useState(null);
-const [allDivisionPlayers, setAllDivisionPlayers] = useState([]);
-const [addMatchData, setAddMatchData] = useState({
-  date: new Date().toISOString().split('T')[0],
-  team1Players: [],
-  team1Name: "",
-  team2Players: [],
-  team2Name: "",
-  team1Score: "",
-  team2Score: "",
-  court: "court1",
-});
-const [editMatchData, setEditMatchData] = useState({
-  date: new Date().toISOString().split('T')[0],
-  team1Players: [],
-  team2Players: [],
-  team1Score: "",
-  team2Score: "",
-  court: "court1",
-});
-const [showRemovePlayerModal, setShowRemovePlayerModal] = useState(false);
-const [removePlayerPasscode, setRemovePlayerPasscode] = useState("");
-const [removePlayerPasscodeError, setRemovePlayerPasscodeError] = useState("");
-const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState(null);
-const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
-
-  // Load leaderboard and persisted divisions from localStorage on startup
-  useLayoutEffect(() => {
-    try {
-      const saved = getLSJson("leaderboard", []) || [];
-      setLeaderboard(saved);
-
-      const savedDivisions = getLSJson(`divisions_${viewMode}`, null);
-      const savedDivisionId = Number(getLSRaw("division"));
-
-      // If Supabase is not configured for this environment, skip server fetch
-      // and load divisions from localStorage only. This prevents runtime
-      // errors in environments without NEXT_PUBLIC_SUPABASE_URL set.
-      if (!supabaseConfigured) {
-        try {
-          const savedDivisions = getLSJson(`divisions_${viewMode}`, null);
-          if (Array.isArray(savedDivisions) && savedDivisions.length > 0) {
-            setDivisions(savedDivisions);
-            const savedDivisionId = Number(getLSRaw("division")) || savedDivisions[0].id;
-            setDivision(savedDivisionId);
-          } else {
-            setDivisions([]);
-          }
-        } catch (e) {
-          console.warn('Failed to load divisions from localStorage fallback', e);
-          setDivisions([]);
-        }
-        setServerError('Supabase not configured: using localStorage fallback for divisions. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to enable full functionality.');
-        setHydrated(true);
-        return;
-      }
-
-      // Server-first: attempt to load canonical divisions from Supabase
-      // so all clients (different origins) see the same data. If the
-      // server fetch fails or returns no divisions, show a visible error
-      // and do not silently fall back to localStorage.
-      (async () => {
-          try {
-            let { data: dbDivs, error: dbErr } = await db("divisions")
-              .select("id,name,min_qualify_games")
-              .order("id", { ascending: true });
-
-            // If the DB returns a missing-column error (e.g. older doubles table), retry without the column
-            if (dbErr && String(dbErr?.code) === "42703") {
-              const fallback = await db("divisions").select("id,name").order("id", { ascending: true });
-              dbDivs = fallback.data;
-              dbErr = fallback.error;
-            }
-
-            if (!dbErr && Array.isArray(dbDivs) && dbDivs.length > 0) {
-              const mapped = dbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}`, min_qualify_games: d.min_qualify_games }));
-              setDivisions(mapped);
-              try { setLSJson(`divisions_${viewMode}`, mapped); } catch (e) {}
-              const byDiv = {};
-              mapped.forEach((m) => { if (m.min_qualify_games != null) byDiv[String(m.id)] = m.min_qualify_games; });
-              setMinQualifyByDivision((prev) => ({ ...(prev || {}), ...(byDiv || {}) }));
-              const initialDivision = savedDivisionId || mapped[0].id;
-              setDivision(initialDivision);
-              await fetchAllDivisionPlayers(initialDivision);
-              return;
-            }
-          
-
-          // Server returned empty or invalid response — treat as failure.
-          console.error("Failed to fetch divisions from server: empty or invalid response", { dbDivs, dbErr });
-          const details = dbErr ? JSON.stringify(dbErr) : JSON.stringify(dbDivs);
-          const vm = getViewMode();
-          const table = vm === 'doubles' ? `divisions${DOUBLES_SUFFIX}` : 'divisions';
-          setServerError(`Failed to load divisions from server. Details: ${details} Queried table: ${table} (view_mode=${vm})`);
-          setDivisions([]);
-          setHydrated(true);
-          return;
-        } catch (e) {
-          console.error("Failed to fetch divisions from server:", e);
-          setServerError(`Failed to load divisions from server. Error: ${e?.message || String(e)}`);
-          setDivisions([]);
-          setHydrated(true);
-          return;
-        }
-      })();
-      // mark hydration complete so UI renders consistently
-      setHydrated(true);
-    } catch (e) {
-      // If localStorage has invalid JSON, fallback gracefully
-      console.warn("Error reading saved divisions/leaderboard:", e);
-      const saved = getLSJson("leaderboard", []) || [];
-      setLeaderboard(saved);
-      fetchAllDivisionPlayers();
-      setHydrated(true);
-    }
-  }, []);
 
   // Persist divisions and selected division to localStorage
   useEffect(() => {
@@ -1191,7 +1011,7 @@ useEffect(() => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Season Archive"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Season Archive", "Testing"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -4021,6 +3841,34 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === "Testing" && (
+          <div className="bg-gray-700 rounded shadow p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-300 mr-2">Data Source</label>
+                <select value={testingSource} onChange={(e) => setTestingSource(e.target.value)} className="bg-gray-800 text-white border border-gray-600 rounded px-3 py-2 outline-none">
+                  <option value="previous_matches">Previous Matches</option>
+                  <option value="season_summaries">Season Summaries</option>
+                  <option value="players">Players</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-300 mr-2">Option</label>
+                <select value={testingOption} onChange={(e) => setTestingOption(e.target.value)} className="bg-gray-800 text-white border border-gray-600 rounded px-3 py-2 outline-none">
+                  <option value="">-- Select --</option>
+                  {testingOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Reuse PreviousMatchesClient layout/functions for Testing view */}
+            <PreviousMatchesClient />
           </div>
         )}
       </section>
