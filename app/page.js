@@ -230,7 +230,7 @@ const [adminError, setAdminError] = useState("");
       }
     };
 
-    if (activeTab === 'Testing') {
+    if (activeTab === 'Seasons') {
       const vm = (() => { try { return getViewMode(); } catch (e) { return 'singles'; } })();
       fetchSummariesFromDb(vm);
     }
@@ -1060,7 +1060,7 @@ useEffect(() => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Testing"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Seasons"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -3809,7 +3809,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         )}
 
-        {activeTab === "Testing" && (
+        {activeTab === "Seasons" && (
           <div className="bg-white text-gray-700 rounded shadow p-4">
             {/* Testing view with Season Summaries stats only */}
             {seasonSummariesList.length === 0 ? (
