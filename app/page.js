@@ -1060,7 +1060,7 @@ useEffect(() => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Archive"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Testing"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -3202,7 +3202,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
             );
           })()}
         </div>
-      )}
     </div>
   </div>
 )}
@@ -3809,7 +3808,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         )}
 
-        {activeTab === "Archive" && (
+        {activeTab === "Testing" && (
           <div className="bg-white text-gray-700 rounded shadow p-4">
             {/* Testing view with Season Summaries stats only */}
             {seasonSummariesList.length === 0 ? (
