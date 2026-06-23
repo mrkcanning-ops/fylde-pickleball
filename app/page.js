@@ -3079,9 +3079,9 @@ const activePlayerCount = players.filter((p) => p.active).length;
               ...bumpChartData.lines.flatMap(line => line.positions.map(p => p.rank)),
               5
             );
-            const rowHeight = 52;
-            const topPadding = 40;
-            const bottomPadding = 40;
+            const rowHeight = 28;
+            const topPadding = 25;
+            const bottomPadding = 25;
             const chartHeight = topPadding + maxRank * rowHeight + bottomPadding;
             const viewBoxWidth = Math.max(800, bumpChartData.weeks.length * 80);
 
@@ -3115,14 +3115,14 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
                 {/* Y-axis (rankings) */}
                 {Array.from({ length: maxRank }).map((_, i) => (
-                  <text key={`y-label-${i}`} x="40" y={topPadding + 16 + i * rowHeight} fontSize="12" fontWeight="600" textAnchor="end" fill="#9CA3AF">
+                  <text key={`y-label-${i}`} x="40" y={topPadding + 10 + i * rowHeight} fontSize="10" fontWeight="600" textAnchor="end" fill="#9CA3AF">
                     {i + 1}
                   </text>
                 ))}
 
                 {/* X-axis (weeks) */}
                 {bumpChartData.weeks.map((week, weekIdx) => (
-                  <text key={`x-label-${weekIdx}`} x={80 + weekIdx * 80} y={topPadding + maxRank * rowHeight + 25} fontSize="11" textAnchor="middle" fill="#9CA3AF">
+                  <text key={`x-label-${weekIdx}`} x={80 + weekIdx * 80} y={topPadding + maxRank * rowHeight + 18} fontSize="9" textAnchor="middle" fill="#9CA3AF">
                     {week}
                   </text>
                 ))}
@@ -3163,7 +3163,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                             <circle
                               cx={cx}
                               cy={cy}
-                              r="5.5"
+                              r="4"
                               fill={line.color}
                               opacity="0.95"
                             />
@@ -3173,7 +3173,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                               y={cy}
                               textAnchor="middle"
                               dominantBaseline="middle"
-                              fontSize="9"
+                              fontSize="7.5"
                               fontWeight="700"
                               fill="white"
                               pointerEvents="none"
@@ -3943,9 +3943,9 @@ const activePlayerCount = players.filter((p) => p.active).length;
                                   5
                                 );
 
-                                const rowHeight = 52;
-                                const topPadding = 40;
-                                const bottomPadding = 40;
+                                const rowHeight = 28;
+                                const topPadding = 25;
+                                const bottomPadding = 25;
                                 const chartHeight = topPadding + maxRank * rowHeight + bottomPadding;
                                 const viewBoxWidth = Math.max(800, numMatches * 80);
 
@@ -3982,14 +3982,14 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
                                     {/* Y-axis (rankings) */}
                                     {Array.from({ length: maxRank }).map((_, i) => (
-                                      <text key={`y-label-${i}`} x="40" y={topPadding + 16 + i * rowHeight} fontSize="12" fontWeight="600" textAnchor="end" fill="#9CA3AF">
+                                      <text key={`y-label-${i}`} x="40" y={topPadding + 10 + i * rowHeight} fontSize="10" fontWeight="600" textAnchor="end" fill="#9CA3AF">
                                         {i + 1}
                                       </text>
                                     ))}
 
                                     {/* X-axis (matches) */}
                                     {summary.tracker.map((_, weekIdx) => (
-                                      <text key={`x-label-${weekIdx}`} x={80 + weekIdx * 80} y={topPadding + maxRank * rowHeight + 25} fontSize="11" textAnchor="middle" fill="#9CA3AF">
+                                      <text key={`x-label-${weekIdx}`} x={80 + weekIdx * 80} y={topPadding + maxRank * rowHeight + 18} fontSize="9" textAnchor="middle" fill="#9CA3AF">
                                         Match {weekIdx + 1}
                                       </text>
                                     ))}
@@ -4035,7 +4035,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                                                 <circle
                                                   cx={cx}
                                                   cy={cy}
-                                                  r="5.5"
+                                                  r="4"
                                                   fill={color}
                                                   opacity="0.95"
                                                 />
@@ -4045,7 +4045,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                                                   y={cy}
                                                   textAnchor="middle"
                                                   dominantBaseline="middle"
-                                                  fontSize="9"
+                                                  fontSize="7.5"
                                                   fontWeight="700"
                                                   fill="white"
                                                   pointerEvents="none"
