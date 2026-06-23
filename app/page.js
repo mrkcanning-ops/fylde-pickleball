@@ -126,6 +126,11 @@ const [adminError, setAdminError] = useState("");
     setTestingOption('');
   }, [testingSource]);
 
+  // Quick hydration marker: allow client UI to render after mount
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   // Try to load running season from Supabase for this division (fallback to localStorage)
   const loadRunningSeasonFromDb = async (divisionNum = division) => {
     if (!supabase) return;
