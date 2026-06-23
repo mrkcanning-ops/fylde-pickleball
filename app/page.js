@@ -121,7 +121,6 @@ const [adminError, setAdminError] = useState("");
 
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetPasswordInput, setResetPasswordInput] = useState("");
-  const [resetSeasonName, setResetSeasonName] = useState("");
   const [resetError, setResetError] = useState("");
 
   const [showEndSeasonChoiceModal, setShowEndSeasonChoiceModal] = useState(false);
@@ -3073,7 +3072,121 @@ const activePlayerCount = players.filter((p) => p.active).length;
       {bumpChartData.weeks.length === 0 ? (
         <p className="text-gray-500">No tracker data yet. Save a week of matches to build the chart.</p>
       ) : (
-        <div className="p-6 text-center text-gray-500">Tracker temporarily disabled to avoid Turbopack parsing issues.</div>
+        <div className="bg-gray-800 rounded-lg p-6 overflow-x-auto">
+          <svg width="100%" height="350" className="min-w-full" viewBox={`0 0 ${Math.max(800, bumpChartData.weeks.length * 80)} 350`}>
+            {/* Background grid */}
+            {bumpChartData.weeks.map((_, weekIdx) => (
+              <line
+                key={`grid-v-${weekIdx}`}
+                x1={80 + weekIdx * 80}
+                y1="40"
+                x2={80 + weekIdx * 80}
+                y2="300"
+                stroke="#374151"
+                strokeWidth="0.5"
+                strokeDasharray="2,2"
+              />
+            ))}
+            {Array.from({ length: 6 }).map((_, i) => (
+              <line
+                key={`grid-h-${i}`}
+                x1="50"
+                y1={40 + i * 52}
+                x2={Math.max(800, bumpChartData.weeks.length * 80) - 20}
+                y2={40 + i * 52}
+                stroke="#374151"
+                strokeWidth="0.5"
+                strokeDasharray="2,2"
+              />
+            ))}
+
+            {/* Y-axis (rankings) */}
+            {Array.from({ length: 6 }).map((_, i) => (
+              <text key={`y-label-${i}`} x="40" y={70 + i * 52} fontSize="12" fontWeight="600" textAnchor="end" fill="#9CA3AF">
+                {i}
+              </text>
+            ))}
+
+            {/* X-axis (weeks) */}
+            {bumpChartData.weeks.map((week, weekIdx) => (
+              <text key={`x-label-${weekIdx}`} x={80 + weekIdx * 80} y="330" fontSize="11" textAnchor="middle" fill="#9CA3AF">
+                {week}
+              </text>
+            ))}
+
+            {/* Y-axis and X-axis lines */}
+            <line x1="50" y1="40" x2="50" y2="300" stroke="#6B7280" strokeWidth="2" />
+            <line x1="50" y1="300" x2={Math.max(800, bumpChartData.weeks.length * 80) - 20} y2="300" stroke="#6B7280" strokeWidth="2" />
+
+            {/* Player lines and dots with position numbers */}
+            {bumpChartData.lines.map((line, lineIdx) => {
+              const points = line.positions
+                .map((pos) => {
+                  const x = 80 + pos.weekIndex * 80;
+                  const y = 40 + (pos.rank - 1) * 52;
+                  return `${x},${y}`;
+                })
+                .join(' ');
+
+              return (
+                <g key={lineIdx}>
+                  {/* Line */}
+                  <polyline
+                    points={points}
+                    fill="none"
+                    stroke={line.color}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity="0.85"
+                  />
+                  {/* Dots with position numbers */}
+                  {line.positions.map((pos, posIdx) => {
+                    const cx = 80 + pos.weekIndex * 80;
+                    const cy = 40 + (pos.rank - 1) * 52;
+                    return (
+                      <g key={`dot-${posIdx}`}>
+                        {/* Colored dot */}
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r="5.5"
+                          fill={line.color}
+                          opacity="0.95"
+                        />
+                        {/* Position number text */}
+                        <text
+                          x={cx}
+                          y={cy}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fontSize="9"
+                          fontWeight="700"
+                          fill="white"
+                          pointerEvents="none"
+                        >
+                          {pos.rank}
+                        </text>
+                      </g>
+                    );
+                  })}
+                  {/* End label with player name */}
+                  {line.positions.length > 0 && (
+                    <text
+                      x={80 + (line.positions[line.positions.length - 1].weekIndex + 1) * 80 + 12}
+                      y={40 + (line.positions[line.positions.length - 1].rank - 1) * 52 + 4}
+                      fontSize="11"
+                      fontWeight="600"
+                      fill={line.color}
+                    >
+                      {line.name}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
       )}
     </div>
   </div>
@@ -3789,6 +3902,112 @@ const activePlayerCount = players.filter((p) => p.active).length;
                           </div>
                         )}
 
+                        {/* Bump Chart - Position Progression */}
+                        {(summary.tracker || []).length > 1 && (
+                          <div>
+                            <div className="text-xs font-bold text-yellow-600 mb-3">📊 Position Over Time</div>
+                            <div className="bg-white rounded-lg border border-gray-300 overflow-hidden p-4">
+                              <p className="text-xs text-gray-500 mb-3">A bump chart showing how player rankings changed throughout the season.</p>
+                              {(() => {
+                                // Extract all unique players and their position data
+                                const playerPositions = {};
+                                (summary.tracker || []).forEach((entry, matchIdx) => {
+                                  (entry.positions || []).slice(0, 10).forEach((p) => {
+                                    if (!playerPositions[p.id]) {
+                                      playerPositions[p.id] = { name: p.name, positions: [] };
+                                    }
+                                    playerPositions[p.id].positions[matchIdx] = p.position;
+                                  });
+                                });
+
+                                const playerList = Object.entries(playerPositions);
+                                const numMatches = summary.tracker.length;
+                                const maxPosition = 5;
+
+                                // Color palette for lines
+                                const colors = ['#2563eb', '#dc2626', '#16a34a', '#ea580c', '#9333ea', '#0891b2', '#ea8c55', '#ec4899', '#8b5cf6', '#f59e0b'];
+
+                                return (
+                                  <svg width="100%" height="240" className="bg-gradient-to-b from-gray-50 to-white rounded" viewBox={`0 0 ${Math.max(600, numMatches * 50)} 240`}>
+                                    {/* Grid lines */}
+                                    {Array.from({ length: maxPosition }).map((_, i) => (
+                                      <line key={`grid-${i}`} x1="60" y1={50 + i * 35} x2={Math.max(600, numMatches * 50) - 20} y2={50 + i * 35} stroke="#e5e7eb" strokeDasharray="3,3" strokeWidth="0.75" />
+                                    ))}
+
+                                    {/* Y-axis labels (positions) */}
+                                    {Array.from({ length: maxPosition }).map((_, i) => (
+                                      <text key={`label-${i}`} x="45" y={56 + i * 35} fontSize="11" fontWeight="600" textAnchor="end" fill="#666">
+                                        {i + 1}
+                                      </text>
+                                    ))}
+
+                                    {/* Y-axis title */}
+                                    <text x="15" y="120" fontSize="10" textAnchor="middle" fill="#999" transform="rotate(-90 15 120)">
+                                      Position
+                                    </text>
+
+                                    {/* X-axis label */}
+                                    <text x={(Math.max(600, numMatches * 50) - 20 + 60) / 2} y="225" fontSize="11" fontWeight="600" textAnchor="middle" fill="#999">
+                                      Matches
+                                    </text>
+
+                                    {/* Y-axis */}
+                                    <line x1="60" y1="50" x2="60" y2={50 + (maxPosition - 1) * 35} stroke="#999" strokeWidth="1.5" />
+
+                                    {/* X-axis */}
+                                    <line x1="60" y1={50 + (maxPosition - 1) * 35} x2={Math.max(600, numMatches * 50) - 20} y2={50 + (maxPosition - 1) * 35} stroke="#999" strokeWidth="1.5" />
+
+                                    {/* Plot lines for each player */}
+                                    {playerList.slice(0, 10).map(([playerId, playerData], playerIdx) => {
+                                      const xScale = (Math.max(600, numMatches * 50) - 80) / (numMatches - 1);
+                                      const yScale = 35;
+                                      const color = colors[playerIdx % colors.length];
+
+                                      const points = playerData.positions
+                                        .map((pos, matchIdx) => {
+                                          if (pos === undefined) return null;
+                                          const x = 60 + matchIdx * xScale;
+                                          const y = 50 + (maxPosition - pos) * yScale;
+                                          return `${x},${y}`;
+                                        })
+                                        .filter(Boolean)
+                                        .join(' ');
+
+                                      return (
+                                        <g key={playerId}>
+                                          {/* Line */}
+                                          <polyline points={points} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+                                          {/* Dots */}
+                                          {playerData.positions.map((pos, matchIdx) => {
+                                            if (pos === undefined) return null;
+                                            const x = 60 + matchIdx * xScale;
+                                            const y = 50 + (maxPosition - pos) * yScale;
+                                            return (
+                                              <circle key={`dot-${matchIdx}`} cx={x} cy={y} r="3" fill={color} stroke="white" strokeWidth="1" />
+                                            );
+                                          })}
+                                          {/* End label */}
+                                          {playerData.positions[numMatches - 1] && (
+                                            <text
+                                              x={60 + (numMatches - 1) * xScale + 12}
+                                              y={50 + (maxPosition - playerData.positions[numMatches - 1]) * yScale + 4}
+                                              fontSize="10"
+                                              fontWeight="600"
+                                              fill={color}
+                                            >
+                                              {playerData.name}
+                                            </text>
+                                          )}
+                                        </g>
+                                      );
+                                    })}
+                                  </svg>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Top By Points */}
                         <div>
                           <div className="text-xs font-bold text-yellow-600 mb-2">⭐ Top By Points</div>
@@ -3999,14 +4218,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
               className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-red-400"
             />
 
-            <input
-              type="text"
-              value={resetSeasonName}
-              onChange={(e) => setResetSeasonName(e.target.value)}
-              placeholder="Season name (optional)"
-              className="w-full mt-3 px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-red-400"
-            />
-
             {resetError && (
               <p className="text-red-400 text-sm mt-2 text-center">
                 {resetError}
@@ -4018,7 +4229,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 onClick={() => {
                   setShowResetModal(false);
                   setResetPasswordInput("");
-                  setResetSeasonName("");
                   setResetError("");
                 }}
                 className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
@@ -4152,10 +4362,21 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         const mostActive = Object.entries(appearances)
                           .sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
+                        // Fetch current season name from running_seasons table
+                        let seasonName = null;
+                        try {
+                          const { data: runningSeason } = await db('running_seasons').select('name').eq('division', division).maybeSingle();
+                          if (runningSeason?.name) {
+                            seasonName = runningSeason.name;
+                          }
+                        } catch (e) {
+                          console.warn('Failed to fetch running season name:', e);
+                        }
+
                         const summary = {
                           id: `season_summary_${division}_${Date.now()}`,
                           division,
-                          name: resetSeasonName.trim() || null,
+                          name: seasonName,
                           timestamp: new Date().toISOString(),
                           topByPoints,
                           topByWins,
@@ -4172,25 +4393,26 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         try {
                           const seasonsTable = viewMode === 'doubles' ? `season_summaries${DOUBLES_SUFFIX}` : "season_summaries";
                           const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ""}`;
+                          const insertPayload = {
+                            id: summary.id,
+                            division: summary.division,
+                            timestamp: summary.timestamp,
+                            top_by_points: summary.topByPoints,
+                            top_by_wins: summary.topByWins,
+                            highest_scoring_match: summary.highestScoringMatch,
+                            avg_points: summary.avgPoints,
+                            most_active: summary.mostActive,
+                            players: summary.players,
+                            matches: summary.matches,
+                            final_standings: summary.finalStandings,
+                            tracker: summary.tracker,
+                          };
+                          if (summary.name) {
+                            insertPayload.name = summary.name;
+                          }
                           const { data: insertData, error: insertError } = await supabase
                             .from(seasonsTable)
-                            .insert([
-                              {
-                                id: summary.id,
-                                division: summary.division,
-                                name: summary.name,
-                                timestamp: summary.timestamp,
-                                top_by_points: summary.topByPoints,
-                                top_by_wins: summary.topByWins,
-                                highest_scoring_match: summary.highestScoringMatch,
-                                avg_points: summary.avgPoints,
-                                most_active: summary.mostActive,
-                                players: summary.players,
-                                matches: summary.matches,
-                                final_standings: summary.finalStandings,
-                                tracker: summary.tracker,
-                              },
-                            ]);
+                            .insert([insertPayload]);
 
                           if (insertError) throw insertError;
                         } catch (dbErr) {
@@ -4207,7 +4429,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
                           setEndSummaryContext(summary);
                           setShowResetModal(false);
                           setResetPasswordInput("");
-                          setResetSeasonName("");
                           setShowEndSeasonChoiceModal(true);
                         } catch (e) {
                           console.error("Error opening post-end modal:", e);
