@@ -1060,7 +1060,7 @@ useEffect(() => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Testing"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Archive"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -3073,121 +3073,135 @@ const activePlayerCount = players.filter((p) => p.active).length;
         <p className="text-gray-500">No tracker data yet. Save a week of matches to build the chart.</p>
       ) : (
         <div className="bg-gray-800 rounded-lg p-6 overflow-x-auto">
-          <svg width="100%" height="350" className="min-w-full" viewBox={`0 0 ${Math.max(800, bumpChartData.weeks.length * 80)} 350`}>
-            {/* Background grid */}
-            {bumpChartData.weeks.map((_, weekIdx) => (
-              <line
-                key={`grid-v-${weekIdx}`}
-                x1={80 + weekIdx * 80}
-                y1="40"
-                x2={80 + weekIdx * 80}
-                y2="300"
-                stroke="#374151"
-                strokeWidth="0.5"
-                strokeDasharray="2,2"
-              />
-            ))}
-            {Array.from({ length: 6 }).map((_, i) => (
-              <line
-                key={`grid-h-${i}`}
-                x1="50"
-                y1={40 + i * 52}
-                x2={Math.max(800, bumpChartData.weeks.length * 80) - 20}
-                y2={40 + i * 52}
-                stroke="#374151"
-                strokeWidth="0.5"
-                strokeDasharray="2,2"
-              />
-            ))}
+          {(() => {
+            // Calculate maximum rank from all players
+            const maxRank = Math.max(
+              ...bumpChartData.lines.flatMap(line => line.positions.map(p => p.rank)),
+              5
+            );
+            const rowHeight = 52;
+            const topPadding = 40;
+            const bottomPadding = 40;
+            const chartHeight = topPadding + maxRank * rowHeight + bottomPadding;
+            const viewBoxWidth = Math.max(800, bumpChartData.weeks.length * 80);
 
-            {/* Y-axis (rankings) */}
-            {Array.from({ length: 6 }).map((_, i) => (
-              <text key={`y-label-${i}`} x="40" y={70 + i * 52} fontSize="12" fontWeight="600" textAnchor="end" fill="#9CA3AF">
-                {i}
-              </text>
-            ))}
-
-            {/* X-axis (weeks) */}
-            {bumpChartData.weeks.map((week, weekIdx) => (
-              <text key={`x-label-${weekIdx}`} x={80 + weekIdx * 80} y="330" fontSize="11" textAnchor="middle" fill="#9CA3AF">
-                {week}
-              </text>
-            ))}
-
-            {/* Y-axis and X-axis lines */}
-            <line x1="50" y1="40" x2="50" y2="300" stroke="#6B7280" strokeWidth="2" />
-            <line x1="50" y1="300" x2={Math.max(800, bumpChartData.weeks.length * 80) - 20} y2="300" stroke="#6B7280" strokeWidth="2" />
-
-            {/* Player lines and dots with position numbers */}
-            {bumpChartData.lines.map((line, lineIdx) => {
-              const points = line.positions
-                .map((pos) => {
-                  const x = 80 + pos.weekIndex * 80;
-                  const y = 40 + (pos.rank - 1) * 52;
-                  return `${x},${y}`;
-                })
-                .join(' ');
-
-              return (
-                <g key={lineIdx}>
-                  {/* Line */}
-                  <polyline
-                    points={points}
-                    fill="none"
-                    stroke={line.color}
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity="0.85"
+            return (
+              <svg width="100%" height={Math.max(400, chartHeight)} className="min-w-full" viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}>
+                {/* Background grid */}
+                {bumpChartData.weeks.map((_, weekIdx) => (
+                  <line
+                    key={`grid-v-${weekIdx}`}
+                    x1={80 + weekIdx * 80}
+                    y1={topPadding}
+                    x2={80 + weekIdx * 80}
+                    y2={topPadding + maxRank * rowHeight}
+                    stroke="#374151"
+                    strokeWidth="0.5"
+                    strokeDasharray="2,2"
                   />
-                  {/* Dots with position numbers */}
-                  {line.positions.map((pos, posIdx) => {
-                    const cx = 80 + pos.weekIndex * 80;
-                    const cy = 40 + (pos.rank - 1) * 52;
-                    return (
-                      <g key={`dot-${posIdx}`}>
-                        {/* Colored dot */}
-                        <circle
-                          cx={cx}
-                          cy={cy}
-                          r="5.5"
-                          fill={line.color}
-                          opacity="0.95"
-                        />
-                        {/* Position number text */}
+                ))}
+                {Array.from({ length: maxRank }).map((_, i) => (
+                  <line
+                    key={`grid-h-${i}`}
+                    x1="50"
+                    y1={topPadding + i * rowHeight}
+                    x2={viewBoxWidth - 20}
+                    y2={topPadding + i * rowHeight}
+                    stroke="#374151"
+                    strokeWidth="0.5"
+                    strokeDasharray="2,2"
+                  />
+                ))}
+
+                {/* Y-axis (rankings) */}
+                {Array.from({ length: maxRank }).map((_, i) => (
+                  <text key={`y-label-${i}`} x="40" y={topPadding + 16 + i * rowHeight} fontSize="12" fontWeight="600" textAnchor="end" fill="#9CA3AF">
+                    {i + 1}
+                  </text>
+                ))}
+
+                {/* X-axis (weeks) */}
+                {bumpChartData.weeks.map((week, weekIdx) => (
+                  <text key={`x-label-${weekIdx}`} x={80 + weekIdx * 80} y={topPadding + maxRank * rowHeight + 25} fontSize="11" textAnchor="middle" fill="#9CA3AF">
+                    {week}
+                  </text>
+                ))}
+
+                {/* Y-axis and X-axis lines */}
+                <line x1="50" y1={topPadding} x2="50" y2={topPadding + maxRank * rowHeight} stroke="#6B7280" strokeWidth="2" />
+                <line x1="50" y1={topPadding + maxRank * rowHeight} x2={viewBoxWidth - 20} y2={topPadding + maxRank * rowHeight} stroke="#6B7280" strokeWidth="2" />
+
+                {/* Player lines and dots with position numbers */}
+                {bumpChartData.lines.map((line, lineIdx) => {
+                  const points = line.positions
+                    .map((pos) => {
+                      const x = 80 + pos.weekIndex * 80;
+                      const y = topPadding + (pos.rank - 1) * rowHeight;
+                      return `${x},${y}`;
+                    })
+                    .join(' ');
+
+                  return (
+                    <g key={lineIdx}>
+                      {/* Line */}
+                      <polyline
+                        points={points}
+                        fill="none"
+                        stroke={line.color}
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        opacity="0.85"
+                      />
+                      {/* Dots with position numbers */}
+                      {line.positions.map((pos, posIdx) => {
+                        const cx = 80 + pos.weekIndex * 80;
+                        const cy = topPadding + (pos.rank - 1) * rowHeight;
+                        return (
+                          <g key={`dot-${posIdx}`}>
+                            {/* Colored dot */}
+                            <circle
+                              cx={cx}
+                              cy={cy}
+                              r="5.5"
+                              fill={line.color}
+                              opacity="0.95"
+                            />
+                            {/* Position number text */}
+                            <text
+                              x={cx}
+                              y={cy}
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                              fontSize="9"
+                              fontWeight="700"
+                              fill="white"
+                              pointerEvents="none"
+                            >
+                              {pos.rank}
+                            </text>
+                          </g>
+                        );
+                      })}
+                      {/* End label with player name */}
+                      {line.positions.length > 0 && (
                         <text
-                          x={cx}
-                          y={cy}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          fontSize="9"
-                          fontWeight="700"
-                          fill="white"
-                          pointerEvents="none"
+                          x={80 + (line.positions[line.positions.length - 1].weekIndex + 1) * 80 + 12}
+                          y={topPadding + (line.positions[line.positions.length - 1].rank - 1) * rowHeight + 4}
+                          fontSize="11"
+                          fontWeight="600"
+                          fill={line.color}
                         >
-                          {pos.rank}
+                          {line.name}
                         </text>
-                      </g>
-                    );
-                  })}
-                  {/* End label with player name */}
-                  {line.positions.length > 0 && (
-                    <text
-                      x={80 + (line.positions[line.positions.length - 1].weekIndex + 1) * 80 + 12}
-                      y={40 + (line.positions[line.positions.length - 1].rank - 1) * 52 + 4}
-                      fontSize="11"
-                      fontWeight="600"
-                      fill={line.color}
-                    >
-                      {line.name}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
+            );
+          })()}
         </div>
-      )}
     </div>
   </div>
 )}
@@ -3794,7 +3808,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         )}
 
-        {activeTab === "Testing" && (
+        {activeTab === "Archive" && (
           <div className="bg-white text-gray-700 rounded shadow p-4">
             {/* Testing view with Season Summaries stats only */}
             {seasonSummariesList.length === 0 ? (
@@ -3906,13 +3920,12 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         {(summary.tracker || []).length > 1 && (
                           <div>
                             <div className="text-xs font-bold text-yellow-600 mb-3">📊 Position Over Time</div>
-                            <div className="bg-white rounded-lg border border-gray-300 overflow-hidden p-4">
-                              <p className="text-xs text-gray-500 mb-3">A bump chart showing how player rankings changed throughout the season.</p>
+                            <div className="bg-gray-800 rounded-lg overflow-hidden p-6">
                               {(() => {
                                 // Extract all unique players and their position data
                                 const playerPositions = {};
                                 (summary.tracker || []).forEach((entry, matchIdx) => {
-                                  (entry.positions || []).slice(0, 10).forEach((p) => {
+                                  (entry.positions || []).forEach((p) => {
                                     if (!playerPositions[p.id]) {
                                       playerPositions[p.id] = { name: p.name, positions: [] };
                                     }
@@ -3922,76 +3935,131 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
                                 const playerList = Object.entries(playerPositions);
                                 const numMatches = summary.tracker.length;
-                                const maxPosition = 5;
+                                
+                                // Calculate maximum rank from all players
+                                const maxRank = Math.max(
+                                  ...playerList.flatMap(([_, data]) => data.positions.filter(p => p !== undefined)),
+                                  5
+                                );
+
+                                const rowHeight = 52;
+                                const topPadding = 40;
+                                const bottomPadding = 40;
+                                const chartHeight = topPadding + maxRank * rowHeight + bottomPadding;
+                                const viewBoxWidth = Math.max(800, numMatches * 80);
 
                                 // Color palette for lines
-                                const colors = ['#2563eb', '#dc2626', '#16a34a', '#ea580c', '#9333ea', '#0891b2', '#ea8c55', '#ec4899', '#8b5cf6', '#f59e0b'];
+                                const colors = ['#f59e0b', '#34d399', '#60a5fa', '#818cf8', '#fb7185', '#a855f7', '#f97316', '#22c55e', '#38bdf8', '#f43f5e'];
 
                                 return (
-                                  <svg width="100%" height="240" className="bg-gradient-to-b from-gray-50 to-white rounded" viewBox={`0 0 ${Math.max(600, numMatches * 50)} 240`}>
-                                    {/* Grid lines */}
-                                    {Array.from({ length: maxPosition }).map((_, i) => (
-                                      <line key={`grid-${i}`} x1="60" y1={50 + i * 35} x2={Math.max(600, numMatches * 50) - 20} y2={50 + i * 35} stroke="#e5e7eb" strokeDasharray="3,3" strokeWidth="0.75" />
+                                  <svg width="100%" height={Math.max(400, chartHeight)} className="min-w-full" viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}>
+                                    {/* Background grid */}
+                                    {summary.tracker.map((_, weekIdx) => (
+                                      <line
+                                        key={`grid-v-${weekIdx}`}
+                                        x1={80 + weekIdx * 80}
+                                        y1={topPadding}
+                                        x2={80 + weekIdx * 80}
+                                        y2={topPadding + maxRank * rowHeight}
+                                        stroke="#374151"
+                                        strokeWidth="0.5"
+                                        strokeDasharray="2,2"
+                                      />
+                                    ))}
+                                    {Array.from({ length: maxRank }).map((_, i) => (
+                                      <line
+                                        key={`grid-h-${i}`}
+                                        x1="50"
+                                        y1={topPadding + i * rowHeight}
+                                        x2={viewBoxWidth - 20}
+                                        y2={topPadding + i * rowHeight}
+                                        stroke="#374151"
+                                        strokeWidth="0.5"
+                                        strokeDasharray="2,2"
+                                      />
                                     ))}
 
-                                    {/* Y-axis labels (positions) */}
-                                    {Array.from({ length: maxPosition }).map((_, i) => (
-                                      <text key={`label-${i}`} x="45" y={56 + i * 35} fontSize="11" fontWeight="600" textAnchor="end" fill="#666">
+                                    {/* Y-axis (rankings) */}
+                                    {Array.from({ length: maxRank }).map((_, i) => (
+                                      <text key={`y-label-${i}`} x="40" y={topPadding + 16 + i * rowHeight} fontSize="12" fontWeight="600" textAnchor="end" fill="#9CA3AF">
                                         {i + 1}
                                       </text>
                                     ))}
 
-                                    {/* Y-axis title */}
-                                    <text x="15" y="120" fontSize="10" textAnchor="middle" fill="#999" transform="rotate(-90 15 120)">
-                                      Position
-                                    </text>
+                                    {/* X-axis (matches) */}
+                                    {summary.tracker.map((_, weekIdx) => (
+                                      <text key={`x-label-${weekIdx}`} x={80 + weekIdx * 80} y={topPadding + maxRank * rowHeight + 25} fontSize="11" textAnchor="middle" fill="#9CA3AF">
+                                        Match {weekIdx + 1}
+                                      </text>
+                                    ))}
 
-                                    {/* X-axis label */}
-                                    <text x={(Math.max(600, numMatches * 50) - 20 + 60) / 2} y="225" fontSize="11" fontWeight="600" textAnchor="middle" fill="#999">
-                                      Matches
-                                    </text>
+                                    {/* Y-axis and X-axis lines */}
+                                    <line x1="50" y1={topPadding} x2="50" y2={topPadding + maxRank * rowHeight} stroke="#6B7280" strokeWidth="2" />
+                                    <line x1="50" y1={topPadding + maxRank * rowHeight} x2={viewBoxWidth - 20} y2={topPadding + maxRank * rowHeight} stroke="#6B7280" strokeWidth="2" />
 
-                                    {/* Y-axis */}
-                                    <line x1="60" y1="50" x2="60" y2={50 + (maxPosition - 1) * 35} stroke="#999" strokeWidth="1.5" />
-
-                                    {/* X-axis */}
-                                    <line x1="60" y1={50 + (maxPosition - 1) * 35} x2={Math.max(600, numMatches * 50) - 20} y2={50 + (maxPosition - 1) * 35} stroke="#999" strokeWidth="1.5" />
-
-                                    {/* Plot lines for each player */}
-                                    {playerList.slice(0, 10).map(([playerId, playerData], playerIdx) => {
-                                      const xScale = (Math.max(600, numMatches * 50) - 80) / (numMatches - 1);
-                                      const yScale = 35;
-                                      const color = colors[playerIdx % colors.length];
-
+                                    {/* Player lines and dots with position numbers */}
+                                    {playerList.map(([playerId, playerData], playerIdx) => {
                                       const points = playerData.positions
                                         .map((pos, matchIdx) => {
                                           if (pos === undefined) return null;
-                                          const x = 60 + matchIdx * xScale;
-                                          const y = 50 + (maxPosition - pos) * yScale;
+                                          const x = 80 + matchIdx * 80;
+                                          const y = topPadding + (pos - 1) * rowHeight;
                                           return `${x},${y}`;
                                         })
                                         .filter(Boolean)
                                         .join(' ');
 
+                                      const color = colors[playerIdx % colors.length];
+
                                       return (
                                         <g key={playerId}>
                                           {/* Line */}
-                                          <polyline points={points} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
-                                          {/* Dots */}
+                                          <polyline
+                                            points={points}
+                                            fill="none"
+                                            stroke={color}
+                                            strokeWidth="2.5"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            opacity="0.85"
+                                          />
+                                          {/* Dots with position numbers */}
                                           {playerData.positions.map((pos, matchIdx) => {
                                             if (pos === undefined) return null;
-                                            const x = 60 + matchIdx * xScale;
-                                            const y = 50 + (maxPosition - pos) * yScale;
+                                            const cx = 80 + matchIdx * 80;
+                                            const cy = topPadding + (pos - 1) * rowHeight;
                                             return (
-                                              <circle key={`dot-${matchIdx}`} cx={x} cy={y} r="3" fill={color} stroke="white" strokeWidth="1" />
+                                              <g key={`dot-${matchIdx}`}>
+                                                {/* Colored dot */}
+                                                <circle
+                                                  cx={cx}
+                                                  cy={cy}
+                                                  r="5.5"
+                                                  fill={color}
+                                                  opacity="0.95"
+                                                />
+                                                {/* Position number text */}
+                                                <text
+                                                  x={cx}
+                                                  y={cy}
+                                                  textAnchor="middle"
+                                                  dominantBaseline="middle"
+                                                  fontSize="9"
+                                                  fontWeight="700"
+                                                  fill="white"
+                                                  pointerEvents="none"
+                                                >
+                                                  {pos}
+                                                </text>
+                                              </g>
                                             );
                                           })}
-                                          {/* End label */}
-                                          {playerData.positions[numMatches - 1] && (
+                                          {/* End label with player name */}
+                                          {playerData.positions.length > 0 && playerData.positions[playerData.positions.length - 1] !== undefined && (
                                             <text
-                                              x={60 + (numMatches - 1) * xScale + 12}
-                                              y={50 + (maxPosition - playerData.positions[numMatches - 1]) * yScale + 4}
-                                              fontSize="10"
+                                              x={80 + (playerData.positions.length - 1) * 80 + 12}
+                                              y={topPadding + (playerData.positions[playerData.positions.length - 1] - 1) * rowHeight + 4}
+                                              fontSize="11"
                                               fontWeight="600"
                                               fill={color}
                                             >
