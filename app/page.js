@@ -107,29 +107,74 @@ const [adminError, setAdminError] = useState("");
 
   const [hydrated, setHydrated] = useState(false);
 
-  // Testing tab controls: cascading dropdown for data selection
-  const [testingSource, setTestingSource] = useState('previous_matches');
-  const [testingOptions, setTestingOptions] = useState([]);
-  const [testingOption, setTestingOption] = useState('');
+  // Surface server-side errors to the UI for retry/copy flows
+  const [serverError, setServerError] = useState(null);
 
-  useEffect(() => {
-    // populate secondary options based on selected source
-    if (testingSource === 'previous_matches') {
-      setTestingOptions(['Last 10 matches', 'This week', 'All matches']);
-    } else if (testingSource === 'season_summaries') {
-      setTestingOptions(['Latest summary', 'By division', 'All summaries']);
-    } else if (testingSource === 'players') {
-      setTestingOptions(['All players', 'Active players', 'Top by points']);
-    } else {
-      setTestingOptions([]);
-    }
-    setTestingOption('');
-  }, [testingSource]);
+  // Additional UI state (modals, forms, helpers) that were missing
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [allDivisionPlayers, setAllDivisionPlayers] = useState([]);
+  const [openDates, setOpenDates] = useState([]);
+
+  const [showRecalculateModal, setShowRecalculateModal] = useState(false);
+  const [recalculatePasswordInput, setRecalculatePasswordInput] = useState("");
+  const [recalculateError, setRecalculateError] = useState("");
+
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetPasswordInput, setResetPasswordInput] = useState("");
+  const [resetSeasonName, setResetSeasonName] = useState("");
+  const [resetError, setResetError] = useState("");
+
+  const [showEndSeasonChoiceModal, setShowEndSeasonChoiceModal] = useState(false);
+  const [endSummaryContext, setEndSummaryContext] = useState(null);
+  const [newSeasonName, setNewSeasonName] = useState("");
+
+  const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
+  const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState(null);
+  const [showRemovePlayerModal, setShowRemovePlayerModal] = useState(false);
+  const [removePlayerPasscode, setRemovePlayerPasscode] = useState("");
+  const [removePlayerPasscodeError, setRemovePlayerPasscodeError] = useState("");
+
+  const [showAddMatchPasscodeModal, setShowAddMatchPasscodeModal] = useState(false);
+  const [addMatchPasscode, setAddMatchPasscode] = useState("");
+  const [addMatchPasscodeError, setAddMatchPasscodeError] = useState("");
+  const [showAddMatchModal, setShowAddMatchModal] = useState(false);
+  const [addMatchData, setAddMatchData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    team1Players: [],
+    team1Name: "",
+    team2Players: [],
+    team2Name: "",
+    team1Score: "",
+    team2Score: "",
+    court: "court1",
+  });
+  const [addMatchError, setAddMatchError] = useState("");
+
+  const [showEditMatchPasscodeModal, setShowEditMatchPasscodeModal] = useState(false);
+  const [editMatchPasscode, setEditMatchPasscode] = useState("");
+  const [editMatchPasscodeError, setEditMatchPasscodeError] = useState("");
+  const [pendingEditMatch, setPendingEditMatch] = useState(null);
+  const [showEditMatchModal, setShowEditMatchModal] = useState(false);
+  const [editMatchData, setEditMatchData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    team1Players: [],
+    team2Players: [],
+    team1Score: "",
+    team2Score: "",
+    court: "court1",
+  });
+  const [editingMatchId, setEditingMatchId] = useState(null);
+  const [editMatchError, setEditMatchError] = useState("");
 
   // Quick hydration marker: allow client UI to render after mount
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  // Force literal doubles suffix constant and a local `db` helper so
+  // client code can pick the correct table based on `viewMode`.
+  const DOUBLES_SUFFIX = "_doubles";
+  const db = (table) => supabase.from(`${table}${viewMode === "doubles" ? DOUBLES_SUFFIX : ""}`);
 
   // Try to load running season from Supabase for this division (fallback to localStorage)
   const loadRunningSeasonFromDb = async (divisionNum = division) => {
@@ -159,7 +204,7 @@ const [adminError, setAdminError] = useState("");
   };
 
   useEffect(() => {
-    // Load saved season summaries for the current division when Season Archive tab is active
+    // Load season summaries when Testing tab is active
     const fetchSummariesFromDb = async (vm = null) => {
       try {
         const viewParam = (vm || (() => { try { return getViewMode(); } catch (e) { return 'singles'; } })()) === 'doubles' ? 'doubles' : 'singles';
@@ -170,7 +215,7 @@ const [adminError, setAdminError] = useState("");
           console.error('Season summaries API error:', payload?.error || 'unknown');
           setSeasonSummariesList([]);
           setSelectedSeasonSummaryId(null);
-          setServerError('Failed to load Season Archive from server.');
+          setServerError('Failed to load season summaries from server.');
           return;
         }
 
@@ -182,11 +227,11 @@ const [adminError, setAdminError] = useState("");
         console.error('Failed to fetch season summaries from API:', e);
         setSeasonSummariesList([]);
         setSelectedSeasonSummaryId(null);
-        setServerError('Failed to load Season Archive.');
+        setServerError('Failed to load season summaries.');
       }
     };
 
-    if (activeTab === 'Season Archive') {
+    if (activeTab === 'Testing') {
       const vm = (() => { try { return getViewMode(); } catch (e) { return 'singles'; } })();
       fetchSummariesFromDb(vm);
     }
@@ -1016,7 +1061,7 @@ useEffect(() => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Season Archive", "Testing"];
+  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Testing"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -3034,220 +3079,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
   </div>
 )}
 
-{/* Season Archive content panel */}
-{activeTab === "Season Archive" && (
-  <div className="bg-gray-700 rounded shadow p-4">
-    <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">📜 Season Archive</h2>
 
-    {divisions.length === 0 ? (
-      <p className="text-gray-300 italic text-sm">No divisions configured.</p>
-    ) : (
-      <div className="space-y-8">
-        {divisions.map((d) => {
-          const divKey = `division-${d.id}`;
-          const divOpen = openDates.includes(divKey);
-          const items = (seasonSummariesList || []).filter((s) => Number(s.division) === Number(d.id));
-
-          return (
-            <div key={d.id} className="space-y-4">
-              <div className="text-sm font-bold text-yellow-400">{d.name}</div>
-
-              <details
-                key={divKey}
-                id={divKey}
-                open={divOpen}
-                onToggle={(e) => {
-                  const date = divKey;
-                  if (e.currentTarget.open) {
-                    setOpenDates((prev) => (prev.includes(date) ? prev : [...prev, date]));
-                  } else {
-                    setOpenDates((prev) => prev.filter((dd) => dd !== date));
-                  }
-                }}
-                className="mb-3 rounded-xl border border-gray-600 bg-gray-800 overflow-hidden"
-              >
-                <summary className="list-none cursor-pointer select-none px-4 py-3 flex items-center justify-between hover:bg-gray-700">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg">📂</span>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-gray-200">{d.name}</div>
-                      <div className="text-xs text-gray-400">{items.length} saved summary{items.length === 1 ? '' : 'ies'}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">{items.length}</span>
-                    <span className={`text-yellow-300 text-2xl ${divOpen ? 'rotate-180' : 'rotate-0'}`}>▾</span>
-                  </div>
-                </summary>
-
-                <div className="p-4 bg-gray-700">
-                  {items.length === 0 ? (
-                    <p className="text-gray-300 italic">No saved summaries for this division.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {items.map((sel) => {
-                        const sKey = `season-${sel.id}`;
-                        const sOpen = openDates.includes(sKey);
-                        const totalMatches = (sel.matches || []).length;
-
-                        return (
-                          <details
-                            key={sKey}
-                            id={sKey}
-                            open={sOpen}
-                            onToggle={(e) => {
-                              const date = sKey;
-                              if (e.currentTarget.open) {
-                                setOpenDates((prev) => (prev.includes(date) ? prev : [...prev, date]));
-                              } else {
-                                setOpenDates((prev) => prev.filter((dd) => dd !== date));
-                              }
-                            }}
-                            className="mb-2 rounded-lg border border-gray-600 bg-gray-800 overflow-hidden"
-                          >
-                            <summary className="list-none cursor-pointer select-none px-3 py-3 flex items-center justify-between hover:bg-gray-700">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <span className="text-lg">📦</span>
-                                <div className="min-w-0">
-                                  <div className="font-bold text-yellow-300 truncate">{sel.timestamp ? new Date(sel.timestamp).toLocaleString() : 'Unknown'}</div>
-                                  <div className="text-xs text-gray-400">Division {sel.division}</div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-xs font-bold bg-gray-900 text-gray-200 px-2 py-1 rounded-full border border-gray-600">{totalMatches}</span>
-                                <span className={`text-yellow-300 text-2xl ${sOpen ? 'rotate-180' : 'rotate-0'}`}>▾</span>
-                              </div>
-                            </summary>
-
-                            <div className="p-3 bg-gray-700">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <div className="p-3 bg-gray-900 rounded">
-                                    <h4 className="font-semibold text-gray-200">Top By Points</h4>
-                                    <ol className="text-gray-300 mt-2">
-                                      {(sel.topByPoints || sel.top_by_points || []).map((p) => (
-                                        <li key={p.id}>{p.name} — {p.points ?? p.points}</li>
-                                      ))}
-                                    </ol>
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <div className="p-3 bg-gray-900 rounded">
-                                    <h4 className="font-semibold text-gray-200">Top By Wins</h4>
-                                    <ol className="text-gray-300 mt-2">
-                                      {(sel.topByWins || sel.top_by_wins || []).map((p) => (
-                                        <li key={p.id}>{p.name} — {p.wins ?? p.wins}</li>
-                                      ))}
-                                    </ol>
-                                  </div>
-                                </div>
-
-                                <div className="md:col-span-2">
-                                  <h4 className="font-semibold text-gray-200">Matches</h4>
-                                  <div className="mt-2 bg-gray-800 p-2 rounded">
-                                    {(sel.matches || []).length === 0 ? (
-                                      <p className="text-gray-300 italic">No matches recorded.</p>
-                                    ) : (
-                                      (() => {
-                                        const courtMatches = { court1: [], court2: [] };
-                                        try {
-                                          (sel.matches || []).forEach((m) => {
-                                            const court = (m.court || 'court1').toLowerCase();
-                                            if (court === 'court2') courtMatches.court2.push(m);
-                                            else courtMatches.court1.push(m);
-                                          });
-                                        } catch (e) {
-                                          // fall back
-                                        }
-
-                                        return (
-                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                              <div className="bg-blue-100 text-blue-900 font-bold px-3 py-2 rounded mb-2 text-center">🎾 Court 1</div>
-                                              <div className="space-y-2">
-                                                {courtMatches.court1.length === 0 ? (
-                                                  <p className="text-gray-300 text-sm italic">No matches</p>
-                                                ) : (
-                                                  courtMatches.court1.map((m, idx) => (
-                                                    <div key={idx} className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300">
-                                                      <div className="flex items-center justify-between mb-1">
-                                                        <div className="text-blue-600 font-semibold">Division {m.division ?? sel.division}</div>
-                                                      </div>
-                                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-                                                        <div className="text-center">
-                                                          <div className="font-bold text-base text-gray-700">
-                                                            {Array.isArray(m.players) ? m.players.slice(0,2).map((id) => (typeof id === 'object' ? id.name : getPlayerNameFromId(id))).join(' & ') : String((m.players || []).slice(0,2)).replace(/,/g, ' & ')}
-                                                          </div>
-                                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team1 ?? '—'}</div>
-                                                        </div>
-                                                        <div className="text-center">
-                                                          <div className="font-bold text-base text-gray-700">
-                                                            {Array.isArray(m.players) ? m.players.slice(2,4).map((id) => (typeof id === 'object' ? id.name : getPlayerNameFromId(id))).join(' & ') : String((m.players || []).slice(2,4)).replace(/,/g, ' & ')}
-                                                          </div>
-                                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team2 ?? '—'}</div>
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                  ))
-                                                )}
-                                              </div>
-                                            </div>
-
-                                            <div>
-                                              <div className="bg-purple-100 text-purple-900 font-bold px-3 py-2 rounded mb-2 text-center">🎾 Court 2</div>
-                                              <div className="space-y-2">
-                                                {courtMatches.court2.length === 0 ? (
-                                                  <p className="text-gray-300 text-sm italic">No matches</p>
-                                                ) : (
-                                                  courtMatches.court2.map((m, idx) => (
-                                                    <div key={idx} className="bg-white p-3 rounded text-gray-700 text-sm border border-gray-300">
-                                                      <div className="flex items-center justify-between mb-1">
-                                                        <div className="text-purple-600 font-semibold">Division {m.division ?? sel.division}</div>
-                                                      </div>
-                                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-                                                        <div className="text-center">
-                                                          <div className="font-bold text-base text-gray-700">
-                                                            {Array.isArray(m.players) ? m.players.slice(0,2).map((id) => (typeof id === 'object' ? id.name : getPlayerNameFromId(id))).join(' & ') : String((m.players || []).slice(0,2)).replace(/,/g, ' & ')}
-                                                          </div>
-                                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team1 ?? '—'}</div>
-                                                        </div>
-                                                        <div className="text-center">
-                                                          <div className="font-bold text-base text-gray-700">
-                                                            {Array.isArray(m.players) ? m.players.slice(2,4).map((id) => (typeof id === 'object' ? id.name : getPlayerNameFromId(id))).join(' & ') : String((m.players || []).slice(2,4)).replace(/,/g, ' & ')}
-                                                          </div>
-                                                          <div className="text-3xl font-extrabold text-yellow-600 mt-1">{m.scores?.team2 ?? '—'}</div>
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                  ))
-                                                )}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        );
-                                      })()
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </details>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </details>
-            </div>
-          );
-        })}
-      </div>
-    )}
-  </div>
-)}
-
-        
 
     <div className="mt-8 px-6 py-6 flex justify-center gap-4 border-t border-gray-200 bg-red-50">
       <button
@@ -3850,30 +3682,202 @@ const activePlayerCount = players.filter((p) => p.active).length;
         )}
 
         {activeTab === "Testing" && (
-          <div className="bg-gray-700 rounded shadow p-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-300 mr-2">Data Source</label>
-                <select value={testingSource} onChange={(e) => setTestingSource(e.target.value)} className="bg-gray-800 text-white border border-gray-600 rounded px-3 py-2 outline-none">
-                  <option value="previous_matches">Previous Matches</option>
-                  <option value="season_summaries">Season Summaries</option>
-                  <option value="players">Players</option>
-                </select>
-              </div>
+          <div className="bg-white text-gray-700 rounded shadow p-4">
+            {/* Testing view with Season Summaries stats only */}
+            {seasonSummariesList.length === 0 ? (
+              <p className="text-gray-500 italic text-sm">No season summaries yet...</p>
+            ) : (
+              <div className="space-y-4">
+                {seasonSummariesList.map((summary) => {
+                  const sKey = `testing-season-${summary.id}`;
+                  const sOpen = openDates.includes(sKey);
 
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-300 mr-2">Option</label>
-                <select value={testingOption} onChange={(e) => setTestingOption(e.target.value)} className="bg-gray-800 text-white border border-gray-600 rounded px-3 py-2 outline-none">
-                  <option value="">-- Select --</option>
-                  {testingOptions.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                  // Calculate summary stats
+                  const allMatches = summary.matches || [];
+                  const highestScoringMatch = allMatches.length > 0 ? allMatches.reduce((max, m) => {
+                    const score1 = Number(m.scores?.team1 || 0);
+                    const score2 = Number(m.scores?.team2 || 0);
+                    const total = score1 + score2;
+                    return total > (Number(max.scores?.team1 || 0) + Number(max.scores?.team2 || 0)) ? m : max;
+                  }) : null;
+                  const avgPoints = allMatches.length > 0 ? (allMatches.reduce((sum, m) => sum + Number(m.scores?.team1 || 0) + Number(m.scores?.team2 || 0), 0) / allMatches.length).toFixed(1) : 0;
+                  
+                  // Most Active Player (appeared in most matches)
+                  const playerMatchCount = {};
+                  allMatches.forEach((m) => {
+                    if (Array.isArray(m.players)) {
+                      m.players.forEach((p) => {
+                        playerMatchCount[p] = (playerMatchCount[p] || 0) + 1;
+                      });
+                    }
+                  });
+                  const mostActivePlayerId = Object.keys(playerMatchCount).length > 0 ? Object.entries(playerMatchCount).sort((a, b) => b[1] - a[1])[0][0] : null;
+                  const mostActivePlayer = mostActivePlayerId ? (summary.final_standings || []).find((p) => p.id === mostActivePlayerId) : null;
 
-            {/* Reuse PreviousMatchesClient layout/functions for Testing view */}
-            <PreviousMatchesClient />
+                  return (
+                    <details
+                      key={sKey}
+                      open={sOpen}
+                      onToggle={(e) => {
+                        if (e.currentTarget.open) {
+                          setOpenDates((prev) => (prev.includes(sKey) ? prev : [...prev, sKey]));
+                        } else {
+                          setOpenDates((prev) => prev.filter((d) => d !== sKey));
+                        }
+                      }}
+                      className="rounded-lg border border-gray-300 bg-gray-50 overflow-hidden"
+                    >
+                      <summary className="list-none cursor-pointer select-none px-3 py-2 flex items-center justify-between hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span className="text-lg shrink-0">📦</span>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-yellow-600 text-sm truncate">
+                              {summary.name || (summary.timestamp ? new Date(summary.timestamp).toLocaleDateString() : 'Unknown')}
+                            </div>
+                            <div className="text-xs text-gray-500">{divisions.find((d) => d.id === summary.division)?.name || `Division ${summary.division}`}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span
+                            className={`text-yellow-600 text-lg transition-transform duration-200 ${
+                              sOpen ? "rotate-180" : "rotate-0"
+                            }`}
+                            aria-hidden="true"
+                          >
+                            ▾
+                          </span>
+                        </div>
+                      </summary>
+
+                      <div className="p-3 bg-gray-50 space-y-3">
+                        {/* Final Standings */}
+                        {(summary.final_standings || []).length > 0 && (
+                          <div>
+                            <div className="text-xs font-bold text-yellow-600 mb-2">🥇 Final Standings</div>
+                            <div className="bg-white rounded border border-gray-300 overflow-hidden text-xs">
+                              <div className="grid grid-cols-14 gap-0.5 p-2 bg-gray-100 font-bold text-gray-600 border-b border-gray-300">
+                                <div className="col-span-1 text-center">#</div>
+                                <div className="col-span-4">Name</div>
+                                <div className="col-span-1 text-center">GP</div>
+                                <div className="col-span-1 text-center text-green-600">W</div>
+                                <div className="col-span-1 text-center text-red-500">L</div>
+                                <div className="col-span-1 text-center text-yellow-600">D</div>
+                                <div className="col-span-1 text-center text-blue-600">W%</div>
+                                <div className="col-span-1 text-center text-blue-600">Diff</div>
+                                <div className="col-span-2 text-right">Pts</div>
+                              </div>
+                              {(summary.final_standings || []).slice(0, 8).map((p, idx) => {
+                                const gp = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
+                                const winPct = gp > 0 ? ((p.wins || 0) / gp * 100).toFixed(0) : '0';
+                                const diff = (p.points_for || 0) - (p.points_against || 0);
+                                return (
+                                  <div key={idx} className="grid grid-cols-14 gap-0.5 p-2 hover:bg-gray-100 border-b border-gray-300 last:border-b-0">
+                                    <div className="col-span-1 text-center font-bold text-yellow-600">{p.position}</div>
+                                    <div className="col-span-4 text-gray-700 truncate">{p.name}</div>
+                                    <div className="col-span-1 text-center text-gray-600">{gp}</div>
+                                    <div className="col-span-1 text-center text-green-600 font-semibold">{p.wins || 0}</div>
+                                    <div className="col-span-1 text-center text-red-600 font-semibold">{p.losses || 0}</div>
+                                    <div className="col-span-1 text-center text-yellow-600 font-semibold">{p.draws || 0}</div>
+                                    <div className="col-span-1 text-center text-blue-600 font-bold">{winPct}%</div>
+                                    <div className="col-span-1 text-center font-bold" style={{color: diff >= 0 ? '#16a34a' : '#dc2626'}}>{diff >= 0 ? '+' : ''}{diff}</div>
+                                    <div className="col-span-2 text-right font-bold text-blue-600">{p.points || 0}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Top By Points */}
+                        <div>
+                          <div className="text-xs font-bold text-yellow-600 mb-2">⭐ Top By Points</div>
+                          <div className="space-y-1">
+                            {(summary.topByPoints || summary.top_by_points || []).length === 0 ? (
+                              <p className="text-gray-500 text-xs italic">No data</p>
+                            ) : (
+                              (summary.topByPoints || summary.top_by_points || []).slice(0, 3).map((p, idx) => (
+                                <div key={idx} className="bg-white p-2 rounded text-xs flex items-center justify-between border border-gray-300">
+                                  <span className="font-semibold text-gray-700">{p.name}</span>
+                                  <span className="text-blue-600 font-bold">{p.points ?? 0}</span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Top By Wins */}
+                        <div>
+                          <div className="text-xs font-bold text-yellow-600 mb-2">🏆 Top By Wins</div>
+                          <div className="space-y-1">
+                            {(summary.topByWins || summary.top_by_wins || []).length === 0 ? (
+                              <p className="text-gray-500 text-xs italic">No data</p>
+                            ) : (
+                              (summary.topByWins || summary.top_by_wins || []).slice(0, 3).map((p, idx) => (
+                                <div key={idx} className="bg-white p-2 rounded text-xs flex items-center justify-between border border-gray-300">
+                                  <span className="font-semibold text-gray-700">{p.name}</span>
+                                  <span className="text-purple-600 font-bold">{p.wins ?? 0}</span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Highest Scoring Match */}
+                        {highestScoringMatch && (
+                          <div>
+                            <div className="text-xs font-bold text-yellow-600 mb-2">🔥 Highest Scoring Match</div>
+                            <div className="bg-white p-2 rounded text-xs border border-gray-300">
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-gray-700 truncate flex-1">
+                                  {Array.isArray(highestScoringMatch.players) ? highestScoringMatch.players.slice(0,2).map((id) => (typeof id === 'object' ? id.name : getPlayerNameFromId(id))).join(' & ') : 'Match'}
+                                </span>
+                                <span className="text-yellow-600 font-bold ml-1">{highestScoringMatch.scores?.team1 ?? "—"}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-gray-700 truncate flex-1">
+                                  {Array.isArray(highestScoringMatch.players) ? highestScoringMatch.players.slice(2,4).map((id) => (typeof id === 'object' ? id.name : getPlayerNameFromId(id))).join(' & ') : 'Match'}
+                                </span>
+                                <span className="text-yellow-600 font-bold ml-1">{highestScoringMatch.scores?.team2 ?? "—"}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Average Points Per Match */}
+                        <div>
+                          <div className="text-xs font-bold text-yellow-600 mb-2">📊 Average Points Per Match</div>
+                          <div className="bg-white p-2 rounded text-xs border border-gray-300 flex items-center justify-between">
+                            <span className="text-gray-700">Avg Score</span>
+                            <span className="text-green-600 font-bold">{avgPoints}</span>
+                          </div>
+                        </div>
+
+                        {/* Most Active Player */}
+                        {mostActivePlayer && (
+                          <div>
+                            <div className="text-xs font-bold text-yellow-600 mb-2">👤 Most Active Player</div>
+                            <div className="bg-white p-2 rounded text-xs border border-gray-300 flex items-center justify-between">
+                              <span className="font-semibold text-gray-700">{mostActivePlayer.name}</span>
+                              <span className="text-orange-600 font-bold">{playerMatchCount[mostActivePlayerId]} matches</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Total Matches */}
+                        <div>
+                          <div className="text-xs font-bold text-yellow-600 mb-2">📈 Total Matches</div>
+                          <div className="bg-white p-2 rounded text-xs border border-gray-300 flex items-center justify-between">
+                            <span className="text-gray-700">Matches Played</span>
+                            <span className="text-blue-600 font-bold">{allMatches.length}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -3995,6 +3999,14 @@ const activePlayerCount = players.filter((p) => p.active).length;
               className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-red-400"
             />
 
+            <input
+              type="text"
+              value={resetSeasonName}
+              onChange={(e) => setResetSeasonName(e.target.value)}
+              placeholder="Season name (optional)"
+              className="w-full mt-3 px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-red-400"
+            />
+
             {resetError && (
               <p className="text-red-400 text-sm mt-2 text-center">
                 {resetError}
@@ -4006,6 +4018,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 onClick={() => {
                   setShowResetModal(false);
                   setResetPasswordInput("");
+                  setResetSeasonName("");
                   setResetError("");
                 }}
                 className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
@@ -4142,6 +4155,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         const summary = {
                           id: `season_summary_${division}_${Date.now()}`,
                           division,
+                          name: resetSeasonName.trim() || null,
                           timestamp: new Date().toISOString(),
                           topByPoints,
                           topByWins,
@@ -4164,6 +4178,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                               {
                                 id: summary.id,
                                 division: summary.division,
+                                name: summary.name,
                                 timestamp: summary.timestamp,
                                 top_by_points: summary.topByPoints,
                                 top_by_wins: summary.topByWins,
@@ -4191,8 +4206,9 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         try {
                           setEndSummaryContext(summary);
                           setShowResetModal(false);
-                          setShowEndSeasonChoiceModal(true);
                           setResetPasswordInput("");
+                          setResetSeasonName("");
+                          setShowEndSeasonChoiceModal(true);
                         } catch (e) {
                           console.error("Error opening post-end modal:", e);
                           // If the modal can't open, keep user on the current page and log the error.
