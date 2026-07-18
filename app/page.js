@@ -170,10 +170,16 @@ const [adminError, setAdminError] = useState("");
     setHydrated(true);
   }, []);
 
-  // Force literal doubles suffix constant and a local `db` helper so
+  // Force literal suffix constants and a local `db` helper so
   // client code can pick the correct table based on `viewMode`.
   const DOUBLES_SUFFIX = "_doubles";
-  const db = (table) => supabase.from(`${table}${viewMode === "doubles" ? DOUBLES_SUFFIX : ""}`);
+  const FIVE_CHAMP_SUFFIX = "_5champ";
+  const getTableSuffix = (mode) => {
+    if (mode === "doubles") return DOUBLES_SUFFIX;
+    if (mode === "5-player-champ") return FIVE_CHAMP_SUFFIX;
+    return "";
+  };
+  const db = (table) => supabase.from(`${table}${getTableSuffix(viewMode)}`);
 
   // Try to load running season from Supabase for this division (fallback to localStorage)
   const loadRunningSeasonFromDb = async (divisionNum = division) => {
@@ -312,7 +318,7 @@ const [adminError, setAdminError] = useState("");
 
       // update localStorage index and raw summary for offline fallback
       try {
-        const idxKey = `season_summaries_index${viewMode === 'doubles' ? DOUBLES_SUFFIX : ''}`;
+        const idxKey = `season_summaries_index${getTableSuffix(viewMode)}`;
         const existing = getLSJson(idxKey, []);
         const next = [summaryId].concat(existing || []);
         setLSJson(idxKey, next);
@@ -1738,15 +1744,15 @@ const saveMatches = async () => {
           scores: scores[idx],
         };
 
-        // Only include `court` for the non-doubles table —
-        // `previous_matches_doubles` schema does not have a `court` column.
-        if (viewMode !== "doubles") {
+        // Only include `court` for league mode —
+        // `previous_matches_doubles` and `previous_matches_5champ` schemas do not have a `court` column.
+        if (viewMode === "league") {
           row.court = court;
         }
 
-        // `previous_matches_doubles` requires a text `id` primary key.
-        // Generate one when in doubles mode so inserts do not fail.
-        if (viewMode === "doubles") {
+        // `previous_matches_doubles` and `previous_matches_5champ` require a text `id` primary key.
+        // Generate one when not in league mode so inserts do not fail.
+        if (viewMode !== "league") {
           try {
             row.id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
           } catch (e) {
@@ -1885,7 +1891,7 @@ const syncDivisions = async (vmOverride) => {
     console.debug("syncDivisions: anon key present", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
     const vm = vmOverride || getViewMode();
-    const tableName = `divisions${vm === 'doubles' ? DOUBLES_SUFFIX : ''}`;
+    const tableName = `divisions${getTableSuffix(vm)}`;
       // If client-side Supabase is not configured, fall back to a REST fetch
       if (!supabase) {
         console.debug('syncDivisions: supabase client not configured on client, using REST fallback');
@@ -2405,11 +2411,18 @@ const activePlayerCount = players.filter((p) => p.active).length;
       {hydrated && (
         <>
       
-      {/* Header (click title to toggle mode) */}
+      {/* Header (click title to cycle through modes) */}
       <header className="mb-8 sm:mb-10 relative">
         <button
           onClick={async () => {
-            const next = viewMode === "league" ? "doubles" : "league";
+            let next;
+            if (viewMode === "league") {
+              next = "doubles";
+            } else if (viewMode === "doubles") {
+              next = "5-player-champ";
+            } else {
+              next = "league";
+            }
             try { setLSRaw("view_mode", next); } catch (e) {}
             setViewMode(next);
             console.debug("Header toggle: switched viewMode ->", next);
@@ -2433,19 +2446,19 @@ const activePlayerCount = players.filter((p) => p.active).length;
             }
           }}
           className="flex items-center text-left"
-          aria-label="Toggle league / doubles view"
+          aria-label="Cycle through game modes"
         >
           <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
             <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
-              {viewMode === "league" ? "🔥" : "🎯"}
+              {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : "👑"}
             </span>
-            {viewMode === "league" ? "Fylde Pickleball League" : "Doubles - Points Difference"}
+            {viewMode === "league" ? "Fylde Pickleball League" : viewMode === "doubles" ? "Doubles - Points Difference" : "5 Player Champ"}
           </h1>
         </button>
         <p className="text-gray-400 mt-2 text-xs sm:text-sm tracking-wide">
-          {viewMode === "league" ? "Weekly Matches • Live Updates • Prize for Winner!🏆" : "Casual doubles format • Points-difference scoring"}
+          {viewMode === "league" ? "Weekly Matches • Live Updates • Prize for Winner!🏆" : viewMode === "doubles" ? "Casual doubles format • Points-difference scoring" : "Championship format • 5-player rotation"}
         </p>
-        <div className={`absolute -bottom-3 left-0 w-20 sm:w-24 h-1 rounded-full ${viewMode === "league" ? "bg-yellow-400" : "bg-green-400"}`} />
+        <div className={`absolute -bottom-3 left-0 w-20 sm:w-24 h-1 rounded-full ${viewMode === "league" ? "bg-yellow-400" : viewMode === "doubles" ? "bg-green-400" : "bg-purple-400"}`} />
       </header>
       {serverError && (
         <div className="mb-6 p-3 rounded bg-red-600 text-white flex items-start justify-between">
