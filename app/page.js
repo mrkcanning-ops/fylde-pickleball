@@ -2666,7 +2666,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               </div>
             )}
 
-            <div className="flex flex-row items-center gap-2">
+            <div className={`flex flex-row items-center gap-2 ${viewMode === "5-player-champ" ? "ml-auto" : ""}`}>
               {!isAdmin ? (
                 <button
                   onClick={() => setShowAdminModal(true)}
