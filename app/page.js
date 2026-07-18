@@ -2647,22 +2647,24 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
         {activeTab === "Matches" && (
           <div className="mt-4 flex flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <label htmlFor="numCourts" className="text-xs text-gray-300 uppercase tracking-wide">
-                Courts
-              </label>
-              <select
-                id="numCourts"
-                value={numCourts}
-                onChange={(e) => setNumCourts(Number(e.target.value))}
-                className="bg-gray-800 text-white border border-gray-600 rounded px-4 py-2 outline-none focus:border-yellow-400"
-              >
-                <option value={1}>1</option>
-                <option value={2}>2</option>
-                <option value={3}>3</option>
-                <option value={4}>4</option>
-              </select>
-            </div>
+            {viewMode !== "5-player-champ" && (
+              <div className="flex items-center gap-2">
+                <label htmlFor="numCourts" className="text-xs text-gray-300 uppercase tracking-wide">
+                  Courts
+                </label>
+                <select
+                  id="numCourts"
+                  value={numCourts}
+                  onChange={(e) => setNumCourts(Number(e.target.value))}
+                  className="bg-gray-800 text-white border border-gray-600 rounded px-4 py-2 outline-none focus:border-yellow-400"
+                >
+                  <option value={1}>1</option>
+                  <option value={2}>2</option>
+                  <option value={3}>3</option>
+                  <option value={4}>4</option>
+                </select>
+              </div>
+            )}
 
             <div className="flex flex-row items-center gap-2">
               {!isAdmin ? (
