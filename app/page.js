@@ -6,6 +6,7 @@ import HeaderStats from "../components/HeaderStats";
 import { supabase } from "../lib/supabase";
 import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode } from "../lib/ls";
+import { generate5PlayerChampMatches } from "../lib/matchGenerator";
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
 // Minimum games required to qualify for ranked positions. Configure via env var
@@ -1431,6 +1432,65 @@ useEffect(() => {
 
   if (available.length < 4) {
     alert("At least 4 active players required.");
+    return;
+  }
+
+  // Special handling for 5-player championship format: 15 games with all partnerships
+  if (viewMode === "5-player-champ") {
+    if (available.length !== 5) {
+      alert("5 Player Champ requires exactly 5 active players. You have " + available.length + ".");
+      return;
+    }
+    
+    const { matches, error } = generate5PlayerChampMatches(available);
+    
+    if (error) {
+      alert(error);
+      return;
+    }
+
+    // Convert to court format (all 15 games on court 1)
+    const court1Matches = matches.map((game) => [game.teamA, game.teamB]);
+    const court1Scores = matches.map(() => ({ team1: "", team2: "" }));
+    
+    setCourt1Matches(court1Matches);
+    setCourt1Scores(court1Scores);
+    setCourt1Round(0);
+    
+    setCourt2Matches([]);
+    setCourt2Scores([]);
+    setCourt2Round(0);
+    
+    setCourt3Matches([]);
+    setCourt3Scores([]);
+    setCourt3Round(0);
+    
+    setCourt4Matches([]);
+    setCourt4Scores([]);
+    setCourt4Round(0);
+    
+    // Save to pending fixtures
+    const payload = {
+      division,
+      court1_matches: court1Matches.map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court1_scores: court1Scores,
+      court1_byes: [],
+      court2_matches: [],
+      court2_scores: [],
+      court2_byes: [],
+      status: "generated",
+    };
+
+    const { error: saveError } = await db("pending_fixtures").upsert(payload, { onConflict: "division" });
+    
+    if (saveError) {
+      console.warn("Could not save 5-player fixtures to database:", saveError);
+      // Still allow local play even if save fails
+    }
+    
     return;
   }
 
