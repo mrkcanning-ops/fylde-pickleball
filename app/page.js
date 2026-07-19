@@ -1441,7 +1441,7 @@ useEffect(() => {
   // Special handling for 5-player championship format: 15 games with all partnerships
   if (viewMode === "5-player-champ") {
     if (available.length !== 5) {
-      alert("5 Player Champ requires exactly 5 active players. You have " + available.length + ".");
+      alert(`❌ 5 Player Champ Error: Requires exactly 5 active players.\n\nYou currently have ${available.length} active player${available.length !== 1 ? 's' : ''}.\n\nPlease adjust the number of active players to exactly 5 before generating matches.`);
       return;
     }
     
@@ -2610,19 +2610,31 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </div>
 
         {activeTab === "Players" && (
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              onClick={handleAddPlayer}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded"
-            >
-              👤 Add Player
-            </button>
-            <button
-              onClick={handleRemovePlayer}
-              className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded"
-            >
-              🗑️ Remove Player
-            </button>
+          <div className="mt-4">
+            {viewMode === "5-player-champ" && (
+              <div className={`mb-4 p-3 rounded ${activePlayerCount === 5 ? "bg-green-900 border border-green-600" : "bg-red-900 border border-red-600"}`}>
+                <p className={`text-sm font-semibold ${activePlayerCount === 5 ? "text-green-200" : "text-red-200"}`}>
+                  {activePlayerCount === 5 
+                    ? "✓ Exactly 5 active players - ready to generate matches!" 
+                    : `⚠️ 5 Player Champ requires exactly 5 active players (currently ${activePlayerCount})`}
+                </p>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={handleAddPlayer}
+                disabled={viewMode === "5-player-champ" && activePlayerCount >= 5}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                👤 Add Player
+              </button>
+              <button
+                onClick={handleRemovePlayer}
+                className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded"
+              >
+                🗑️ Remove Player
+              </button>
+            </div>
           </div>
         )}
 
@@ -2673,7 +2685,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               {!isAdmin ? (
                 <button
                   onClick={() => setShowAdminModal(true)}
-                  disabled={hasGeneratedFixtures}
+                  disabled={hasGeneratedFixtures || (viewMode === "5-player-champ" && activePlayerCount !== 5)}
                   className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   🔒 Generate Fixtures
@@ -2681,13 +2693,18 @@ const activePlayerCount = players.filter((p) => p.active).length;
               ) : (
                 <button
                   onClick={generateMatches}
-                  disabled={hasGeneratedFixtures}
+                  disabled={hasGeneratedFixtures || (viewMode === "5-player-champ" && activePlayerCount !== 5)}
                   className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   🔄 Generate Fixtures
                 </button>
               )}
-              {activePlayerCount >= 4 && activePlayerCount < 8 && (
+              {viewMode === "5-player-champ" && activePlayerCount !== 5 && (
+                <p className="text-xs text-red-400 font-semibold w-full sm:w-auto">
+                  ⚠️ Requires exactly 5 active players ({activePlayerCount} currently)
+                </p>
+              )}
+              {viewMode !== "5-player-champ" && activePlayerCount >= 4 && activePlayerCount < 8 && (
                 <p className="text-xs text-gray-400 w-full sm:w-auto">
                   Fewer than 8 active players: fixtures will be generated on Court 1 only.
                 </p>
