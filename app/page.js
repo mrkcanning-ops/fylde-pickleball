@@ -940,8 +940,11 @@ useEffect(() => {
     const name = prompt("Enter new player's name:");
     if (!name) return;
 
+    // Generate a unique ID for the player
+    const playerId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+
     const { data, error } = await db("players")
-      .insert([{ name, wins: 0, draws: 0, losses: 0, points: 0, active: true, division }])
+      .insert([{ id: playerId, name, wins: 0, draws: 0, losses: 0, points: 0, active: true, division }])
       .select();
 
     if (!error) setPlayers((prev) => [...prev, data[0]]);
