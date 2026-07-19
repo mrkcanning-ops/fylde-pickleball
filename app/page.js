@@ -6,7 +6,7 @@ import HeaderStats from "../components/HeaderStats";
 import { supabase } from "../lib/supabase";
 import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode } from "../lib/ls";
-import { generate5PlayerChampMatches } from "../lib/matchGenerator";
+import { generate5PlayerChampMatches, generateRoundRobinMatches } from "../lib/matchGenerator";
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
 // Minimum games required to qualify for ranked positions. Configure via env var
@@ -175,9 +175,11 @@ const [adminError, setAdminError] = useState("");
   // client code can pick the correct table based on `viewMode`.
   const DOUBLES_SUFFIX = "_doubles";
   const FIVE_CHAMP_SUFFIX = "_5champ";
+  const ROUND_ROBIN_SUFFIX = "_roundrobin";
   const getTableSuffix = (mode) => {
     if (mode === "doubles") return DOUBLES_SUFFIX;
     if (mode === "5-player-champ") return FIVE_CHAMP_SUFFIX;
+    if (mode === "round-robin") return ROUND_ROBIN_SUFFIX;
     return "";
   };
   const db = (table) => supabase.from(`${table}${getTableSuffix(viewMode)}`);
@@ -1497,7 +1499,87 @@ useEffect(() => {
     return;
   }
 
-  // Keep smaller sessions on a single court so 5-7 players can still generate.
+  // Special handling for round-robin format: all partnerships with fair distribution
+  if (viewMode === "round-robin") {
+    if (available.length < 4) {
+      alert(`❌ Round Robin Error: Requires at least 4 active players.\n\nYou currently have ${available.length} active player${available.length !== 1 ? 's' : ''}.\n\nPlease add more active players before generating matches.`);
+      return;
+    }
+
+    const { courtMatches, error } = generateRoundRobinMatches(available, numCourts);
+
+    if (error) {
+      alert(error);
+      return;
+    }
+
+    // Set court 1 matches
+    if (courtMatches[0]) {
+      setCourt1Matches(courtMatches[0]);
+      setCourt1Scores(courtMatches[0].map(() => ({ team1: "", team2: "" })));
+      setCourt1Round(0);
+    }
+
+    // Set court 2 matches
+    if (courtMatches[1]) {
+      setCourt2Matches(courtMatches[1]);
+      setCourt2Scores(courtMatches[1].map(() => ({ team1: "", team2: "" })));
+      setCourt2Round(0);
+    }
+
+    // Set court 3 matches
+    if (courtMatches[2]) {
+      setCourt3Matches(courtMatches[2]);
+      setCourt3Scores(courtMatches[2].map(() => ({ team1: "", team2: "" })));
+      setCourt3Round(0);
+    }
+
+    // Set court 4 matches
+    if (courtMatches[3]) {
+      setCourt4Matches(courtMatches[3]);
+      setCourt4Scores(courtMatches[3].map(() => ({ team1: "", team2: "" })));
+      setCourt4Round(0);
+    }
+
+    // Save to pending fixtures
+    const payload = {
+      division,
+      court1_matches: (courtMatches[0] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court1_scores: (courtMatches[0] || []).map(() => ({ team1: "", team2: "" })),
+      court1_byes: [],
+      court2_matches: (courtMatches[1] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court2_scores: (courtMatches[1] || []).map(() => ({ team1: "", team2: "" })),
+      court2_byes: [],
+      court3_matches: (courtMatches[2] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court3_scores: (courtMatches[2] || []).map(() => ({ team1: "", team2: "" })),
+      court3_byes: [],
+      court4_matches: (courtMatches[3] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court4_scores: (courtMatches[3] || []).map(() => ({ team1: "", team2: "" })),
+      court4_byes: [],
+      status: "generated",
+    };
+
+    const { error: saveError } = await db("pending_fixtures").upsert(payload, { onConflict: "division" });
+
+    if (saveError) {
+      console.warn("Could not save round-robin fixtures to database:", saveError);
+      // Still allow local play even if save fails
+    }
+
+    return;
+  }
   const shouldSplitAcrossCourts = available.length >= 8;
   const half = Math.ceil(available.length / 2);
   const court1Group = shouldSplitAcrossCourts ? available.slice(0, half) : available;
@@ -2483,6 +2565,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
               next = "doubles";
             } else if (viewMode === "doubles") {
               next = "5-player-champ";
+            } else if (viewMode === "5-player-champ") {
+              next = "round-robin";
             } else {
               next = "league";
             }
@@ -2513,15 +2597,15 @@ const activePlayerCount = players.filter((p) => p.active).length;
         >
           <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
             <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
-              {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : "👑"}
+              {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : viewMode === "5-player-champ" ? "👑" : "🔁"}
             </span>
-            {viewMode === "league" ? "Fylde Pickleball League" : viewMode === "doubles" ? "Doubles - Points Difference" : "5 Player Champ"}
+            {viewMode === "league" ? "Fylde Pickleball League" : viewMode === "doubles" ? "Doubles - Points Difference" : viewMode === "5-player-champ" ? "5 Player Champ" : "Round Robin"}
           </h1>
         </button>
         <p className="text-gray-400 mt-2 text-xs sm:text-sm tracking-wide">
-          {viewMode === "league" ? "Weekly Matches • Live Updates • Prize for Winner!🏆" : viewMode === "doubles" ? "Casual doubles format • Points-difference scoring" : "Championship format • 5-player rotation"}
+          {viewMode === "league" ? "Weekly Matches • Live Updates • Prize for Winner!🏆" : viewMode === "doubles" ? "Casual doubles format • Points-difference scoring" : viewMode === "5-player-champ" ? "Championship format • 5-player rotation" : "Fair partnerships • All players with all players"}
         </p>
-        <div className={`absolute -bottom-3 left-0 w-20 sm:w-24 h-1 rounded-full ${viewMode === "league" ? "bg-yellow-400" : viewMode === "doubles" ? "bg-green-400" : "bg-purple-400"}`} />
+        <div className={`absolute -bottom-3 left-0 w-20 sm:w-24 h-1 rounded-full ${viewMode === "league" ? "bg-yellow-400" : viewMode === "doubles" ? "bg-green-400" : viewMode === "5-player-champ" ? "bg-purple-400" : "bg-blue-400"}`} />
       </header>
       {serverError && (
         <div className="mb-6 p-3 rounded bg-red-600 text-white flex items-start justify-between">
@@ -2620,6 +2704,15 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 </p>
               </div>
             )}
+            {viewMode === "round-robin" && (
+              <div className={`mb-4 p-3 rounded ${activePlayerCount >= 4 ? "bg-green-900 border border-green-600" : "bg-red-900 border border-red-600"}`}>
+                <p className={`text-sm font-semibold ${activePlayerCount >= 4 ? "text-green-200" : "text-red-200"}`}>
+                  {activePlayerCount >= 4 
+                    ? `✓ ${activePlayerCount} active players - ready to generate matches!` 
+                    : `⚠️ Round Robin requires at least 4 active players (currently ${activePlayerCount})`}
+                </p>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <button
                 onClick={handleAddPlayer}
@@ -2681,11 +2774,11 @@ const activePlayerCount = players.filter((p) => p.active).length;
               </div>
             )}
 
-            <div className={`flex flex-row items-center gap-2 ${viewMode === "5-player-champ" ? "ml-auto" : ""}`}>
+            <div className={`flex flex-row items-center gap-2 ${viewMode === "5-player-champ" || viewMode === "round-robin" ? "ml-auto" : ""}`}>
               {!isAdmin ? (
                 <button
                   onClick={() => setShowAdminModal(true)}
-                  disabled={hasGeneratedFixtures || (viewMode === "5-player-champ" && activePlayerCount !== 5)}
+                  disabled={hasGeneratedFixtures || (viewMode === "5-player-champ" && activePlayerCount !== 5) || (viewMode === "round-robin" && activePlayerCount < 4)}
                   className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   🔒 Generate Fixtures
@@ -2693,7 +2786,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               ) : (
                 <button
                   onClick={generateMatches}
-                  disabled={hasGeneratedFixtures || (viewMode === "5-player-champ" && activePlayerCount !== 5)}
+                  disabled={hasGeneratedFixtures || (viewMode === "5-player-champ" && activePlayerCount !== 5) || (viewMode === "round-robin" && activePlayerCount < 4)}
                   className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   🔄 Generate Fixtures
@@ -2704,7 +2797,12 @@ const activePlayerCount = players.filter((p) => p.active).length;
                   ⚠️ Requires exactly 5 active players ({activePlayerCount} currently)
                 </p>
               )}
-              {viewMode !== "5-player-champ" && activePlayerCount >= 4 && activePlayerCount < 8 && (
+              {viewMode === "round-robin" && activePlayerCount < 4 && (
+                <p className="text-xs text-red-400 font-semibold w-full sm:w-auto">
+                  ⚠️ Requires at least 4 active players ({activePlayerCount} currently)
+                </p>
+              )}
+              {viewMode !== "5-player-champ" && viewMode !== "round-robin" && activePlayerCount >= 4 && activePlayerCount < 8 && (
                 <p className="text-xs text-gray-400 w-full sm:w-auto">
                   Fewer than 8 active players: fixtures will be generated on Court 1 only.
                 </p>
