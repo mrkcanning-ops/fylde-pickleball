@@ -2,43 +2,47 @@
 
 ## Overview
 
-The **Round Robin** mode generates fair matches where all players partner with all other players in a random but balanced order. Works with any number of players (4+) and automatically distributes games and rests fairly.
+The **Round Robin** mode generates matches where each player partners with all other players at least once. Partnerships can repeat across matches, but the tournament continues until every player has had at least one game with every other player. Rests are allowed to be unfair.
 
 ## Format Features
 
-✅ **All partnerships**: Each player partners with every other player (at least once)  
-✅ **Fair distribution**: Balanced games played and rest periods  
+✅ **All players partner all others**: Player A partners with B, C, D, E, F at least once each (critical feature)  
+✅ **Partnerships can repeat**: Same partnership (A-B) may happen twice if needed  
+⚠️ **Rests can be unfair**: Some players may sit out more than others (trade-off for guaranteed partnerships)  
+✅ **Balanced games**: Attempts to keep game distribution reasonably even  
 ✅ **Flexible scaling**: Works with 4, 5, 6, 7, 8+ players  
-✅ **Multi-court support**: Automatically distributes matches across courts  
-✅ **Random optimization**: New partnerships prioritized, fair rests maintained
+✅ **Multi-court support**: Automatically distributes matches across courts
 
 ## How It Works
 
 ### Match Generation Algorithm
 
 1. **Start with any number of active players** (4+)
-2. **Calculate fair targets** based on player count:
-   - 4 players: 3 rounds, 3 games per player, 0 rests
-   - 5 players: 5 rounds, 4 games per player, 1 rest each
-   - 6 players: 6 rounds, 4 games per player, 2 rests each
-   - 7 players: 7 rounds, 4 games per player, 3 rests each
-   - 8+ players: Scaled appropriately
-
-3. **Generate matches round by round**:
-   - Select 4 players for each game (2v2)
-   - Prioritize new partnerships (never played together)
-   - Balance games played per player
-   - Balance rest periods fairly
-   - Remaining players sit out (optional rest round)
+2. **Track each player's partnerships**: For each player, remember which other players they've already partnered with
+3. **Generate matches round by round** until all players have partnered all others:
+   - Select 4 players for a match
+   - Form 2 teams of 2
+   - Record which players partnered together
+   - Remaining players sit out (rests are allowed to be unequal)
+   - Repeat until **every player has partnered with every other player at least once**
 
 4. **Distribute across courts** based on `numCourts` setting
 
-### Fairness Guarantees
+### Fairness Guarantees vs. Trade-offs
 
-- **No player gets left out**: All players get equal or near-equal games
-- **No player over-rests**: Rests distributed fairly across all players
-- **Partnership variety**: Maximizes new partnerships, minimizes repeats
-- **Dynamic balancing**: Adjusts if some rounds can't be completed
+**Guaranteed:**
+- ✅ **Complete partnerships**: Every player partners with every other player at least once
+- ✅ **Game balance**: Games are distributed as evenly as possible
+
+**NOT guaranteed (acceptable trade-off):**
+- ⚠️ **Fair rests**: Some players may sit out more than others (but this is OK!)
+- ⚠️ **No repeat partnerships**: Same partnership may happen twice
+
+**Why this trade-off?**
+By allowing partnerships to repeat and rests to be unfair, we can:
+- Guarantee each player experiences all unique partnerships
+- Minimize tournament length
+- Still maintain reasonable game distribution per player
 
 ## Usage
 
@@ -78,27 +82,36 @@ The **Round Robin** mode generates fair matches where all players partner with a
 
 ## Player Count Reference
 
-| Players | Rounds | Games/Player | Rests/Player | Courts |
-|---------|--------|--------------|--------------|--------|
-| 4 | 3 | 3 | 0 | 1 |
-| 5 | 5 | 4 | 1 | 1-2 |
-| 6 | 6 | 4 | 2 | 1-2 |
-| 7 | 7 | 4 | 3 | 2 |
-| 8 | 6 | 3 | 3 | 2 |
+| Players | Each Player Partners | Typical Rounds | Notes |
+|---------|---------------------|-----------------|-------|
+| 4 | 3 others | 3-4 | A partners B,C,D; B partners A,C,D; etc. |
+| 5 | 4 others | 5-6 | Every player partners all 4 others at least once |
+| 6 | 5 others | 8-10 | Every player partners all 5 others at least once |
+| 7 | 6 others | 11-14 | Every player partners all 6 others at least once |
+| 8 | 7 others | 14-18 | Every player partners all 7 others at least once |
+
+**Why "Typical Rounds"?** Since each match creates 2 partnerships (2 teams of 2), the algorithm stops when every player has partnered with all others. Some players may sit out more rounds than others, but the minimum is achieved.
 
 ## Example: 6-Player Round Robin
 
 **Players**: Alice, Bob, Carol, Dave, Eve, Frank
 
-**Result**: 6 rounds of matches where:
-- Each player plays 4 games
-- Each player rests 2 times
-- Each player partners with all 5 other players (at least once)
-- All players play against all other players multiple times
+**Guarantee**: Each player will partner with all 5 others at least once:
+- Alice will partner: B, C, D, E, F (in separate matches)
+- Bob will partner: A, C, D, E, F (in separate matches)
+- Carol will partner: A, B, D, E, F (in separate matches)
+- Dave will partner: A, B, C, E, F (in separate matches)
+- Eve will partner: A, B, C, D, F (in separate matches)
+- Frank will partner: A, B, C, D, E (in separate matches)
 
-**Match Distribution**: Can be split across 1-2 courts:
-- 1 Court: All 6 matches per round
-- 2 Courts: 3 matches per court per round
+**Tournament Result**: 
+- ~8-10 matches to complete all player partnerships
+- Some partnerships may repeat (e.g., A-B could happen twice if needed)
+- Some players may play more games than others
+- All players rest a different number of times (but this is OK!)
+- **Main goal achieved**: Every player experienced playing with every other player
+
+**Match Distribution**: Can be split across 1-2 courts
 
 ## Data Storage
 
@@ -130,22 +143,24 @@ Edit the `score` calculation in the match generation loop.
 |-------|----------|
 | "Requires at least 4 active players" | Add more active players before generating |
 | Fixtures don't generate | Ensure players are marked as "active" |
-| Uneven match distribution | Normal - algorithm balances within fairness constraints |
-| Same partnership appears twice | Expected - maximizes variety but fairness comes first |
-| One player sits out more | Happens with odd player counts (e.g., 5 players) |
+| Some players rest more than others | Expected - rests can be unfair to guarantee all partnerships |
+| Player A plays more games than Player B | Expected - trade-off for guaranteeing each player partners all others |
+| Same partnership appears twice | Expected - partnerships can repeat, this is allowed |
+| Tournament runs longer than expected | Normal - varies based on random quartet selection |
 
 ## Comparison: All Game Modes
 
 | Feature | League | Doubles | 5 Champ | Round Robin |
 |---------|--------|---------|---------|------------|
 | Players | 4+ | 4+ | Exactly 5 | 4+ |
-| Games | 5-7 rounds | 5-7 rounds | 15 (fixed) | Dynamic |
+| Matches | 5-7 | 5-7 | 15 (fixed) | Variable (until all partner) |
 | Team size | 1v1v1v1 | 2v2 | 2v2 | 2v2 |
-| Partnerships | Optimized | Optimized | Guaranteed complete | Maximized variety |
-| Sitting out | Yes | Yes | 3 times | 0-N times |
-| Fair distribution | Yes | Yes | Yes | Yes |
+| **Partnerships** | Variety | Variety | Guaranteed complete | **All players partner all others** ✅ |
+| Repeat partnerships | Yes | Yes | Yes | Allowed/expected |
+| Sitting out | Yes (fair) | Yes (fair) | Yes (fair) | Yes (may be unfair) |
+| Game distribution | Fair | Fair | Fair | Fair-ish |
 | Multi-court | Yes | Yes | No (1 only) | Yes |
-| Flexibility | Medium | Medium | Low | High |
+| Best for | Casual rotation | Casual pairs | Tournament finale | Ensure all play together |
 
 ## Technical Details
 
@@ -163,12 +178,21 @@ generateRoundRobinMatches(players, numCourts = 2)
 - `courtMatches`: Array of court arrays, each containing match pairs
 - `error`: Error message if fewer than 4 players
 
+**How it works:**
+1. For each player, track which other players they've already partnered with
+2. Loop through possible 4-player combinations (quartets)
+3. For each quartet, try all possible team arrangements
+4. Score each arrangement: heavily prioritize MISSING player partnerships, minor tiebreaker for game balance
+5. Select best arrangement and record those partnerships
+6. Repeat until every player has partnered with every other player at least once
+7. Allow rests and repeated partnerships - the only constraint is complete player partnerships
+
 ### Match Structure
 
 ```javascript
 match = [
-  [player1, player2],  // Team A
-  [player3, player4]   // Team B
+  [player1, player2],  // Team A (now partners for first/repeat time)
+  [player3, player4]   // Team B (now partners for first/repeat time)
 ]
 ```
 
