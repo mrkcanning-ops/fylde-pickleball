@@ -21,6 +21,14 @@ export async function GET(request) {
     const querySecret = url.searchParams.get('secret');
     const expectedKey = process.env.KEEP_ALIVE_SECRET_KEY;
 
+    // Debug: log what we're getting
+    console.log('Keep-alive debug:', {
+      expectedKeySet: !!expectedKey,
+      expectedKeyValue: expectedKey ? expectedKey.substring(0, 8) + '...' : 'NOT SET',
+      querySecret: querySecret ? querySecret.substring(0, 8) + '...' : 'NOT PROVIDED',
+      authHeader: authHeader ? authHeader.substring(0, 20) + '...' : 'NOT PROVIDED',
+    });
+
     const isAuthorized = expectedKey && (
       authHeader === `Bearer ${expectedKey}` ||
       querySecret === expectedKey
@@ -28,7 +36,7 @@ export async function GET(request) {
 
     if (expectedKey && !isAuthorized) {
       return Response.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized', debug: { expectedKeySet: !!expectedKey, querySecretProvided: !!querySecret, authHeaderProvided: !!authHeader } },
         { status: 401 }
       );
     }
