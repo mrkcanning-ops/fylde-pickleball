@@ -15,17 +15,18 @@ export async function GET(request) {
     }
 
     // Verify the request is from Vercel cron (Vercel automatically adds this header)
-    // Or accept Bearer token for manual testing
+    // Or allow if no secret is configured (development mode)
+    // Or accept Bearer token for manual testing when secret IS configured
     const cronHeader = request.headers.get('x-vercel-cron');
     const authHeader = request.headers.get('authorization');
     const expectedKey = process.env.KEEP_ALIVE_SECRET_KEY;
 
-    // Allow if: (1) it's a Vercel cron request OR (2) bearer token matches
-    const isAuthorized = cronHeader || (expectedKey && authHeader === `Bearer ${expectedKey}`);
+    // Allow if: (1) it's a Vercel cron request OR (2) no secret configured (dev) OR (3) bearer token matches
+    const isAuthorized = cronHeader || !expectedKey || (expectedKey && authHeader === `Bearer ${expectedKey}`);
 
     if (!isAuthorized) {
       return Response.json(
-        { error: 'Unauthorized', debug: { cronHeader: !!cronHeader, bearerTokenProvided: !!authHeader } },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
