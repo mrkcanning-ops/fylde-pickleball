@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/keep-alive?secret=${KEEP_ALIVE_SECRET_KEY}",
+      "path": "/api/keep-alive",
       "schedule": "0 0 * * *"
     }
   ]

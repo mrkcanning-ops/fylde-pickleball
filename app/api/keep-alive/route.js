@@ -14,29 +14,18 @@ export async function GET(request) {
       );
     }
 
-    // Verify the request is from a valid source
-    // Accept secret either as Bearer token (for direct calls) or query parameter (for Vercel cron)
+    // Verify the request is from Vercel cron (Vercel automatically adds this header)
+    // Or accept Bearer token for manual testing
+    const cronHeader = request.headers.get('x-vercel-cron');
     const authHeader = request.headers.get('authorization');
-    const url = new URL(request.url);
-    const querySecret = url.searchParams.get('secret');
     const expectedKey = process.env.KEEP_ALIVE_SECRET_KEY;
 
-    // Debug: log what we're getting
-    console.log('Keep-alive debug:', {
-      expectedKeySet: !!expectedKey,
-      expectedKeyValue: expectedKey ? expectedKey.substring(0, 8) + '...' : 'NOT SET',
-      querySecret: querySecret ? querySecret.substring(0, 8) + '...' : 'NOT PROVIDED',
-      authHeader: authHeader ? authHeader.substring(0, 20) + '...' : 'NOT PROVIDED',
-    });
+    // Allow if: (1) it's a Vercel cron request OR (2) bearer token matches
+    const isAuthorized = cronHeader || (expectedKey && authHeader === `Bearer ${expectedKey}`);
 
-    const isAuthorized = expectedKey && (
-      authHeader === `Bearer ${expectedKey}` ||
-      querySecret === expectedKey
-    );
-
-    if (expectedKey && !isAuthorized) {
+    if (!isAuthorized) {
       return Response.json(
-        { error: 'Unauthorized', debug: { expectedKeySet: !!expectedKey, querySecretProvided: !!querySecret, authHeaderProvided: !!authHeader } },
+        { error: 'Unauthorized', debug: { cronHeader: !!cronHeader, bearerTokenProvided: !!authHeader } },
         { status: 401 }
       );
     }
