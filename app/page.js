@@ -580,7 +580,7 @@ useEffect(() => {
     };
 
     syncAndFetchData();
-  }, [division]);
+  }, [division, viewMode]);
 
   
 
