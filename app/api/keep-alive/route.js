@@ -34,55 +34,19 @@ export async function GET(request) {
     // Perform multiple read operations to ensure project stays active
     const results = {};
 
-    // 1. Read from season_summaries table
-    const { data: seasonData, error: seasonError } = await supabase
-      .from('season_summaries')
-      .select('id')
-      .limit(1);
+    // Use wildcard select to be compatible with different table schemas
+    const tableNames = ['season_summaries', 'divisions', 'players', 'matches', 'previous_matches'];
+    
+    for (const tableName of tableNames) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .limit(1);
 
-    results.seasonSummaries = seasonError 
-      ? { error: seasonError.message } 
-      : { success: true, count: seasonData?.length || 0 };
-
-    // 2. Read from divisions table
-    const { data: divisionsData, error: divisionsError } = await supabase
-      .from('divisions')
-      .select('id')
-      .limit(1);
-
-    results.divisions = divisionsError 
-      ? { error: divisionsError.message } 
-      : { success: true, count: divisionsData?.length || 0 };
-
-    // 3. Read from players table
-    const { data: playersData, error: playersError } = await supabase
-      .from('players')
-      .select('id')
-      .limit(1);
-
-    results.players = playersError 
-      ? { error: playersError.message } 
-      : { success: true, count: playersData?.length || 0 };
-
-    // 4. Read from matches table
-    const { data: matchesData, error: matchesError } = await supabase
-      .from('matches')
-      .select('id')
-      .limit(1);
-
-    results.matches = matchesError 
-      ? { error: matchesError.message } 
-      : { success: true, count: matchesData?.length || 0 };
-
-    // 5. Read from previous_matches table
-    const { data: prevMatchesData, error: prevMatchesError } = await supabase
-      .from('previous_matches')
-      .select('id')
-      .limit(1);
-
-    results.previousMatches = prevMatchesError 
-      ? { error: prevMatchesError.message } 
-      : { success: true, count: prevMatchesData?.length || 0 };
+      results[tableName] = error 
+        ? { error: error.message } 
+        : { success: true, count: data?.length || 0 };
+    }
 
     const hasErrors = Object.values(results).some(r => r.error);
 
