@@ -15,10 +15,18 @@ export async function GET(request) {
     }
 
     // Verify the request is from a valid source
+    // Accept secret either as Bearer token (for direct calls) or query parameter (for Vercel cron)
     const authHeader = request.headers.get('authorization');
+    const url = new URL(request.url);
+    const querySecret = url.searchParams.get('secret');
     const expectedKey = process.env.KEEP_ALIVE_SECRET_KEY;
 
-    if (expectedKey && authHeader !== `Bearer ${expectedKey}`) {
+    const isAuthorized = expectedKey && (
+      authHeader === `Bearer ${expectedKey}` ||
+      querySecret === expectedKey
+    );
+
+    if (expectedKey && !isAuthorized) {
       return Response.json(
         { error: 'Unauthorized' },
         { status: 401 }
