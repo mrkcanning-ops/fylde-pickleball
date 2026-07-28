@@ -14,11 +14,16 @@ export async function POST(request) {
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseKey || supabaseKey.includes('your_')) {
+      console.error('Supabase credentials missing or incomplete', {
+        url: !!supabaseUrl,
+        key: !!supabaseKey,
+        keyLength: supabaseKey?.length || 0,
+      });
       return NextResponse.json(
-        { error: 'Supabase credentials not configured' },
+        { error: 'Supabase credentials not configured. Please set SUPABASE_SERVICE_ROLE_KEY in .env.local' },
         { status: 500 }
       );
     }
