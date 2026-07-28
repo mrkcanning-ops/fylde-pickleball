@@ -16,16 +16,37 @@ export async function GET(request) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const table = view === 'doubles' ? 'season_summaries_doubles' : 'season_summaries';
-    let query = supabase.from(table).select('*').order('timestamp', { ascending: false });
-    if (division) query = query.eq('division', division);
+    const summariesTable = view === 'doubles' ? 'season_summaries_doubles' : 'season_summaries';
+    const runningTable = view === 'doubles' ? 'running_seasons_doubles' : 'running_seasons';
 
-    const { data, error } = await query;
-    if (error) {
-      return NextResponse.json({ error: error.message || String(error) }, { status: 500 });
+    // Fetch completed seasons
+    let summariesQuery = supabase.from(summariesTable).select('*');
+    if (division) summariesQuery = summariesQuery.eq('division', division);
+    
+    // Fetch running/active seasons
+    let runningQuery = supabase.from(runningTable).select('*');
+    if (division) runningQuery = runningQuery.eq('division', division);
+
+    const [summariesResult, runningResult] = await Promise.all([
+      summariesQuery,
+      runningQuery.catch(() => ({ data: [], error: null })) // Running seasons table might not exist for all views
+    ]);
+
+    if (summariesResult.error) {
+      return NextResponse.json({ error: summariesResult.error.message || String(summariesResult.error) }, { status: 500 });
     }
 
-    return NextResponse.json({ data: data || [] });
+    // Combine both archived and running seasons, sort by timestamp descending
+    const allData = [
+      ...(summariesResult.data || []),
+      ...(runningResult.data || [])
+    ].sort((a, b) => {
+      const timeA = new Date(a.timestamp || a.created_at || 0);
+      const timeB = new Date(b.timestamp || b.created_at || 0);
+      return timeB - timeA;
+    });
+
+    return NextResponse.json({ data: allData });
   } catch (e) {
     return NextResponse.json({ error: e?.message || String(e) }, { status: 500 });
   }
