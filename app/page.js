@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
-import HeaderStats from "../components/HeaderStats";
-import { supabase } from "../lib/supabase";
+import { useAuth } from "@/lib/AuthContext";
+import { HybridStorage } from "@/lib/HybridStorage";
+import HeaderStats from "@/components/HeaderStats";
+import { supabase } from "@/lib/supabase";
 import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient";
-import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode } from "../lib/ls";
+import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode, setUserType } from "@/lib/ls";
 import { generate5PlayerChampMatches, generateRoundRobinMatches } from "../lib/matchGenerator";
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
@@ -14,129 +16,59 @@ import { generate5PlayerChampMatches, generateRoundRobinMatches } from "../lib/m
 const MIN_QUALIFY_GAMES = parseInt(process.env.NEXT_PUBLIC_MIN_QUALIFY_GAMES ?? "10", 10) || 10;
 
 export default function HomePage() {
+  const router = useRouter();
+  const { user, userType, isLoading, logout } = useAuth();
+
+  // ===== ALL STATE DECLARATIONS MUST COME FIRST (BEFORE ANY useEffect, BEFORE ANY CONDITIONAL RETURNS) =====
   const [activeTab, setActiveTab] = useState("Standings");
   const [standingsView, setStandingsView] = useState("Leaderboard");
-  const [division, setDivision] = useState(1); // numeric id of current division
-  // division list with display names; new divisions can be added at runtime
-  const [divisions, setDivisions] = useState([
-    { id: 1, name: "Division 1" },
-    { id: 2, name: "Division 2" },
-  ]);
+  const [division, setDivision] = useState(1);
+  const [divisions, setDivisions] = useState([]);
   const [showAddDivisionModal, setShowAddDivisionModal] = useState(false);
   const [newDivisionName, setNewDivisionName] = useState("");
-  const [showAddDivisionPasscodeModal, setShowAddDivisionPasscodeModal] = useState(false);
-  const [addDivisionPasscode, setAddDivisionPasscode] = useState("");
-  const [addDivisionPasscodeError, setAddDivisionPasscodeError] = useState("");
-  const [showRemoveDivisionPasscodeModal, setShowRemoveDivisionPasscodeModal] = useState(false);
-  const [removeDivisionPasscode, setRemoveDivisionPasscode] = useState("");
-  const [removeDivisionPasscodeError, setRemoveDivisionPasscodeError] = useState("");
   const [showSelectDivisionModal, setShowSelectDivisionModal] = useState(false);
   const [selectedDivisionToRemove, setSelectedDivisionToRemove] = useState(null);
   const [showConfirmRemoveDivisionModal, setShowConfirmRemoveDivisionModal] = useState(false);
   const [players, setPlayers] = useState([]);
   const [numCourts, setNumCourts] = useState(2);
-
   const [court1Matches, setCourt1Matches] = useState([]);
   const [court2Matches, setCourt2Matches] = useState([]);
   const [court3Matches, setCourt3Matches] = useState([]);
   const [court4Matches, setCourt4Matches] = useState([]);
-
   const [court1Scores, setCourt1Scores] = useState([]);
   const [court2Scores, setCourt2Scores] = useState([]);
   const [court3Scores, setCourt3Scores] = useState([]);
   const [court4Scores, setCourt4Scores] = useState([]);
-
   const [court1Round, setCourt1Round] = useState(0);
   const [court2Round, setCourt2Round] = useState(0);
   const [court3Round, setCourt3Round] = useState(0);
   const [court4Round, setCourt4Round] = useState(0);
-
   const [currentRound, setCurrentRound] = useState(0);
-  const [roundMatches, setRoundMatches] = useState([]); // flattened all matches by round
-
-  // Mobile bottom-sheet modal control for NQ explanation
+  const [roundMatches, setRoundMatches] = useState([]);
   const [showNqModalFor, setShowNqModalFor] = useState(null);
-  // Editable minimum games to qualify (per-division, persisted to localStorage)
-  const [minQualifyByDivision, setMinQualifyByDivision] = useState(() => {
-    try {
-      return getLSJson("min_qualify_by_division", {});
-    } catch (e) {
-      return {};
-    }
-  });
-  // current division value (kept in sync)
-  const [minQualifyGames, setMinQualifyGames] = useState(() => {
-    try {
-      const v = getLSRaw("min_qualify_games");
-      return v ? parseInt(v, 10) || MIN_QUALIFY_GAMES : MIN_QUALIFY_GAMES;
-    } catch (e) {
-      return MIN_QUALIFY_GAMES;
-    }
-  });
+  const [minQualifyByDivision, setMinQualifyByDivision] = useState({});
+  const [minQualifyGames, setMinQualifyGames] = useState(MIN_QUALIFY_GAMES);
   const [showEditMinModal, setShowEditMinModal] = useState(false);
-  const [minQualifyInput, setMinQualifyInput] = useState(String(minQualifyGames));
-  const [showVerifyMinPasscodeModal, setShowVerifyMinPasscodeModal] = useState(false);
-  const [pendingMinSave, setPendingMinSave] = useState(null); // { division, value }
-  const [verifyMinPasscode, setVerifyMinPasscode] = useState("");
-  const [verifyMinError, setVerifyMinError] = useState("");
-
-const [isAdmin, setIsAdmin] = useState(false);
-const [showAdminModal, setShowAdminModal] = useState(false);
-const [adminCode, setAdminCode] = useState("");
-const [adminError, setAdminError] = useState("");
-
+  const [minQualifyInput, setMinQualifyInput] = useState(String(MIN_QUALIFY_GAMES));
+  const [pendingMinSave, setPendingMinSave] = useState(null);
   const [previousMatches, setPreviousMatches] = useState([]);
-  const [currentSeason, setCurrentSeason] = useState(() => {
-    try {
-      return getLSJson("current_season", null);
-    } catch (e) {
-      return null;
-    }
-  });
-
-  // Season Archive (localStorage-only) state — simple dropdown UI for saved summaries
+  const [currentSeason, setCurrentSeason] = useState(null);
   const [seasonSummariesList, setSeasonSummariesList] = useState([]);
   const [selectedSeasonSummaryId, setSelectedSeasonSummaryId] = useState(null);
-
-  const [viewMode, setViewMode] = useState(() => {
-    try {
-      return getViewMode();
-    } catch (e) {
-      return 'singles';
-    }
-  });
-
+  const [viewMode, setViewMode] = useState('league');
   const [hydrated, setHydrated] = useState(false);
-
-  // Surface server-side errors to the UI for retry/copy flows
   const [serverError, setServerError] = useState(null);
-
-  // Additional UI state (modals, forms, helpers) that were missing
   const [leaderboard, setLeaderboard] = useState([]);
   const [allDivisionPlayers, setAllDivisionPlayers] = useState([]);
   const [openDates, setOpenDates] = useState([]);
-
   const [showRecalculateModal, setShowRecalculateModal] = useState(false);
-  const [recalculatePasswordInput, setRecalculatePasswordInput] = useState("");
-  const [recalculateError, setRecalculateError] = useState("");
-
   const [showResetModal, setShowResetModal] = useState(false);
-  const [resetPasswordInput, setResetPasswordInput] = useState("");
-  const [resetError, setResetError] = useState("");
-
   const [showEndSeasonChoiceModal, setShowEndSeasonChoiceModal] = useState(false);
   const [endSummaryContext, setEndSummaryContext] = useState(null);
   const [newSeasonName, setNewSeasonName] = useState("");
-
   const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
   const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState(null);
   const [showRemovePlayerModal, setShowRemovePlayerModal] = useState(false);
-  const [removePlayerPasscode, setRemovePlayerPasscode] = useState("");
-  const [removePlayerPasscodeError, setRemovePlayerPasscodeError] = useState("");
-
-  const [showAddMatchPasscodeModal, setShowAddMatchPasscodeModal] = useState(false);
-  const [addMatchPasscode, setAddMatchPasscode] = useState("");
-  const [addMatchPasscodeError, setAddMatchPasscodeError] = useState("");
   const [showAddMatchModal, setShowAddMatchModal] = useState(false);
   const [addMatchData, setAddMatchData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -150,9 +82,6 @@ const [adminError, setAdminError] = useState("");
   });
   const [addMatchError, setAddMatchError] = useState("");
 
-  const [showEditMatchPasscodeModal, setShowEditMatchPasscodeModal] = useState(false);
-  const [editMatchPasscode, setEditMatchPasscode] = useState("");
-  const [editMatchPasscodeError, setEditMatchPasscodeError] = useState("");
   const [pendingEditMatch, setPendingEditMatch] = useState(null);
   const [showEditMatchModal, setShowEditMatchModal] = useState(false);
   const [editMatchData, setEditMatchData] = useState({
@@ -166,10 +95,106 @@ const [adminError, setAdminError] = useState("");
   const [editingMatchId, setEditingMatchId] = useState(null);
   const [editMatchError, setEditMatchError] = useState("");
 
+  // ===== NOW useEffect hooks and conditional logic CAN come after all state declarations =====
+
+  // Redirect to welcome if not authenticated
+  useEffect(() => {
+    if (!isLoading && (!user || !userType)) {
+      router.push('/welcome');
+    }
+  }, [user, userType, isLoading, router]);
+
+  // Set user type in localStorage utilities for data isolation
+  useEffect(() => {
+    if (userType) {
+      setUserType(userType);
+    }
+  }, [userType]);
+
+  // Initialize hybrid storage for club members (database + localStorage) or guests (localStorage only)
+  const storage = typeof window !== 'undefined' && user && userType 
+    ? new HybridStorage(userType, user.id)
+    : null;
+
+  // Load data based on user type (guests stay blank, club members load from database)
+  useEffect(() => {
+    if (!userType) return;
+
+    if (userType === 'guest') {
+      // Guests: Keep everything blank, no data loading
+      setCurrentSeason(null);
+      setDivisions([]);
+      setPlayers([]);
+      setDivision(1);
+      setPreviousMatches([]);
+      setLeaderboard([]);
+      setAllDivisionPlayers([]);
+      setMinQualifyByDivision({});
+      setMinQualifyGames(MIN_QUALIFY_GAMES);
+      setViewMode('league');
+    } else if (userType === 'club-member' && storage) {
+      // Club members: Load only from their database profile via HybridStorage
+      const loadedSeason = storage.loadData('current_season', null);
+      if (loadedSeason) setCurrentSeason(loadedSeason);
+
+      const viewModeKey = 'view_mode';
+      if (typeof window !== 'undefined') {
+        const savedViewMode = localStorage.getItem(viewModeKey) || 'league';
+        setViewMode(savedViewMode);
+      }
+
+      const loadedMinQualify = storage.loadData('min_qualify_by_division', {});
+      if (loadedMinQualify) setMinQualifyByDivision(loadedMinQualify);
+
+      const savedMinQualifyGames = typeof window !== 'undefined' ? localStorage.getItem('min_qualify_games') : null;
+      if (savedMinQualifyGames) {
+        setMinQualifyGames(parseInt(savedMinQualifyGames, 10) || MIN_QUALIFY_GAMES);
+      }
+    }
+  }, [userType]);
+
+  /**
+   * Save data with hybrid storage for club members
+   * For critical data (current_season, divisions), also syncs to database for club members
+   */
+  const saveData = (key, data) => {
+    setLSJson(key, data);
+    
+    // Sync to database for club members if this is critical data
+    const isCriticalKey = key === 'current_season' || key.startsWith('divisions_');
+    if (storage && isCriticalKey) {
+      storage.saveData(key, data);
+    }
+  };
+
+  /**
+   * Load data with hybrid storage preference for club members
+   */
+  const loadData = (key, fallback = null) => {
+    if (storage) {
+      return storage.loadData(key, fallback);
+    }
+    return getLSJson(key, fallback);
+  };
+
   // Quick hydration marker: allow client UI to render after mount
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  // Load divisions and players on mount for club members
+  useEffect(() => {
+    if (userType === 'club-member' && !isLoading) {
+      syncDivisions();
+    }
+  }, [userType, isLoading]);
+
+  // Sync allDivisionPlayers to players display state when allDivisionPlayers changes
+  useEffect(() => {
+    if (allDivisionPlayers && allDivisionPlayers.length > 0) {
+      setPlayers(allDivisionPlayers);
+    }
+  }, [allDivisionPlayers]);
 
   // Force literal suffix constants and a local `db` helper so
   // client code can pick the correct table based on `viewMode`.
@@ -196,7 +221,7 @@ const [adminError, setAdminError] = useState("");
 
       if (!error && data) {
         try {
-          setLSJson("current_season", data);
+          saveData("current_season", data);
         } catch (e) {}
         setCurrentSeason(data);
         return;
@@ -259,18 +284,25 @@ const [adminError, setAdminError] = useState("");
     }
   }, [divisions, division]);
 
-  const resetLeaderboard = async () => {
-    const code = prompt("Enter admin passcode to end season:");
-    if (!code) return;
-
-    const envPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
-
-    if (code.trim() !== envPasscode?.trim()) {
-      alert("Incorrect passcode ❌");
-      return;
+  // Load previous matches when division changes
+  useEffect(() => {
+    if (userType === 'club-member' && divisions.length > 0) {
+      fetchPreviousMatches();
+      fetchPlayers(); // Also recalculate players with position changes
     }
+  }, [division, userType, divisions.length]);
 
-    const confirmed = confirm("Are you sure you want to end the season and reset the leaderboard?");
+  // Show loading state while checking auth
+  if (isLoading || !user || !userType) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        <div className="text-xl text-gray-300">Loading...</div>
+      </div>
+    );
+  }
+
+  const resetLeaderboard = async () => {
+    const confirmed = window.confirm("Are you sure you want to end the season and reset the leaderboard?");
     if (!confirmed) return;
 
     try {
@@ -343,10 +375,20 @@ const [adminError, setAdminError] = useState("");
   const recalculateStandings = async () => {
     if (!supabase) return;
 
+    // Guests can't recalculate standings
+    if (userType === 'guest') return;
+
     // 1) Get players for current division only.
-    const { data: players } = await db("players")
+    let query = db("players")
       .select("*")
       .eq("division", division);
+    
+    // For club members, only fetch their own players
+    if (userType === 'club-member' && user) {
+      query = query.eq("owner_id", user.id);
+    }
+    
+    const { data: players } = await query;
 
     if (!players || players.length === 0) return;
 
@@ -431,7 +473,17 @@ const [adminError, setAdminError] = useState("");
   };
 
 const updatePlayerStatsFromMatches = async () => {
-  const { data: matches } = await db("previous_matches").select("*").order("created_at", { ascending: true });
+  // Guests don't update player stats
+  if (userType === 'guest') return;
+
+  let query = db("previous_matches").select("*");
+  
+  // For club members, only fetch their own matches
+  if (userType === 'club-member' && user) {
+    query = query.eq("owner_id", user.id);
+  }
+  
+  const { data: matches } = await query.order("created_at", { ascending: true });
 
   for (const match of matches) {
     const playersArray = JSON.parse(match.players);
@@ -503,30 +555,6 @@ const updatePlayerStatsFromMatches = async () => {
     }
   }
 };
-const handleAdminUnlock = () => {
-  const code = prompt("Enter admin passcode:");
-
-  if (!code) return;
-
-  if (code === process.env.NEXT_PUBLIC_ADMIN_PASSCODE) {
-    setIsAdmin(true);
-    alert("Admin access granted ✅");
-  } else {
-    alert("Incorrect passcode ❌");
-  }
-};
-
-const verifyAdminCode = () => {
-  if (adminCode === process.env.NEXT_PUBLIC_ADMIN_PASSCODE) {
-    setIsAdmin(true);
-    setShowAdminModal(false);
-    setAdminCode("");
-    setAdminError("");
-  } else {
-    setAdminError("Incorrect passcode");
-  }
-};
-
 const fetchPreviousMatches = async () => {
   console.debug('[PreviousSeasons:page] fetchPreviousMatches start', { division, viewMode, supabase: !!supabase });
   // Try Supabase client first; if unavailable or returns error, fallback to server API
@@ -566,23 +594,6 @@ const fetchPreviousMatches = async () => {
     console.error('Failed to fetch previous matches from API:', e);
   }
 };
-
-useEffect(() => {
-  console.debug('[PreviousSeasons:page] previousMatches changed', { length: (previousMatches || []).length, first: previousMatches && previousMatches[0] });
-}, [previousMatches]);
-
-  useEffect(() => {
-    const syncAndFetchData = async () => {
-      const fetchedPlayers = await fetchPlayers();
-      await fetchPreviousMatches();
-      await fetchAllDivisionPlayers();
-      await loadPendingFixtures(fetchedPlayers || []);
-    };
-
-    syncAndFetchData();
-  }, [division, viewMode]);
-
-  
 
   const createNewSeason = async () => {
     // Prevent creating a new season if one is already running
@@ -625,7 +636,7 @@ useEffect(() => {
           saved = true;
           // prefer DB record
           const dbRec = Array.isArray(insertData) ? insertData[0] : insertData;
-          setLSJson("current_season", dbRec);
+          saveData("current_season", dbRec);
           setCurrentSeason(dbRec);
         }
       } catch (dbErr) {
@@ -633,7 +644,7 @@ useEffect(() => {
       }
 
       if (!saved) {
-        setLSJson("current_season", newSeason);
+        saveData("current_season", newSeason);
         setCurrentSeason(newSeason);
       }
 
@@ -692,14 +703,14 @@ useEffect(() => {
         const { data: ins, error: insErr } = await db("running_seasons").insert([running]);
         if (!insErr) {
           const dbRec = Array.isArray(ins) ? ins[0] : ins;
-          setLSJson("current_season", dbRec);
+          saveData("current_season", dbRec);
           setCurrentSeason(dbRec);
         } else {
-          setLSJson("current_season", running);
+          saveData("current_season", running);
           setCurrentSeason(running);
         }
       } catch (e) {
-        setLSJson("current_season", running);
+        saveData("current_season", running);
         setCurrentSeason(running);
       }
 
@@ -811,9 +822,22 @@ useEffect(() => {
   };
 
   const fetchPlayers = async () => {
-    const { data, error } = await db("players")
+    // Guests don't load players
+    if (userType === 'guest') {
+      setPlayers([]);
+      return;
+    }
+
+    let query = db("players")
       .select("*")
       .eq("division", division); // filter by current division
+    
+    // For club members, only fetch their own players
+    if (userType === 'club-member' && user) {
+      query = query.eq("owner_id", user.id);
+    }
+
+    const { data, error } = await query;
 
     if (!error) {
       const processed = (data || []).map((p) => ({
@@ -823,10 +847,16 @@ useEffect(() => {
       }));
 
       // Build rank maps based on matches so we can compute position changes.
-      const { data: divisionMatches, error: matchesError } = await db("previous_matches")
-        .select("players,scores,created_at")
-        .eq("division", division)
-        .order("created_at", { ascending: true });
+      let matchQuery = db("previous_matches")
+        .select("players,scores,created_at,owner_id")
+        .eq("division", division);
+      
+      // For club members, only fetch their own matches  
+      if (userType === 'club-member' && user?.id) {
+        matchQuery = matchQuery.eq("owner_id", user.id);
+      }
+      
+      const { data: divisionMatches, error: matchesError } = await matchQuery.order("created_at", { ascending: true });
 
       const computeRankMapFromMatches = (matchesList) => {
         const running = {};
@@ -880,19 +910,33 @@ useEffect(() => {
 
       if (!matchesError && Array.isArray(divisionMatches) && divisionMatches.length > 0) {
         const allMatches = divisionMatches.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        // determine date (yyyy-mm-dd) of most recent match
-        const latestDate = new Date(allMatches[allMatches.length - 1].created_at).toISOString().split("T")[0];
-        const matchesBeforeLatest = allMatches.filter((m) => {
-          const d = new Date(m.created_at).toISOString().split("T")[0];
-          return d < latestDate;
-        });
-
-        if (matchesBeforeLatest.length > 0) {
-          prevPositions = computeRankMapFromMatches(matchesBeforeLatest);
-        } else {
-          // If there are no earlier matches, leave prevPositions empty so changes will show as 0/—
-          prevPositions = {};
+        
+        // Get unique dates in order (most recent last)
+        const uniqueDates = [...new Set(allMatches.map((m) => new Date(m.created_at).toISOString().split("T")[0]))];
+        
+        if (uniqueDates.length > 1) {
+          // Compare current week (latest date) to previous week (second-latest date)
+          const latestDate = uniqueDates[uniqueDates.length - 1];
+          const previousDate = uniqueDates[uniqueDates.length - 2];
+          
+          // Get all matches up to but NOT including the latest date
+          const matchesUpToPreviousWeek = allMatches.filter((m) => {
+            const d = new Date(m.created_at).toISOString().split("T")[0];
+            return d <= previousDate;
+          });
+          
+          if (matchesUpToPreviousWeek.length > 0) {
+            prevPositions = computeRankMapFromMatches(matchesUpToPreviousWeek);
+          }
+        } else if (uniqueDates.length === 1 && allMatches.length > 1) {
+          // All matches on same date - use first half vs second half as "weeks"
+          const midpoint = Math.floor(allMatches.length / 2);
+          const matchesFirstHalf = allMatches.slice(0, midpoint);
+          if (matchesFirstHalf.length > 0) {
+            prevPositions = computeRankMapFromMatches(matchesFirstHalf);
+          }
         }
+        // If only one match or one date, prevPositions stays empty so change shows as "—"
       }
 
       // Sort using new criteria and calculate positionChange based on new positions (current = all matches)
@@ -910,6 +954,7 @@ useEffect(() => {
   };
 
   const toggleDivision = () => {
+    if (!divisions || divisions.length === 0) return;
     // Cycle through available divisions defined in `divisions`
     const idx = divisions.findIndex((d) => d.id === division);
     const nextIdx = (idx + 1) % divisions.length;
@@ -928,10 +973,23 @@ useEffect(() => {
   };
 
   const fetchAllDivisionPlayers = async (divisionNum = division) => {
-    const { data, error } = await db("players")
+    // Guests don't load players
+    if (userType === 'guest') {
+      console.debug("fetchAllDivisionPlayers: guest user, returning empty");
+      setAllDivisionPlayers([]);
+      return;
+    }
+
+    let query = db("players")
       .select("*")
-      .eq("division", divisionNum)
-      .order("name", { ascending: true });
+      .eq("division", divisionNum);
+    
+    // For club members, only load players owned by this user
+    if (userType === 'club-member' && user) {
+      query = query.eq("owner_id", user.id);
+    }
+    
+    const { data, error } = await query.order("name", { ascending: true });
 
     if (!error) {
       setAllDivisionPlayers(data || []);
@@ -999,7 +1057,27 @@ useEffect(() => {
   value: division,
   highlight: "blue",
   onClick: toggleDivision,
-  renderCustom: () => (
+  renderCustom: () => {
+    if (divisions.length === 0) {
+      return (
+        <div className="w-full select-none">
+          <div className="flex items-center justify-center px-2">
+            <span className="text-center text-gray-300 text-sm">
+              No divisions yet. Create one to get started!
+            </span>
+          </div>
+          <div className="flex items-center gap-3 mt-3 justify-center">
+            <button
+              onClick={() => confirmAddDivision()}
+              className="bg-blue-600 text-white px-4 py-2 rounded text-sm border border-blue-700 hover:bg-blue-700"
+            >
+              ➕ Add Division
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return (
       <div className="w-full select-none">
         <div className="flex items-center justify-between px-2">
           <button
@@ -1031,7 +1109,7 @@ useEffect(() => {
 
         <div className="flex items-center gap-3 mt-3 justify-center">
           <button
-            onClick={() => setShowAddDivisionPasscodeModal(true)}
+            onClick={() => confirmAddDivision()}
             className="bg-gray-800 text-white px-4 py-2 rounded text-sm border border-gray-600 hover:bg-gray-700"
           >
             ➕ Add
@@ -1043,14 +1121,15 @@ useEffect(() => {
             🔄 Sync
           </button>
           <button
-            onClick={() => setShowRemoveDivisionPasscodeModal(true)}
+            onClick={() => confirmRemoveDivision()}
             className="bg-red-600 text-white px-4 py-2 rounded text-sm border border-red-700 hover:bg-red-700"
           >
             🗑 Remove
           </button>
         </div>
       </div>
-  ),
+    );
+  },
 },
     
     { label: "Current Leader", value: currentLeader, highlight: "gold" },
@@ -1993,45 +2072,33 @@ const clearGeneratedMatches = async () => {
   alert("Generated matches cleared ✅");
 };
 
-const verifyAddMatchPasscode = async () => {
-  const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
-  if (addMatchPasscode.trim() !== correctPasscode?.trim()) {
-    setAddMatchPasscodeError("Incorrect passcode");
-    return;
+const confirmAddMatch = async () => {
+  if (window.confirm("Are you sure you want to add a match?")) {
+    await fetchAllDivisionPlayers();
+    setShowAddMatchModal(true);
   }
-  setAddMatchPasscodeError("");
-  setShowAddMatchPasscodeModal(false);
-  await fetchAllDivisionPlayers();
-  setShowAddMatchModal(true);
 };
 
-const verifyAddDivisionPasscode = async () => {
-  const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
-  if (addDivisionPasscode.trim() !== correctPasscode?.trim()) {
-    setAddDivisionPasscodeError("Incorrect passcode");
-    return;
+const confirmAddDivision = () => {
+  if (window.confirm("Are you sure you want to add a division?")) {
+    setShowAddDivisionModal(true);
   }
-  setAddDivisionPasscodeError("");
-  setShowAddDivisionPasscodeModal(false);
-  setAddDivisionPasscode("");
-  setShowAddDivisionModal(true);
 };
 
-const verifyRemoveDivisionPasscode = async () => {
-  const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
-  if (removeDivisionPasscode.trim() !== correctPasscode?.trim()) {
-    setRemoveDivisionPasscodeError("Incorrect passcode");
-    return;
+const confirmRemoveDivision = () => {
+  if (window.confirm("Are you sure you want to remove a division?")) {
+    setShowSelectDivisionModal(true);
   }
-  setRemoveDivisionPasscodeError("");
-  setShowRemoveDivisionPasscodeModal(false);
-  setRemoveDivisionPasscode("");
-  // Open selection modal to choose which division to remove
-  setShowSelectDivisionModal(true);
 };
 
 const syncDivisions = async (vmOverride) => {
   try {
+    // Guests don't load any divisions
+    if (userType === 'guest') {
+      console.debug("syncDivisions: guest user, skipping divisions load");
+      return;
+    }
+
     console.debug("syncDivisions: env url", process.env.NEXT_PUBLIC_SUPABASE_URL);
     console.debug("syncDivisions: anon key present", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
@@ -2046,9 +2113,11 @@ const syncDivisions = async (vmOverride) => {
             setServerError('Missing Supabase URL (NEXT_PUBLIC_SUPABASE_URL)');
             return;
           }
-          const url = `${base.replace(/\/+$/,'')}/rest/v1/${tableName}`;
+          // For club members, only load divisions owned by this user
+          const userIdFilter = user && userType === 'club-member' ? `&owner_id=eq.${user.id}` : '';
+          const url = `${base.replace(/\/+$/,'')}/rest/v1/${tableName}?select=id,name,min_qualify_games,owner_id&order=id${userIdFilter}`;
           const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-          const resp = await fetch(url + '?select=id,name,min_qualify_games&order=id', {
+          const resp = await fetch(url, {
             headers: {
               apikey: key,
               Authorization: `Bearer ${key}`,
@@ -2067,9 +2136,15 @@ const syncDivisions = async (vmOverride) => {
           return;
         }
       } else {
-        const { data: dbDivs, error } = await supabase.from(tableName)
-          .select("id,name,min_qualify_games")
-          .order("id", { ascending: true });
+        let query = supabase.from(tableName)
+          .select("id,name,min_qualify_games");
+        
+        // For club members, only load divisions owned by this user
+        if (user && userType === 'club-member') {
+          query = query.eq('owner_id', user.id);
+        }
+        
+        const { data: dbDivs, error } = await query.order("id", { ascending: true });
 
         console.debug("syncDivisions: supabase response", { dbDivs, error });
 
@@ -2079,7 +2154,11 @@ const syncDivisions = async (vmOverride) => {
 
       // If missing column error, retry without column to recover older tables
       if (finalError && String(finalError?.code) === "42703") {
-        const fallback = await supabase.from(tableName).select("id,name").order("id", { ascending: true });
+        let query = supabase.from(tableName).select("id,name");
+        if (user && userType === 'club-member') {
+          query = query.eq('owner_id', user.id);
+        }
+        const fallback = await query.order("id", { ascending: true });
         finalDbDivs = fallback.data;
         finalError = fallback.error;
       }
@@ -2117,16 +2196,25 @@ const syncDivisions = async (vmOverride) => {
         return;
       }
 
+      // Guests or club members with no divisions - just return without error
       if (!Array.isArray(finalDbDivs) || finalDbDivs.length === 0) {
-        console.warn("syncDivisions: server returned empty divisions array", finalDbDivs);
-        setServerError("No divisions found on server.");
+        if (userType === 'guest') {
+          console.debug("syncDivisions: guest user has no divisions (expected)");
+          setDivisions([
+            { id: 1, name: "Division 1" },
+            { id: 2, name: "Division 2" },
+          ]);
+          return;
+        }
+        console.debug("syncDivisions: no divisions yet (normal for new league)");
+        setDivisions([]);
         return;
       }
 
       const mapped = finalDbDivs.map((d) => ({ id: d.id, name: d.name || `Division ${d.id}`, min_qualify_games: d.min_qualify_games }));
     console.debug("syncDivisions: setting divisions for vm=", vm, mapped);
                 setDivisions(mapped);
-                try { setLSJson(`divisions_${vm}`, mapped); } catch (e) {}
+                try { saveData(`divisions_${vm}`, mapped); } catch (e) {}
     // populate per-division min map from DB values
     const byDiv = {};
     mapped.forEach((m) => {
@@ -2202,7 +2290,7 @@ const handleConfirmRemoveDivision = () => {
         } else {
           const nextDivisions = divisions.filter((d) => d.id !== idToRemove);
           setDivisions(nextDivisions);
-          try { setLSJson(`divisions_${viewMode}`, nextDivisions); } catch (e) {}
+          try { saveData(`divisions_${viewMode}`, nextDivisions); } catch (e) {}
           if (division === idToRemove) {
             const first = nextDivisions[0];
             setDivision(first ? first.id : 1);
@@ -2223,14 +2311,10 @@ const handleConfirmRemoveDivision = () => {
   })();
 };
 
-const verifyRemovePlayerPasscode = async () => {
-  const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
-  if (removePlayerPasscode.trim() !== correctPasscode?.trim()) {
-    setRemovePlayerPasscodeError("Incorrect passcode");
+const confirmRemovePlayer = async () => {
+  if (!window.confirm("Are you sure you want to remove this player?")) {
     return;
   }
-  setRemovePlayerPasscodeError("");
-  setShowRemovePlayerModal(false);
   
   if (selectedPlayerToRemove) {
     const { error } = await db("players")
@@ -2246,7 +2330,6 @@ const verifyRemovePlayerPasscode = async () => {
     }
   }
   
-  setRemovePlayerPasscode("");
   setSelectedPlayerToRemove(null);
 };
 
@@ -2271,7 +2354,7 @@ const addDivision = async (name) => {
 
     if (newDiv) {
       setDivisions((prev) => [...prev, newDiv]);
-      try { setLSJson(`divisions_${viewMode}`, [...divisions, newDiv]); } catch (e) {}
+      try { saveData(`divisions_${viewMode}`, [...divisions, newDiv]); } catch (e) {}
       setDivision(newDiv.id);
       await fetchAllDivisionPlayers(newDiv.id);
     } else {
@@ -2280,7 +2363,7 @@ const addDivision = async (name) => {
       const newId = maxId + 1;
       const localDiv = { id: newId, name: trimmed };
       setDivisions((prev) => [...prev, localDiv]);
-      try { setLSJson(`divisions_${viewMode}`, [...divisions, localDiv]); } catch (e) {}
+      try { saveData(`divisions_${viewMode}`, [...divisions, localDiv]); } catch (e) {}
       setDivision(newId);
       fetchAllDivisionPlayers(newId);
     }
@@ -2330,33 +2413,16 @@ const openEditMatchModal = async (match) => {
 };
 
 const requestEditMatch = async (match) => {
-  if (isAdmin) {
-    await openEditMatchModal(match);
-    return;
-  }
-
-  setPendingEditMatch(match);
-  setEditMatchPasscode("");
-  setEditMatchPasscodeError("");
-  setShowEditMatchPasscodeModal(true);
+  await confirmEditMatch(match);
 };
 
-const verifyEditMatchPasscode = async () => {
-  const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
-  if (editMatchPasscode.trim() !== correctPasscode?.trim()) {
-    setEditMatchPasscodeError("Incorrect passcode");
+const confirmEditMatch = async (match) => {
+  if (!window.confirm("Are you sure you want to edit this match?")) {
     return;
   }
 
-  setIsAdmin(true);
-  setShowEditMatchPasscodeModal(false);
-  setEditMatchPasscode("");
-  setEditMatchPasscodeError("");
-
-  if (pendingEditMatch) {
-    const selectedMatch = pendingEditMatch;
-    setPendingEditMatch(null);
-    await openEditMatchModal(selectedMatch);
+  if (match) {
+    await openEditMatchModal(match);
   }
 };
 
@@ -2486,7 +2552,6 @@ const addMatch = async () => {
       court: "court1",
     });
     setShowAddMatchModal(false);
-    setAddMatchPasscode("");
 
     await recalculateStandings();
     await fetchPlayers();
@@ -2498,19 +2563,15 @@ const addMatch = async () => {
 };
 
 const handleRecalculateStandings = async () => {
-  try {
-    const adminPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
-    if (recalculatePasswordInput.trim() !== adminPasscode?.trim()) {
-      setRecalculateError("Incorrect passcode");
-      return;
-    }
+  if (!window.confirm("Are you sure you want to recalculate standings? This may take a moment.")) {
+    return;
+  }
 
+  try {
     await recalculateStandings();
     await fetchPlayers();
     await fetchPreviousMatches();
     setShowRecalculateModal(false);
-    setRecalculatePasswordInput("");
-    setRecalculateError("");
     alert("Standings recalculated ✅");
   } catch (err) {
     console.error("Error recalculating standings:", err);
@@ -2518,35 +2579,12 @@ const handleRecalculateStandings = async () => {
   }
 };
 
-useEffect(() => {
-  const syncPendingScores = async () => {
-    const hasPendingFixtures =
-      court1Matches.length > 0 ||
-      court2Matches.length > 0 ||
-      court3Matches.length > 0 ||
-      court4Matches.length > 0;
-    if (!hasPendingFixtures) return;
-
-    await savePendingFixtures(
-      court1Matches,
-      court2Matches,
-      court1Scores,
-      court2Scores,
-      roundMatches
-    );
-  };
-
-  syncPendingScores();
-}, [court1Scores, court2Scores, court3Scores, court4Scores, court1Matches, court2Matches, court3Matches, court4Matches, roundMatches, division]);
-
 const hasGeneratedFixtures =
   court1Matches.length > 0 ||
   court2Matches.length > 0 ||
   court3Matches.length > 0 ||
   court4Matches.length > 0;
 const activePlayerCount = players.filter((p) => p.active).length;
-
-  
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
@@ -2573,16 +2611,21 @@ const activePlayerCount = players.filter((p) => p.active).length;
             try { setLSRaw("view_mode", next); } catch (e) {}
             setViewMode(next);
             console.debug("Header toggle: switched viewMode ->", next);
-            try {
-              const cachedDivs = getLSJson(`divisions_${next}`, null);
-              if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
-                console.debug("Header toggle: applying cached divisions for", next, cachedDivs);
-                setDivisions(cachedDivs);
-                const sel = cachedDivs.find((d) => d.id === division) ? division : cachedDivs[0].id;
-                setDivision(sel);
+            
+            // Guests don't load cached divisions - they stay blank
+            if (userType !== 'guest') {
+              try {
+                // For club members, try to load from their storage
+                const cachedDivs = storage ? storage.loadData(`divisions_${next}`, null) : getLSJson(`divisions_${next}`, null);
+                if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
+                  console.debug("Header toggle: applying cached divisions for", next, cachedDivs);
+                  setDivisions(cachedDivs);
+                  const sel = cachedDivs.find((d) => d.id === division) ? division : cachedDivs[0].id;
+                  setDivision(sel);
+                }
+              } catch (e) {
+                console.debug("Header toggle: no cached divisions or error", e);
               }
-            } catch (e) {
-              console.debug("Header toggle: no cached divisions or error", e);
             }
             try {
               // After switching the app state to the new mode, sync divisions from the corresponding table
@@ -2600,6 +2643,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : viewMode === "5-player-champ" ? "👑" : "🔁"}
             </span>
             {viewMode === "league" ? "Fylde Pickleball League" : viewMode === "doubles" ? "Doubles - Points Difference" : viewMode === "5-player-champ" ? "5 Player Champ" : "Round Robin"}
+            <span className="ml-3 text-gray-400 text-2xl sm:text-4xl">›</span>
           </h1>
         </button>
         <p className="text-gray-400 mt-2 text-xs sm:text-sm tracking-wide">
@@ -2661,6 +2705,39 @@ const activePlayerCount = players.filter((p) => p.active).length;
   
 
       <HeaderStats stats={stats} />
+
+      {/* User Info Header */}
+      <div className="mb-6 p-4 bg-gray-800 rounded-lg flex items-center justify-between">
+        <div className="text-gray-300">
+          {userType === 'guest' ? (
+            <span>👤 Guest Session - Data not saved</span>
+          ) : (
+            <span>👤 {user?.username}</span>
+          )}
+        </div>
+        <div className="flex gap-3">
+          {userType === 'guest' && (
+            <button
+              onClick={() => {
+                logout();
+                router.push('/welcome');
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors"
+            >
+              Create Account
+            </button>
+          )}
+          <button
+            onClick={() => {
+              logout();
+              router.push('/welcome');
+            }}
+            className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
 
       {process.env.NODE_ENV === "development" && hydrated && (
         <div className="fixed bottom-4 right-4 z-50 p-2 text-xs bg-black bg-opacity-60 text-gray-200 rounded">
@@ -2775,23 +2852,17 @@ const activePlayerCount = players.filter((p) => p.active).length;
             )}
 
             <div className={`flex flex-row items-center gap-2 ${viewMode === "5-player-champ" || viewMode === "round-robin" ? "ml-auto" : ""}`}>
-              {!isAdmin ? (
-                <button
-                  onClick={() => setShowAdminModal(true)}
-                  disabled={hasGeneratedFixtures || (viewMode === "5-player-champ" && activePlayerCount !== 5) || (viewMode === "round-robin" && activePlayerCount < 4)}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  🔒 Generate Fixtures
-                </button>
-              ) : (
-                <button
-                  onClick={generateMatches}
-                  disabled={hasGeneratedFixtures || (viewMode === "5-player-champ" && activePlayerCount !== 5) || (viewMode === "round-robin" && activePlayerCount < 4)}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  🔄 Generate Fixtures
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  if (window.confirm("Are you sure you want to generate fixtures?")) {
+                    generateMatches();
+                  }
+                }}
+                disabled={hasGeneratedFixtures || (viewMode === "5-player-champ" && activePlayerCount !== 5) || (viewMode === "round-robin" && activePlayerCount < 4)}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                🔒 Generate Fixtures
+              </button>
               {viewMode === "5-player-champ" && activePlayerCount !== 5 && (
                 <p className="text-xs text-red-400 font-semibold w-full sm:w-auto">
                   ⚠️ Requires exactly 5 active players ({activePlayerCount} currently)
@@ -3193,60 +3264,29 @@ const activePlayerCount = players.filter((p) => p.active).length;
             <button
               onClick={() => {
                 const v = parseInt(minQualifyInput || "0", 10) || 0;
-                // require admin passcode to actually save per-division
-                setPendingMinSave({ division, value: v });
-                setVerifyMinPasscode("");
-                setVerifyMinError("");
-                setShowEditMinModal(false);
-                setShowVerifyMinPasscodeModal(true);
-              }}
-              className="px-4 py-2 rounded bg-blue-600 text-white"
-            >Save</button>
-          </div>
-        </div>
-      </div>
-    )}
-    {showVerifyMinPasscodeModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/40" onClick={() => setShowVerifyMinPasscodeModal(false)} />
-        <div className="relative w-full max-w-sm bg-white rounded-xl p-6 shadow-xl">
-          <h3 className="text-lg font-semibold">Admin passcode required</h3>
-          <p className="text-sm text-gray-600 mt-1">Enter admin passcode to save the minimum games for this division.</p>
-          <div className="mt-4">
-            <input type="password" value={verifyMinPasscode} onChange={(e) => setVerifyMinPasscode(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2" />
-            {verifyMinError && <p className="text-red-600 text-sm mt-2">{verifyMinError}</p>}
-          </div>
-          <div className="mt-4 flex justify-end gap-2">
-            <button onClick={() => { setShowVerifyMinPasscodeModal(false); setPendingMinSave(null); }} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
-            <button
-              onClick={async () => {
-                const correct = process.env.NEXT_PUBLIC_ADMIN_PASSCODE || "";
-                if (verifyMinPasscode.trim() !== correct.trim()) {
-                  setVerifyMinError("Incorrect passcode.");
-                  return;
-                }
-                // save pending value
-                if (pendingMinSave) {
+                const confirmed = window.confirm("Are you sure you want to save this minimum games requirement?");
+                if (confirmed) {
+                  // save the value
                   const next = { ...(minQualifyByDivision || {}) };
-                  next[String(pendingMinSave.division)] = pendingMinSave.value;
+                  next[String(division)] = v;
                   setMinQualifyByDivision(next);
                   try { setLSJson("min_qualify_by_division", next); } catch (e) {}
                   // update current displayed value
-                  setMinQualifyGames(pendingMinSave.value);
+                  setMinQualifyGames(v);
 
                   // Persist per-division min to DB for canonical storage
                   try {
-                    await db('divisions').update({ min_qualify_games: pendingMinSave.value }).eq('id', pendingMinSave.division);
+                    db('divisions').update({ min_qualify_games: v }).eq('id', division).then(() => {
+                      setShowEditMinModal(false);
+                    });
                   } catch (e) {
                     console.warn('Failed to persist min_qualify_games to DB:', e);
                     // not fatal — keep local value
                   }
                 }
-                setPendingMinSave(null);
-                setShowVerifyMinPasscodeModal(false);
               }}
               className="px-4 py-2 rounded bg-blue-600 text-white"
-            >Verify & Save</button>
+            >Save</button>
           </div>
         </div>
       </div>
@@ -3824,7 +3864,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
             {/* Add Match Button */}
             <div className="flex justify-center mb-4">
               <button
-                onClick={() => setShowAddMatchPasscodeModal(true)}
+                onClick={() => confirmAddMatch()}
                 className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded"
               >
                 ➕ Add Match
@@ -4362,52 +4402,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         )}
       </section>
-      {showAdminModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
-            <h2 className="text-lg font-bold text-yellow-400 mb-4 text-center">
-              Admin Access
-            </h2>
-
-            <input
-              type="password"
-              value={adminCode}
-              onChange={(e) => {
-                setAdminCode(e.target.value);
-                setAdminError("");
-              }}
-              placeholder="Enter passcode"
-              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
-            />
-
-            {adminError && (
-              <p className="text-red-400 text-sm mt-2 text-center">
-                {adminError}
-              </p>
-            )}
-
-            <div className="flex justify-between mt-5">
-              <button
-                onClick={() => {
-                  setShowAdminModal(false);
-                  setAdminCode("");
-                  setAdminError("");
-                }}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={verifyAdminCode}
-                className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm"
-              >
-                Unlock
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showRecalculateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -4416,32 +4410,13 @@ const activePlayerCount = players.filter((p) => p.active).length;
               Recalculate Standings
             </h2>
             <p className="text-gray-300 mb-4 text-center text-sm">
-              Enter the admin passcode to recalculate standings.
+              Are you sure you want to recalculate standings? This may take a moment.
             </p>
-
-            <input
-              type="password"
-              value={recalculatePasswordInput}
-              onChange={(e) => {
-                setRecalculatePasswordInput(e.target.value);
-                setRecalculateError("");
-              }}
-              placeholder="Enter passcode"
-              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
-            />
-
-            {recalculateError && (
-              <p className="text-red-400 text-sm mt-2 text-center">
-                {recalculateError}
-              </p>
-            )}
 
             <div className="flex justify-between mt-5">
               <button
                 onClick={() => {
                   setShowRecalculateModal(false);
-                  setRecalculatePasswordInput("");
-                  setRecalculateError("");
                 }}
                 className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
               >
@@ -4466,32 +4441,13 @@ const activePlayerCount = players.filter((p) => p.active).length;
               End Season
             </h2>
             <p className="text-gray-300 mb-4 text-center text-sm">
-              Enter the passcode to end this season and archive a summary.
+              Are you sure you want to end this season? This will archive a summary and reset the leaderboard.
             </p>
-
-            <input
-              type="password"
-              value={resetPasswordInput}
-              onChange={(e) => {
-                setResetPasswordInput(e.target.value);
-                setResetError("");
-              }}
-              placeholder="Enter passcode"
-              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-red-400"
-            />
-
-            {resetError && (
-              <p className="text-red-400 text-sm mt-2 text-center">
-                {resetError}
-              </p>
-            )}
 
             <div className="flex justify-between mt-5">
               <button
                 onClick={() => {
                   setShowResetModal(false);
-                  setResetPasswordInput("");
-                  setResetError("");
                 }}
                 className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
               >
@@ -4500,20 +4456,18 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
               <button
                 onClick={async () => {
-                  const resetPasscode = process.env.NEXT_PUBLIC_RESET_PASSCODE;
-                  if (resetPasswordInput === resetPasscode) {
-                    const confirmed = confirm("Are you sure you want to end the season? This will archive a summary and reset the leaderboard for the division.");
-                    if (confirmed) {
-                      try {
-                        // 1) Fetch players and matches for the current division
-                        const { data: divisionPlayers } = await db("players")
-                          .select("*")
-                          .eq("division", division);
+                  const confirmed = confirm("Are you sure you want to end the season? This will archive a summary and reset the leaderboard for the division.");
+                  if (confirmed) {
+                    try {
+                      // 1) Fetch players and matches for the current division
+                      const { data: divisionPlayers } = await db("players")
+                        .select("*")
+                        .eq("division", division);
 
-                        const { data: divisionMatches } = await db("previous_matches")
-                          .select("*")
-                          .eq("division", division)
-                          .order("created_at", { ascending: true });
+                      const { data: divisionMatches } = await db("previous_matches")
+                        .select("*")
+                        .eq("division", division)
+                        .order("created_at", { ascending: true });
 
                         const playersForSummary = divisionPlayers || [];
                         const matchesForSummary = divisionMatches || [];
@@ -4690,7 +4644,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         try {
                           setEndSummaryContext(summary);
                           setShowResetModal(false);
-                          setResetPasswordInput("");
                           setShowEndSeasonChoiceModal(true);
                         } catch (e) {
                           console.error("Error opening post-end modal:", e);
@@ -4698,12 +4651,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         }
                       } catch (err) {
                         console.error("Error ending season:", err);
-                        setResetError("Error ending season");
                       }
                     }
-                  } else {
-                    setResetError("Incorrect passcode");
-                  }
                 }}
                 className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
               >
@@ -4737,53 +4686,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </div>
       )}
 
-      {/* Edit Match Passcode Modal */}
-      {showEditMatchPasscodeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
-            <h2 className="text-lg font-bold text-yellow-400 mb-4 text-center">Edit Match</h2>
-            <p className="text-gray-300 mb-4 text-center text-sm">
-              Enter the admin passcode to edit this match.
-            </p>
 
-            <input
-              type="password"
-              value={editMatchPasscode}
-              onChange={(e) => {
-                setEditMatchPasscode(e.target.value);
-                setEditMatchPasscodeError("");
-              }}
-              placeholder="Enter passcode"
-              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-yellow-400"
-            />
-
-            {editMatchPasscodeError && (
-              <p className="text-red-400 text-sm mt-2 text-center">{editMatchPasscodeError}</p>
-            )}
-
-            <div className="flex justify-between mt-5">
-              <button
-                onClick={() => {
-                  setShowEditMatchPasscodeModal(false);
-                  setEditMatchPasscode("");
-                  setEditMatchPasscodeError("");
-                  setPendingEditMatch(null);
-                }}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={verifyEditMatchPasscode}
-                className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded text-sm"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Edit Match Modal */}
       {showEditMatchModal && (
@@ -4951,50 +4854,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
       )}
 
       {/* Add Division Modal */}
-      {/* Add Division Passcode Modal */}
-      {showAddDivisionPasscodeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
-            <h2 className="text-lg font-bold text-blue-400 mb-4 text-center">Add Division</h2>
-            <p className="text-gray-300 mb-4 text-center text-sm">Enter the admin passcode to add a division.</p>
 
-            <input
-              type="password"
-              value={addDivisionPasscode}
-              onChange={(e) => {
-                setAddDivisionPasscode(e.target.value);
-                setAddDivisionPasscodeError("");
-              }}
-              placeholder="Enter passcode"
-              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
-            />
-
-            {addDivisionPasscodeError && (
-              <p className="text-red-400 text-sm mt-2 text-center">{addDivisionPasscodeError}</p>
-            )}
-
-            <div className="flex justify-between mt-5">
-              <button
-                onClick={() => {
-                  setShowAddDivisionPasscodeModal(false);
-                  setAddDivisionPasscode("");
-                  setAddDivisionPasscodeError("");
-                }}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={verifyAddDivisionPasscode}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {showAddDivisionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
           <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
@@ -5030,50 +4890,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         </div>
       )}
-      {/* Remove Division Passcode Modal */}
-      {showRemoveDivisionPasscodeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
-            <h2 className="text-lg font-bold text-red-400 mb-4 text-center">Remove Division</h2>
-            <p className="text-gray-300 mb-4 text-center text-sm">Enter the admin passcode to remove a division.</p>
 
-            <input
-              type="password"
-              value={removeDivisionPasscode}
-              onChange={(e) => {
-                setRemoveDivisionPasscode(e.target.value);
-                setRemoveDivisionPasscodeError("");
-              }}
-              placeholder="Enter passcode"
-              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-red-400"
-            />
-
-            {removeDivisionPasscodeError && (
-              <p className="text-red-400 text-sm mt-2 text-center">{removeDivisionPasscodeError}</p>
-            )}
-
-            <div className="flex justify-between mt-5">
-              <button
-                onClick={() => {
-                  setShowRemoveDivisionPasscodeModal(false);
-                  setRemoveDivisionPasscode("");
-                  setRemoveDivisionPasscodeError("");
-                }}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={verifyRemoveDivisionPasscode}
-                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Select Division To Remove Modal */}
       {showSelectDivisionModal && (
@@ -5155,43 +4972,21 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </div>
       )}
 
-      {/* Remove Player Passcode Modal */}
+      {/* Remove Player Confirmation Modal */}
       {showRemovePlayerModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
           <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
             <h2 className="text-lg font-bold text-red-400 mb-4 text-center">
               Remove Player
             </h2>
-            <p className="text-gray-300 mb-2 text-center text-sm">
-              Remove <span className="font-semibold">{selectedPlayerToRemove?.name}</span>?
+            <p className="text-gray-300 mb-4 text-center text-sm">
+              Are you sure you want to remove <span className="font-semibold">{selectedPlayerToRemove?.name}</span>?
             </p>
-            <p className="text-gray-400 mb-4 text-center text-xs">
-              Enter the admin passcode to confirm.
-            </p>
-
-            <input
-              type="password"
-              value={removePlayerPasscode}
-              onChange={(e) => {
-                setRemovePlayerPasscode(e.target.value);
-                setRemovePlayerPasscodeError("");
-              }}
-              placeholder="Enter passcode"
-              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-red-400"
-            />
-
-            {removePlayerPasscodeError && (
-              <p className="text-red-400 text-sm mt-2 text-center">
-                {removePlayerPasscodeError}
-              </p>
-            )}
 
             <div className="flex justify-between mt-5">
               <button
                 onClick={() => {
                   setShowRemovePlayerModal(false);
-                  setRemovePlayerPasscode("");
-                  setRemovePlayerPasscodeError("");
                   setSelectedPlayerToRemove(null);
                 }}
                 className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
@@ -5200,7 +4995,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               </button>
 
               <button
-                onClick={verifyRemovePlayerPasscode}
+                onClick={confirmRemovePlayer}
                 className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
               >
                 Remove
@@ -5210,56 +5005,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </div>
       )}
 
-      {/* Add Match Passcode Modal */}
-      {showAddMatchPasscodeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
-            <h2 className="text-lg font-bold text-blue-400 mb-4 text-center">
-              Add Match
-            </h2>
-            <p className="text-gray-300 mb-4 text-center text-sm">
-              Enter the admin passcode to add a match.
-            </p>
 
-            <input
-              type="password"
-              value={addMatchPasscode}
-              onChange={(e) => {
-                setAddMatchPasscode(e.target.value);
-                setAddMatchPasscodeError("");
-              }}
-              placeholder="Enter passcode"
-              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
-            />
-
-            {addMatchPasscodeError && (
-              <p className="text-red-400 text-sm mt-2 text-center">
-                {addMatchPasscodeError}
-              </p>
-            )}
-
-            <div className="flex justify-between mt-5">
-              <button
-                onClick={() => {
-                  setShowAddMatchPasscodeModal(false);
-                  setAddMatchPasscode("");
-                  setAddMatchPasscodeError("");
-                }}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={verifyAddMatchPasscode}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Add Match Modal */}
       {showAddMatchModal && (
@@ -5395,7 +5141,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
               <button
                 onClick={() => {
                   setShowAddMatchModal(false);
-                  setAddMatchPasscode("");
                   setAddMatchError("");
                 }}
                 className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm flex-1"
