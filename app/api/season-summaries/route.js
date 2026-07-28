@@ -22,18 +22,21 @@ export async function GET(request) {
     // Fetch completed seasons
     let summariesQuery = supabase.from(summariesTable).select('*');
     if (division) summariesQuery = summariesQuery.eq('division', division);
-    
-    // Fetch running/active seasons
-    let runningQuery = supabase.from(runningTable).select('*');
-    if (division) runningQuery = runningQuery.eq('division', division);
-
-    const [summariesResult, runningResult] = await Promise.all([
-      summariesQuery,
-      runningQuery.catch(() => ({ data: [], error: null })) // Running seasons table might not exist for all views
-    ]);
+    const summariesResult = await summariesQuery;
 
     if (summariesResult.error) {
       return NextResponse.json({ error: summariesResult.error.message || String(summariesResult.error) }, { status: 500 });
+    }
+
+    // Fetch running/active seasons (these tables might not exist for all views)
+    let runningResult = { data: [], error: null };
+    try {
+      let runningQuery = supabase.from(runningTable).select('*');
+      if (division) runningQuery = runningQuery.eq('division', division);
+      runningResult = await runningQuery;
+    } catch (e) {
+      // Running seasons table might not exist - that's OK
+      runningResult = { data: [], error: null };
     }
 
     // Combine both archived and running seasons, sort by timestamp descending
