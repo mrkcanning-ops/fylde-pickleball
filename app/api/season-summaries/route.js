@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // Helper function to compute leaderboard for a division
 async function computeLeaderboardForDivision(supabase, division, formatSuffix) {
-  const playersTable = `players_${formatSuffix}`;
-  const matchesTable = `previous_matches_${formatSuffix}`;
+  const playersTable = formatSuffix ? `players_${formatSuffix}` : 'players';
+  const matchesTable = formatSuffix ? `previous_matches_${formatSuffix}` : 'previous_matches';
 
   // Fetch all players for this division
   const { data: players } = await supabase
@@ -125,17 +125,18 @@ export async function GET(request) {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Map format names to table suffixes
+    // 'league' = no suffix (base tables), 'points' = _doubles suffix
     const formatMap = {
-      'league': 'league',
-      'points': 'points',
-      '5player': '5champ',
-      'roundrobin': 'roundrobin'
+      'league': '',           // Base tables with no suffix
+      'points': 'doubles',    // Points Difference uses _doubles tables
+      '5player': '5champ',    // 5 Player uses _5champ tables
+      'roundrobin': 'roundrobin'  // Round Robin uses _roundrobin tables
     };
 
-    const formatSuffix = formatMap[format] || 'league';
-    const summariesTable = `season_summaries_${formatSuffix}`;
-    const runningTable = `running_seasons_${formatSuffix}`;
-    const divisionsTable = `divisions_${formatSuffix}`;
+    const formatSuffix = formatMap[format] || '';
+    const summariesTable = formatSuffix ? `season_summaries_${formatSuffix}` : 'season_summaries';
+    const runningTable = formatSuffix ? `running_seasons_${formatSuffix}` : 'running_seasons';
+    const divisionsTable = formatSuffix ? `divisions_${formatSuffix}` : 'divisions';
 
     // Fetch completed seasons
     let summariesQuery = supabase.from(summariesTable).select('*');
