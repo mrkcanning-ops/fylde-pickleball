@@ -84,58 +84,58 @@ export default function ViewStandingsPage() {
       {/* Header */}
       <div className="bg-gray-800 border-b border-gray-700 p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-4 mb-4">
-            <button
-              onClick={() => router.push('/welcome')}
-              className="px-4 py-2 bg-gray-700 text-gray-300 rounded font-semibold hover:bg-gray-600 transition"
-            >
-              ← Back
-            </button>
-          </div>
           <h1 className="text-4xl font-bold text-white">Fylde Pickleball Club</h1>
-          <div className="flex items-center justify-between mt-4">
+          <div className="flex items-start justify-between mt-4">
             <p className="text-gray-400">All League Standings</p>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
               <button
-                onClick={() => setFormat('league')}
-                className={`px-4 py-2 rounded font-semibold transition ${
-                  format === 'league'
-                    ? 'bg-yellow-500 text-gray-900'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
+                onClick={() => router.push('/welcome')}
+                className="px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 transition"
               >
-                League
+                ← Back
               </button>
-              <button
-                onClick={() => setFormat('points')}
-                className={`px-4 py-2 rounded font-semibold transition ${
-                  format === 'points'
-                    ? 'bg-yellow-500 text-gray-900'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                Points Difference
-              </button>
-              <button
-                onClick={() => setFormat('5player')}
-                className={`px-4 py-2 rounded font-semibold transition ${
-                  format === '5player'
-                    ? 'bg-yellow-500 text-gray-900'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                5 Player
-              </button>
-              <button
-                onClick={() => setFormat('roundrobin')}
-                className={`px-4 py-2 rounded font-semibold transition ${
-                  format === 'roundrobin'
-                    ? 'bg-yellow-500 text-gray-900'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                Round Robin
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFormat('league')}
+                  className={`px-4 py-2 rounded font-semibold transition ${
+                    format === 'league'
+                      ? 'bg-yellow-500 text-gray-900'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  League
+                </button>
+                <button
+                  onClick={() => setFormat('points')}
+                  className={`px-4 py-2 rounded font-semibold transition ${
+                    format === 'points'
+                      ? 'bg-yellow-500 text-gray-900'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  Points Difference
+                </button>
+                <button
+                  onClick={() => setFormat('5player')}
+                  className={`px-4 py-2 rounded font-semibold transition ${
+                    format === '5player'
+                      ? 'bg-yellow-500 text-gray-900'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  5 Player
+                </button>
+                <button
+                  onClick={() => setFormat('roundrobin')}
+                  className={`px-4 py-2 rounded font-semibold transition ${
+                    format === 'roundrobin'
+                      ? 'bg-yellow-500 text-gray-900'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  Round Robin
+                </button>
+              </div>
             </div>
           </div>
         </div>
