@@ -93,7 +93,7 @@ export default function WelcomePage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900">
+    <div className="flex items-center justify-center min-h-screen bg-gray-900">
       <div className="text-center">
         {/* Title */}
         <h1 className="text-5xl font-bold text-white mb-4">
