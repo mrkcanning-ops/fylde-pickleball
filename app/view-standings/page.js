@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function ViewStandingsPage() {
+  const router = useRouter();
   const [allLeagues, setAllLeagues] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -82,6 +84,14 @@ export default function ViewStandingsPage() {
       {/* Header */}
       <div className="bg-gray-800 border-b border-gray-700 p-6">
         <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              onClick={() => router.push('/welcome')}
+              className="px-4 py-2 bg-gray-700 text-gray-300 rounded font-semibold hover:bg-gray-600 transition"
+            >
+              ← Back
+            </button>
+          </div>
           <h1 className="text-4xl font-bold text-white">Fylde Pickleball Club</h1>
           <div className="flex items-center justify-between mt-4">
             <p className="text-gray-400">All League Standings</p>
