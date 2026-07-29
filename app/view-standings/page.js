@@ -7,7 +7,7 @@ export default function ViewStandingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedLeagueId, setExpandedLeagueId] = useState(null);
-  const [view, setView] = useState('doubles'); // Default to doubles
+  const [format, setFormat] = useState('league'); // Default to league
 
   // Helper: Compute player form from matches
   const computePlayerFormFromMatches = (playerId, matches, limit = 10) => {
@@ -33,12 +33,12 @@ export default function ViewStandingsPage() {
 
   useEffect(() => {
     fetchAllLeagues();
-  }, [view]);
+  }, [format]);
 
   const fetchAllLeagues = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/season-summaries?view=${view}`);
+      const res = await fetch(`/api/season-summaries?format=${format}`);
       if (res.ok) {
         const data = await res.json();
         const leagues = (data.data || [])
@@ -87,24 +87,44 @@ export default function ViewStandingsPage() {
             <p className="text-gray-400">All League Standings</p>
             <div className="flex gap-2">
               <button
-                onClick={() => setView('singles')}
+                onClick={() => setFormat('league')}
                 className={`px-4 py-2 rounded font-semibold transition ${
-                  view === 'singles'
+                  format === 'league'
                     ? 'bg-yellow-500 text-gray-900'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
-                Singles
+                League
               </button>
               <button
-                onClick={() => setView('doubles')}
+                onClick={() => setFormat('points')}
                 className={`px-4 py-2 rounded font-semibold transition ${
-                  view === 'doubles'
+                  format === 'points'
                     ? 'bg-yellow-500 text-gray-900'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
-                Doubles
+                Points Difference
+              </button>
+              <button
+                onClick={() => setFormat('5player')}
+                className={`px-4 py-2 rounded font-semibold transition ${
+                  format === '5player'
+                    ? 'bg-yellow-500 text-gray-900'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                5 Player
+              </button>
+              <button
+                onClick={() => setFormat('roundrobin')}
+                className={`px-4 py-2 rounded font-semibold transition ${
+                  format === 'roundrobin'
+                    ? 'bg-yellow-500 text-gray-900'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Round Robin
               </button>
             </div>
           </div>

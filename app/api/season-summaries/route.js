@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 // Helper function to compute leaderboard for a division
-async function computeLeaderboardForDivision(supabase, division, view) {
-  const playersTable = view === 'doubles' ? 'players_doubles' : 'players';
-  const matchesTable = view === 'doubles' ? 'previous_matches_doubles' : 'previous_matches';
+async function computeLeaderboardForDivision(supabase, division, formatSuffix) {
+  const playersTable = `players_${formatSuffix}`;
+  const matchesTable = `previous_matches_${formatSuffix}`;
 
   // Fetch all players for this division
   const { data: players } = await supabase
@@ -113,7 +113,7 @@ export async function GET(request) {
   try {
     const url = new URL(request.url);
     const division = url.searchParams.get('division');
-    const view = url.searchParams.get('view') || 'singles';
+    const format = url.searchParams.get('format') || 'league'; // Default to league
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -124,8 +124,18 @@ export async function GET(request) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const summariesTable = view === 'doubles' ? 'season_summaries_doubles' : 'season_summaries';
-    const runningTable = view === 'doubles' ? 'running_seasons_doubles' : 'running_seasons';
+    // Map format names to table suffixes
+    const formatMap = {
+      'league': 'league',
+      'points': 'points',
+      '5player': '5champ',
+      'roundrobin': 'roundrobin'
+    };
+
+    const formatSuffix = formatMap[format] || 'league';
+    const summariesTable = `season_summaries_${formatSuffix}`;
+    const runningTable = `running_seasons_${formatSuffix}`;
+    const divisionsTable = `divisions_${formatSuffix}`;
 
     // Fetch completed seasons
     let summariesQuery = supabase.from(summariesTable).select('*');
@@ -146,7 +156,7 @@ export async function GET(request) {
       // For each running season, compute its final_standings
       if (runningResult.data && runningResult.data.length > 0) {
         for (const season of runningResult.data) {
-          const standings = await computeLeaderboardForDivision(supabase, season.division, view);
+          const standings = await computeLeaderboardForDivision(supabase, season.division, formatSuffix);
           season.final_standings = standings;
           season.timestamp = season.started_at; // Use started_at as timestamp for sorting
         }
@@ -156,7 +166,6 @@ export async function GET(request) {
     }
 
     // Get division names for proper display
-    const divisionsTable = view === 'doubles' ? 'divisions_doubles' : 'divisions';
     const { data: divisionsData } = await supabase.from(divisionsTable).select('id, name');
     const divisionNames = {};
     (divisionsData || []).forEach(d => {
