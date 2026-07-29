@@ -224,6 +224,19 @@ export async function GET(request) {
       ...(runningResult.data || [])
     ];
 
+    // Fetch matches for each season/summary for form calculation
+    const matchesTable = formatSuffix ? `previous_matches_${formatSuffix}` : 'previous_matches';
+    for (const item of allData) {
+      if (item.division) {
+        const { data: matches } = await supabase
+          .from(matchesTable)
+          .select('*')
+          .eq('division', item.division)
+          .order('created_at', { ascending: true });
+        item.matches = matches || [];
+      }
+    }
+
     // Enrich with division names and ensure valid timestamps
     allData.forEach(item => {
       item.divisionName = divisionNames[item.division] || `Division ${item.division}`;
