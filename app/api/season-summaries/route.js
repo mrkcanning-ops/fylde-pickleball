@@ -155,17 +155,38 @@ export async function GET(request) {
       runningResult = { data: [], error: null };
     }
 
-    // Combine both archived and running seasons, sort by timestamp descending
+    // Get division names for proper display
+    const divisionsTable = view === 'doubles' ? 'divisions_doubles' : 'divisions';
+    const { data: divisionsData } = await supabase.from(divisionsTable).select('id, name');
+    const divisionNames = {};
+    (divisionsData || []).forEach(d => {
+      divisionNames[d.id] = d.name;
+    });
+
+    // Combine both archived and running seasons
     const allData = [
       ...(summariesResult.data || []),
       ...(runningResult.data || [])
-    ].sort((a, b) => {
-      const timeA = new Date(a.timestamp || a.created_at || 0);
-      const timeB = new Date(b.timestamp || b.created_at || 0);
+    ];
+
+    // Enrich with division names and ensure valid timestamps
+    allData.forEach(item => {
+      item.divisionName = divisionNames[item.division] || `Division ${item.division}`;
+      
+      // Ensure timestamp is valid
+      const timeStr = item.timestamp || item.created_at || item.started_at;
+      const parsedTime = new Date(timeStr);
+      item.timestamp = !isNaN(parsedTime.getTime()) ? timeStr : null;
+    });
+
+    // Sort by timestamp descending
+    const sorted = allData.sort((a, b) => {
+      const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
       return timeB - timeA;
     });
 
-    return NextResponse.json({ data: allData });
+    return NextResponse.json({ data: sorted });
   } catch (e) {
     return NextResponse.json({ error: e?.message || String(e) }, { status: 500 });
   }
