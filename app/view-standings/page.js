@@ -9,6 +9,8 @@ export default function ViewStandingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedLeagueId, setExpandedLeagueId] = useState(null);
+  const [expandedTrackerLeagueId, setExpandedTrackerLeagueId] = useState(null);
+  const [standingsView, setStandingsView] = useState('Leaderboard'); // Leaderboard or Tracker
   const [format, setFormat] = useState('league'); // Default to league
 
   // Helper: Compute player form from matches
@@ -104,6 +106,40 @@ export default function ViewStandingsPage() {
       ...p,
       positionChange: prevPositions[p.id] !== undefined ? prevPositions[p.id] - (idx + 1) : 0
     }));
+  };
+
+  // Helper: Generate bump chart data from a league's final standings and tracker
+  const getBumpChartDataForLeague = (league) => {
+    const tracker = league?.tracker || [];
+    const final = league?.final_standings || [];
+    const weeks = tracker.map((snap, i) => `Match ${i + 1}`);
+
+    // Players list from final standings
+    const playersList = (final || []).map((p) => ({ id: String(p.id), name: p.name || String(p.id) }));
+
+    const history = {};
+    playersList.forEach((p) => { history[p.id] = { id: p.id, name: p.name, positions: [] }; });
+
+    tracker.forEach((snap, weekIndex) => {
+      const positions = snap.positions || [];
+      positions.forEach((pos) => {
+        const pid = String(pos.id);
+        if (!history[pid]) {
+          history[pid] = { id: pid, name: pos.name || String(pid), positions: [] };
+        }
+        history[pid].positions.push({ weekIndex, rank: pos.position || pos.rank });
+      });
+    });
+
+    const colors = ["#f59e0b", "#34d399", "#60a5fa", "#818cf8", "#fb7185", "#a855f7", "#f97316", "#22c55e", "#38bdf8", "#f43f5e"];
+    const lines = Object.values(history)
+      .filter((entry) => entry.positions && entry.positions.length > 0)
+      .map((entry, index) => ({
+        ...entry,
+        color: colors[index % colors.length],
+      }));
+
+    return { weeks, lines };
   };
 
   useEffect(() => {
@@ -255,10 +291,36 @@ export default function ViewStandingsPage() {
                     </div>
                   </button>
 
-                  {/* League Content - Leaderboard Table */}
+                  {/* League Content - Leaderboard/Tracker */}
                   {isExpanded && league.final_standings && (
                     <div className="border-t border-gray-600 px-4 py-4">
-                      <div className="bg-gray-50 rounded-lg overflow-hidden">
+                      {/* Leaderboard/Tracker Toggle Buttons */}
+                      <div className="mb-4 flex gap-2">
+                        <button
+                          onClick={() => setExpandedTrackerLeagueId(league.id || idx === 'leaderboard' ? null : league.id || idx)}
+                          className={`px-4 py-2 rounded font-semibold transition ${
+                            expandedTrackerLeagueId !== (league.id || idx)
+                              ? 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                              : 'bg-gray-400 text-gray-900'
+                          }`}
+                        >
+                          Leaderboard
+                        </button>
+                        <button
+                          onClick={() => setExpandedTrackerLeagueId(expandedTrackerLeagueId === (league.id || idx) ? null : league.id || idx)}
+                          className={`px-4 py-2 rounded font-semibold transition ${
+                            expandedTrackerLeagueId === (league.id || idx)
+                              ? 'bg-gray-400 text-gray-900'
+                              : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                          }`}
+                        >
+                          Tracker
+                        </button>
+                      </div>
+
+                      {/* Leaderboard View */}
+                      {expandedTrackerLeagueId !== (league.id || idx) && (
+                        <div className="bg-gray-50 rounded-lg overflow-hidden">
                         <div className="overflow-x-auto">
                           <table className="w-full text-left text-sm">
                             <thead className="bg-gray-200 text-gray-900 font-semibold">
@@ -356,6 +418,126 @@ export default function ViewStandingsPage() {
                           </table>
                         </div>
                       </div>
+                      )}
+
+                      {/* Tracker View - Bump Chart */}
+                      {expandedTrackerLeagueId === (league.id || idx) && (() => {
+                        const bumpData = getBumpChartDataForLeague(league);
+                        if (bumpData.weeks.length === 0) {
+                          return <p className="text-gray-400 text-center py-6">No tracker data available. Tracker data is saved when a season ends.</p>;
+                        }
+
+                        const maxRank = Math.max(
+                          ...bumpData.lines.flatMap(line => line.positions.map(p => p.rank)),
+                          5
+                        );
+                        const rowHeight = 28;
+                        const topPadding = 25;
+                        const bottomPadding = 25;
+                        const chartHeight = topPadding + maxRank * rowHeight + bottomPadding;
+                        const viewBoxWidth = Math.max(800, bumpData.weeks.length * 80);
+
+                        return (
+                          <div className="bg-gray-800 rounded-lg p-6 overflow-x-auto">
+                            <svg width="100%" height={Math.max(400, chartHeight)} className="min-w-full" viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}>
+                              {/* Background grid */}
+                              {bumpData.weeks.map((_, weekIdx) => (
+                                <line
+                                  key={`grid-v-${weekIdx}`}
+                                  x1={80 + weekIdx * 80}
+                                  y1={topPadding}
+                                  x2={80 + weekIdx * 80}
+                                  y2={topPadding + maxRank * rowHeight}
+                                  stroke="#374151"
+                                  strokeWidth="0.5"
+                                  strokeDasharray="2,2"
+                                />
+                              ))}
+                              {Array.from({ length: maxRank }).map((_, i) => (
+                                <line
+                                  key={`grid-h-${i}`}
+                                  x1="50"
+                                  y1={topPadding + i * rowHeight}
+                                  x2={viewBoxWidth - 20}
+                                  y2={topPadding + i * rowHeight}
+                                  stroke="#374151"
+                                  strokeWidth="0.5"
+                                  strokeDasharray="2,2"
+                                />
+                              ))}
+
+                              {/* Y-axis (rankings) */}
+                              {Array.from({ length: maxRank }).map((_, i) => (
+                                <text key={`y-label-${i}`} x="40" y={topPadding + 10 + i * rowHeight} fontSize="10" fontWeight="600" textAnchor="end" fill="#9CA3AF">
+                                  {i + 1}
+                                </text>
+                              ))}
+
+                              {/* X-axis (weeks) */}
+                              {bumpData.weeks.map((week, weekIdx) => (
+                                <text key={`x-label-${weekIdx}`} x={80 + weekIdx * 80} y={topPadding + maxRank * rowHeight + 18} fontSize="9" textAnchor="middle" fill="#9CA3AF">
+                                  {week}
+                                </text>
+                              ))}
+
+                              {/* Y-axis and X-axis lines */}
+                              <line x1="50" y1={topPadding} x2="50" y2={topPadding + maxRank * rowHeight} stroke="#6B7280" strokeWidth="2" />
+                              <line x1="50" y1={topPadding + maxRank * rowHeight} x2={viewBoxWidth - 20} y2={topPadding + maxRank * rowHeight} stroke="#6B7280" strokeWidth="2" />
+
+                              {/* Player lines and dots */}
+                              {bumpData.lines.map((line, lineIdx) => {
+                                const points = line.positions
+                                  .map((pos) => {
+                                    const x = 80 + pos.weekIndex * 80;
+                                    const y = topPadding + (pos.rank - 1) * rowHeight;
+                                    return `${x},${y}`;
+                                  })
+                                  .join(' ');
+
+                                return (
+                                  <g key={lineIdx}>
+                                    {/* Line */}
+                                    <polyline
+                                      points={points}
+                                      fill="none"
+                                      stroke={line.color}
+                                      strokeWidth="2.5"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      opacity="0.85"
+                                    />
+                                    {/* Dots with position numbers */}
+                                    {line.positions.map((pos, posIdx) => {
+                                      const cx = 80 + pos.weekIndex * 80;
+                                      const cy = topPadding + (pos.rank - 1) * rowHeight;
+                                      return (
+                                        <g key={`dot-${posIdx}`}>
+                                          <circle cx={cx} cy={cy} r="4" fill={line.color} opacity="0.95" />
+                                          <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize="7.5" fontWeight="700" fill="white" pointerEvents="none">
+                                            {pos.rank}
+                                          </text>
+                                        </g>
+                                      );
+                                    })}
+                                    {/* End label */}
+                                    {line.positions.length > 0 && (
+                                      <text
+                                        x={80 + (line.positions[line.positions.length - 1].weekIndex + 1) * 80 + 12}
+                                        y={topPadding + (line.positions[line.positions.length - 1].rank - 1) * rowHeight + 4}
+                                        fontSize="11"
+                                        fontWeight="600"
+                                        fill={line.color}
+                                      >
+                                        {line.name}
+                                      </text>
+                                    )}
+                                  </g>
+                                );
+                              })}
+                            </svg>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
