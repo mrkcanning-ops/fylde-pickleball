@@ -166,11 +166,56 @@ export async function GET(request) {
       runningResult = { data: [], error: null };
     }
 
-    // Get division names for proper display
-    const { data: divisionsData } = await supabase.from(divisionsTable).select('id, name');
+    // Get division names and owner information for proper display
+    let divisionsData = [];
     const divisionNames = {};
+    
+    try {
+      // Try to fetch with owner join
+      const fkeyName = `${divisionsTable}_owner_id_fkey`;
+      const { data: divsWithOwners } = await supabase
+        .from(divisionsTable)
+        .select(`
+          id,
+          name,
+          owner_id,
+          club_members!${fkeyName} (
+            username
+          )
+        `);
+      
+      divisionsData = divsWithOwners || [];
+    } catch (e) {
+      // Fallback: fetch without owner join
+      const { data: divsOnly } = await supabase
+        .from(divisionsTable)
+        .select('id, name, owner_id');
+      
+      divisionsData = divsOnly || [];
+      
+      // If we got owner_ids, fetch usernames separately
+      if (divisionsData.length > 0 && divisionsData[0].owner_id) {
+        const ownerIds = [...new Set(divisionsData.map(d => d.owner_id).filter(Boolean))];
+        const { data: members } = await supabase
+          .from('club_members')
+          .select('id, username')
+          .in('id', ownerIds);
+        
+        const memberMap = {};
+        (members || []).forEach(m => {
+          memberMap[m.id] = m;
+        });
+        
+        divisionsData.forEach(d => {
+          d.club_members = memberMap[d.owner_id] || null;
+        });
+      }
+    }
+    
     (divisionsData || []).forEach(d => {
-      divisionNames[d.id] = d.name;
+      // Format: "OwnerName - Division Name" if owner exists, otherwise just "Division Name"
+      const ownerName = d.club_members?.username ? `${d.club_members.username} - ` : '';
+      divisionNames[d.id] = `${ownerName}${d.name}`;
     });
 
     // Combine both archived and running seasons
