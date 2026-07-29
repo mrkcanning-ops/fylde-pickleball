@@ -196,6 +196,14 @@ export default function HomePage() {
     }
   }, [allDivisionPlayers]);
 
+  // Clear players when divisions is empty (no divisions created for this game mode yet)
+  useEffect(() => {
+    if (divisions && divisions.length === 0) {
+      setPlayers([]);
+      setAllDivisionPlayers([]);
+    }
+  }, [divisions]);
+
   // Force literal suffix constants and a local `db` helper so
   // client code can pick the correct table based on `viewMode`.
   const DOUBLES_SUFFIX = "_doubles";
