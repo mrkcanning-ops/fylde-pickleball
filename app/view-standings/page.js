@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+// Minimum games required to qualify for ranked positions
+const MIN_QUALIFY_GAMES = parseInt(process.env.NEXT_PUBLIC_MIN_QUALIFY_GAMES ?? "10", 10) || 10;
+
 export default function ViewStandingsPage() {
   const router = useRouter();
   const [allLeagues, setAllLeagues] = useState([]);
@@ -360,106 +363,306 @@ export default function ViewStandingsPage() {
                       </div>
 
                       {/* Leaderboard View */}
-                      {expandedTrackerLeagueId !== (league.id || idx) && (
-                        <div className="bg-gray-50 rounded-lg overflow-hidden">
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-sm">
-                            <thead className="bg-gray-200 text-gray-900 font-semibold">
-                              <tr>
-                                <th className="p-3">#</th>
-                                <th className="p-3">Player</th>
-                                <th className="p-3 text-center">GP</th>
-                                <th className="p-3 text-center text-green-600">W</th>
-                                <th className="p-3 text-center text-red-500">L</th>
-                                <th className="p-3 text-center text-yellow-600">D</th>
-                                <th className="p-3 text-center">Diff</th>
-                                <th className="p-3 text-center text-cyan-600 font-bold">Win %</th>
-                                <th className="p-3">Change</th>
-                                <th className="p-3">Form</th>
-                                <th className="p-3 text-right">Points</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {league.final_standings && calculatePositionChanges(league.final_standings || [], league.matches || [], format).map((player, idx) => {
-                                const gp = (player.wins || 0) + (player.losses || 0) + (player.draws || 0);
-                                const winPct = gp > 0 ? ((player.wins || 0) / gp * 100).toFixed(0) + '%' : '0%';
-                                const diff = (player.points_for || 0) - (player.points_against || 0);
-                                const form = computePlayerFormFromMatches(player.id, league.matches || []);
-                                const change = player.positionChange || 0;
+                      {expandedTrackerLeagueId !== (league.id || idx) && (() => {
+                        // Separate eligible and ineligible players
+                        const standings = calculatePositionChanges(league.final_standings || [], league.matches || [], format);
+                        const eligible = [];
+                        const ineligible = [];
+                        
+                        standings.forEach(p => {
+                          const gp = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
+                          if (gp >= MIN_QUALIFY_GAMES) eligible.push(p);
+                          else ineligible.push(p);
+                        });
 
-                                return (
-                                  <tr
-                                    key={player.id}
-                                    className={`border-b transition ${
-                                      idx === 0
-                                        ? 'bg-yellow-100 hover:bg-yellow-150 shadow-[0_0_15px_rgba(255,215,0,0.35)]'
-                                        : idx === 1
-                                        ? 'bg-gray-150 hover:bg-gray-200 shadow-[0_0_12px_rgba(192,192,192,0.35)]'
-                                        : idx === 2
-                                        ? 'bg-orange-100 hover:bg-orange-150 shadow-[0_0_12px_rgba(205,127,50,0.35)]'
-                                        : 'even:bg-yellow-50 hover:bg-yellow-100'
-                                    }`}
-                                  >
-                                    <td className="p-3 font-bold text-gray-900">{idx + 1}</td>
-                                    <td className="p-3 font-semibold text-gray-900 flex items-center gap-2">
-                                      {idx === 0 && <span>🥇</span>}
-                                      {idx === 1 && <span>🥈</span>}
-                                      {idx === 2 && <span>🥉</span>}
-                                      {player.name}
-                                    </td>
-                                    <td className="p-3 text-center text-gray-700">{gp}</td>
-                                    <td className="p-3 text-center text-green-600 font-bold">{player.wins || 0}</td>
-                                    <td className="p-3 text-center text-red-500 font-bold">{player.losses || 0}</td>
-                                    <td className="p-3 text-center text-yellow-600 font-bold">{player.draws || 0}</td>
-                                    <td className="p-3 text-center text-gray-700">{diff}</td>
-                                    <td className="p-3 text-center text-cyan-600 font-bold">{winPct}</td>
-                                    <td className="p-3 text-center">
-                                      {change > 0 && (
-                                        <span className="text-green-600 font-semibold flex items-center justify-center gap-1">
-                                          <span>▲</span>
-                                          <span className="text-sm">{change}</span>
-                                        </span>
-                                      )}
-                                      {change < 0 && (
-                                        <span className="text-red-600 font-semibold flex items-center justify-center gap-1">
-                                          <span>▼</span>
-                                          <span className="text-sm">{Math.abs(change)}</span>
-                                        </span>
-                                      )}
-                                      {change === 0 && (
-                                        <span className="text-gray-500">—</span>
-                                      )}
-                                    </td>
-                                    <td className="p-3">
-                                      <div className="flex gap-1">
-                                        {form.map((result, i) => (
-                                          <div
-                                            key={i}
-                                            className={`w-3 h-3 rounded-sm ${
-                                              result === 'W'
-                                                ? 'bg-green-500'
-                                                : result === 'L'
-                                                ? 'bg-red-500'
-                                                : result === 'D'
-                                                ? 'bg-yellow-500'
-                                                : 'bg-gray-400'
-                                            }`}
-                                            title={`Match ${form.length - i}: ${result}`}
-                                          />
-                                        ))}
-                                      </div>
-                                    </td>
-                                    <td className="p-3 text-right font-bold text-gray-900">
-                                      {player.points || 0}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                      )}
+                        const renderPlayerCard = (player, idx, isIneligible = false) => {
+                          const gp = (player.wins || 0) + (player.losses || 0) + (player.draws || 0);
+                          const winPct = gp > 0 ? ((player.wins || 0) / gp * 100).toFixed(0) + '%' : '0%';
+                          const diff = (player.points_for || 0) - (player.points_against || 0);
+                          const form = computePlayerFormFromMatches(player.id, league.matches || []);
+                          const change = player.positionChange || 0;
+                          const displayRank = isIneligible ? 'NQ' : String(idx + 1);
+                          const medalEmoji = !isIneligible && idx === 0 ? '🥇' : !isIneligible && idx === 1 ? '🥈' : !isIneligible && idx === 2 ? '🥉' : '';
+
+                          return (
+                            <div
+                              key={player.id}
+                              className={`rounded-lg shadow border p-4 transition sm:p-3 ${
+                                !isIneligible && idx === 0
+                                  ? 'bg-yellow-50 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.5)]'
+                                  : !isIneligible && idx === 1
+                                  ? 'bg-gray-100 border-gray-300 shadow-[0_0_18px_rgba(192,192,192,0.5)]'
+                                  : !isIneligible && idx === 2
+                                  ? 'bg-orange-50 border-orange-300 shadow-[0_0_18px_rgba(205,127,50,0.5)]'
+                                  : 'bg-white border-gray-200'
+                              }`}
+                            >
+                              {/* Player Name and Rank */}
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="font-bold text-gray-900 flex items-center gap-2 text-sm sm:text-base">
+                                  {medalEmoji && <span>{medalEmoji}</span>}
+                                  #{displayRank} {player.name}
+                                  {isIneligible && (
+                                    <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold text-red-700 bg-red-100 border border-red-200 rounded cursor-help hover:bg-red-50 shadow-sm">
+                                      <span>NQ</span>
+                                      <svg className="w-3 h-3 text-red-700" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                        <path fillRule="evenodd" d="M18 10A8 8 0 11.999 10 8 8 0 0118 10zm-9-1a1 1 0 112 0v5a1 1 0 11-2 0V9zm1-4a1.25 1.25 0 100 2.5A1.25 1.25 0 0010 5z" clipRule="evenodd" />
+                                      </svg>
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="font-bold text-gray-900 text-sm sm:text-base">{player.points || 0} pts</span>
+                              </div>
+
+                              {/* Stats Row */}
+                              <div className="grid grid-cols-6 text-xs sm:text-sm font-semibold gap-1 text-center mb-3">
+                                <div className="flex flex-col items-center">
+                                  <span className="text-gray-700">{gp}</span>
+                                </div>
+                                <span className="text-green-600">{player.wins || 0}</span>
+                                <span className="text-red-400">{player.losses || 0}</span>
+                                <span className="text-yellow-500">{player.draws || 0}</span>
+                                <span className="text-gray-700">{diff}</span>
+                                <span className="text-cyan-600 font-black">{winPct}</span>
+                              </div>
+
+                              {/* Bottom row: change + recent form */}
+                              <div className="flex justify-end items-end gap-3 sm:gap-4">
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="text-xs uppercase tracking-widest text-gray-400">Change</span>
+                                  <div>
+                                    {change > 0 ? (
+                                      <span className="inline-flex items-center justify-center min-w-[32px] h-5 px-1 rounded text-xs sm:text-sm font-semibold text-green-700 bg-green-50 border border-green-100">
+                                        <span className="mr-1">▲</span>
+                                        <span>{change}</span>
+                                      </span>
+                                    ) : change < 0 ? (
+                                      <span className="inline-flex items-center justify-center min-w-[32px] h-5 px-1 rounded text-xs sm:text-sm font-semibold text-red-700 bg-red-50 border border-red-100">
+                                        <span className="mr-1">▼</span>
+                                        <span>{Math.abs(change)}</span>
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center justify-center min-w-[32px] h-5 px-1 rounded text-xs sm:text-sm font-semibold text-gray-500 bg-gray-100 border border-gray-200">
+                                        —
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="text-xs uppercase tracking-widest text-gray-400">Form</span>
+                                  <div className="flex items-center gap-1 overflow-x-auto px-1">
+                                    {[Array(Math.max(0, 10 - (form.length || 0))).fill(null).concat(form.length ? form : []).slice(0, 10)].flat().map((r, i) => (
+                                      <span
+                                        key={i}
+                                        className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm inline-block border ${
+                                          r === 'W' ? 'bg-green-500 border-green-600' : r === 'L' ? 'bg-red-500 border-red-600' : r === 'D' ? 'bg-yellow-400 border-yellow-500' : 'bg-gray-200 border-gray-300'
+                                        }`}
+                                        title={r === 'W' ? 'Win' : r === 'L' ? 'Loss' : r === 'D' ? 'Draw' : 'No match'}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        };
+
+                        return (
+                          <div className="space-y-6">
+                            {/* Mobile Card View */}
+                            <div className="sm:hidden space-y-4">
+                              {eligible.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-bold text-yellow-400 mb-3 px-2">Eligible Players</h4>
+                                  <div className="space-y-3">
+                                    {eligible.map((player, idx) => renderPlayerCard(player, idx, false))}
+                                  </div>
+                                </div>
+                              )}
+                              {ineligible.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-bold text-red-400 mb-3 px-2">Not Qualified</h4>
+                                  <div className="space-y-3">
+                                    {ineligible.map((player, idx) => renderPlayerCard(player, idx, true))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Desktop Table View */}
+                            <div className="hidden sm:block bg-gray-50 rounded-lg overflow-hidden">
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                  <thead className="bg-gray-200 text-gray-900 font-semibold sticky top-0">
+                                    <tr>
+                                      <th className="p-3">#</th>
+                                      <th className="p-3">Player</th>
+                                      <th className="p-3 text-center">GP</th>
+                                      <th className="p-3 text-center text-green-600">W</th>
+                                      <th className="p-3 text-center text-red-500">L</th>
+                                      <th className="p-3 text-center text-yellow-600">D</th>
+                                      <th className="p-3 text-center">Diff</th>
+                                      <th className="p-3 text-center text-cyan-600 font-bold">Win %</th>
+                                      <th className="p-3">Change</th>
+                                      <th className="p-3">Form</th>
+                                      <th className="p-3 text-right">Points</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {/* Eligible Players */}
+                                    {eligible.length > 0 && eligible.map((player, idx) => {
+                                      const gp = (player.wins || 0) + (player.losses || 0) + (player.draws || 0);
+                                      const winPct = gp > 0 ? ((player.wins || 0) / gp * 100).toFixed(0) + '%' : '0%';
+                                      const diff = (player.points_for || 0) - (player.points_against || 0);
+                                      const form = computePlayerFormFromMatches(player.id, league.matches || []);
+                                      const change = player.positionChange || 0;
+
+                                      return (
+                                        <tr
+                                          key={player.id}
+                                          className={`border-b transition ${
+                                            idx === 0
+                                              ? 'bg-yellow-100 hover:bg-yellow-150 shadow-[0_0_15px_rgba(255,215,0,0.35)]'
+                                              : idx === 1
+                                              ? 'bg-gray-150 hover:bg-gray-200 shadow-[0_0_12px_rgba(192,192,192,0.35)]'
+                                              : idx === 2
+                                              ? 'bg-orange-100 hover:bg-orange-150 shadow-[0_0_12px_rgba(205,127,50,0.35)]'
+                                              : 'even:bg-yellow-50 hover:bg-yellow-100'
+                                          }`}
+                                        >
+                                          <td className="p-3 font-bold text-gray-900">{idx + 1}</td>
+                                          <td className="p-3 font-semibold text-gray-900 flex items-center gap-2">
+                                            {idx === 0 && <span>🥇</span>}
+                                            {idx === 1 && <span>🥈</span>}
+                                            {idx === 2 && <span>🥉</span>}
+                                            {player.name}
+                                          </td>
+                                          <td className="p-3 text-center text-gray-700">{gp}</td>
+                                          <td className="p-3 text-center text-green-600 font-bold">{player.wins || 0}</td>
+                                          <td className="p-3 text-center text-red-500 font-bold">{player.losses || 0}</td>
+                                          <td className="p-3 text-center text-yellow-600 font-bold">{player.draws || 0}</td>
+                                          <td className="p-3 text-center text-gray-700">{diff}</td>
+                                          <td className="p-3 text-center text-cyan-600 font-bold">{winPct}</td>
+                                          <td className="p-3 text-center">
+                                            {change > 0 && (
+                                              <span className="text-green-600 font-semibold flex items-center justify-center gap-1">
+                                                <span>▲</span>
+                                                <span className="text-sm">{change}</span>
+                                              </span>
+                                            )}
+                                            {change < 0 && (
+                                              <span className="text-red-600 font-semibold flex items-center justify-center gap-1">
+                                                <span>▼</span>
+                                                <span className="text-sm">{Math.abs(change)}</span>
+                                              </span>
+                                            )}
+                                            {change === 0 && (
+                                              <span className="text-gray-500">—</span>
+                                            )}
+                                          </td>
+                                          <td className="p-3">
+                                            <div className="flex gap-1">
+                                              {form.map((result, i) => (
+                                                <div
+                                                  key={i}
+                                                  className={`w-3 h-3 rounded-sm ${
+                                                    result === 'W'
+                                                      ? 'bg-green-500'
+                                                      : result === 'L'
+                                                      ? 'bg-red-500'
+                                                      : result === 'D'
+                                                      ? 'bg-yellow-500'
+                                                      : 'bg-gray-400'
+                                                  }`}
+                                                  title={`Match ${form.length - i}: ${result}`}
+                                                />
+                                              ))}
+                                            </div>
+                                          </td>
+                                          <td className="p-3 text-right font-bold text-gray-900">
+                                            {player.points || 0}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                    {/* Ineligible Players Section */}
+                                    {ineligible.length > 0 && (
+                                      <>
+                                        <tr className="bg-red-50 hover:bg-red-50 cursor-default">
+                                          <td colSpan="11" className="p-3 font-bold text-red-600 text-center text-sm">Not Qualified (NQ) — {ineligible.length} player{ineligible.length !== 1 ? 's' : ''}</td>
+                                        </tr>
+                                        {ineligible.map((player) => {
+                                          const gp = (player.wins || 0) + (player.losses || 0) + (player.draws || 0);
+                                          const winPct = gp > 0 ? ((player.wins || 0) / gp * 100).toFixed(0) + '%' : '0%';
+                                          const diff = (player.points_for || 0) - (player.points_against || 0);
+                                          const form = computePlayerFormFromMatches(player.id, league.matches || []);
+                                          const change = player.positionChange || 0;
+
+                                          return (
+                                            <tr
+                                              key={player.id}
+                                              className="border-b bg-red-50 hover:bg-red-100 transition"
+                                            >
+                                              <td className="p-3 font-bold text-red-600">NQ</td>
+                                              <td className="p-3 font-semibold text-gray-900">{player.name}</td>
+                                              <td className="p-3 text-center text-gray-700">{gp}</td>
+                                              <td className="p-3 text-center text-green-600 font-bold">{player.wins || 0}</td>
+                                              <td className="p-3 text-center text-red-500 font-bold">{player.losses || 0}</td>
+                                              <td className="p-3 text-center text-yellow-600 font-bold">{player.draws || 0}</td>
+                                              <td className="p-3 text-center text-gray-700">{diff}</td>
+                                              <td className="p-3 text-center text-cyan-600 font-bold">{winPct}</td>
+                                              <td className="p-3 text-center">
+                                                {change > 0 && (
+                                                  <span className="text-green-600 font-semibold flex items-center justify-center gap-1">
+                                                    <span>▲</span>
+                                                    <span className="text-sm">{change}</span>
+                                                  </span>
+                                                )}
+                                                {change < 0 && (
+                                                  <span className="text-red-600 font-semibold flex items-center justify-center gap-1">
+                                                    <span>▼</span>
+                                                    <span className="text-sm">{Math.abs(change)}</span>
+                                                  </span>
+                                                )}
+                                                {change === 0 && (
+                                                  <span className="text-gray-500">—</span>
+                                                )}
+                                              </td>
+                                              <td className="p-3">
+                                                <div className="flex gap-1">
+                                                  {form.map((result, i) => (
+                                                    <div
+                                                      key={i}
+                                                      className={`w-3 h-3 rounded-sm ${
+                                                        result === 'W'
+                                                          ? 'bg-green-500'
+                                                          : result === 'L'
+                                                          ? 'bg-red-500'
+                                                          : result === 'D'
+                                                          ? 'bg-yellow-500'
+                                                          : 'bg-gray-400'
+                                                      }`}
+                                                      title={`Match ${form.length - i}: ${result}`}
+                                                    />
+                                                  ))}
+                                                </div>
+                                              </td>
+                                              <td className="p-3 text-right font-bold text-gray-900">
+                                                {player.points || 0}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Tracker View - Bump Chart */}
                       {expandedTrackerLeagueId === (league.id || idx) && (() => {
