@@ -783,22 +783,34 @@ const fetchPreviousMatches = async () => {
       const bWinPct = bGP > 0 ? (b.wins || 0) / bGP : 0;
       const aDiff = (a.points_for || 0) - (a.points_against || 0);
       const bDiff = (b.points_for || 0) - (b.points_against || 0);
+      const aPoints = (a.points || 0);
+      const bPoints = (b.points || 0);
+      
       // 0. Players with GP > 0 always rank above players with GP = 0
       if (bHasPlayed !== aHasPlayed) return bHasPlayed - aHasPlayed;
-      // If in doubles mode, rank by point difference first
+      
+      // Format-specific tie-breaker logic
+      
+      // Doubles/Points Difference mode
       if (viewMode === 'doubles') {
         if (bDiff !== aDiff) return bDiff - aDiff;
         if (bGP !== aGP) return bGP - aGP;
         return (a.name || "").localeCompare(b.name || "");
       }
-      // 1. Win % (descending)
-      if (bWinPct !== aWinPct) return bWinPct - aWinPct;
-      // 2. Point Diff (descending)
-      if (bDiff !== aDiff) return bDiff - aDiff;
-      // 3. Games Played (descending)
-      if (bGP !== aGP) return bGP - aGP;
-      // 4. Alphabetically (ascending)
-      return (a.name || "").localeCompare(b.name || "");
+      
+      // 5 Player Champ or Round Robin mode
+      if (viewMode === '5-player-champ' || viewMode === 'round-robin') {
+        if (bPoints !== aPoints) return bPoints - aPoints;  // 1. Points (3 for win, 1 for draw)
+        if (bGP !== aGP) return bGP - aGP;                   // 2. Games Played
+        if (bDiff !== aDiff) return bDiff - aDiff;           // 3. Point Difference
+        return (a.name || "").localeCompare(b.name || "");   // 4. Name
+      }
+      
+      // League mode (default)
+      if (bWinPct !== aWinPct) return bWinPct - aWinPct;      // 1. Win %
+      if (bDiff !== aDiff) return bDiff - aDiff;             // 2. Point Difference
+      if (bGP !== aGP) return bGP - aGP;                      // 3. Games Played
+      return (a.name || "").localeCompare(b.name || "");     // 4. Name
     };
 
     // Sort eligible by competitive criteria, ineligible by GP desc then name
@@ -810,20 +822,29 @@ const fetchPreviousMatches = async () => {
       const bWinPct = bGP > 0 ? (b.wins || 0) / bGP : 0;
       const aDiff = (a.points_for || 0) - (a.points_against || 0);
       const bDiff = (b.points_for || 0) - (b.points_against || 0);
-      // If in doubles mode, rank by point diff first
+      const aPoints = (a.points || 0);
+      const bPoints = (b.points || 0);
+      
+      // Doubles/Points Difference mode
       if (viewMode === 'doubles') {
         if (bDiff !== aDiff) return bDiff - aDiff;
         if (bGP !== aGP) return bGP - aGP;
         return (a.name || "").localeCompare(b.name || "");
       }
-      // 1. Win % (descending)
-      if (bWinPct !== aWinPct) return bWinPct - aWinPct;
-      // 2. Point diff (descending)
-      if (bDiff !== aDiff) return bDiff - aDiff;
-      // 3. Games played (descending)
-      if (bGP !== aGP) return bGP - aGP;
-      // 4. Alphabetically
-      return (a.name || "").localeCompare(b.name || "");
+      
+      // 5 Player Champ or Round Robin mode
+      if (viewMode === '5-player-champ' || viewMode === 'round-robin') {
+        if (bPoints !== aPoints) return bPoints - aPoints;    // 1. Points
+        if (bGP !== aGP) return bGP - aGP;                    // 2. Games Played
+        if (bDiff !== aDiff) return bDiff - aDiff;            // 3. Point Difference
+        return (a.name || "").localeCompare(b.name || "");    // 4. Name
+      }
+      
+      // League mode (default)
+      if (bWinPct !== aWinPct) return bWinPct - aWinPct;       // 1. Win %
+      if (bDiff !== aDiff) return bDiff - aDiff;              // 2. Point Difference
+      if (bGP !== aGP) return bGP - aGP;                       // 3. Games Played
+      return (a.name || "").localeCompare(b.name || "");      // 4. Name
     });
 
     return [...eligible, ...ineligible];
