@@ -242,7 +242,7 @@ export default function ViewStandingsPage() {
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
                 >
-                  RR
+                  Round Robin
                 </button>
               </div>
             </div>
