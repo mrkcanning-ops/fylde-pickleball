@@ -105,8 +105,28 @@ async function computeLeaderboardForDivision(supabase, division, formatSuffix) {
     });
   });
 
-  // Return sorted by points
-  return Object.values(standings).sort((a, b) => b.points - a.points);
+  // Return sorted by win percentage, then points
+  return Object.values(standings).sort((a, b) => {
+    const aGames = a.wins + a.losses + a.draws;
+    const bGames = b.wins + b.losses + b.draws;
+    const aWinPct = aGames > 0 ? a.wins / aGames : 0;
+    const bWinPct = bGames > 0 ? b.wins / bGames : 0;
+    
+    // Sort by win percentage first
+    if (aWinPct !== bWinPct) {
+      return bWinPct - aWinPct;
+    }
+    
+    // Tie-breaker: points
+    if (a.points !== b.points) {
+      return b.points - a.points;
+    }
+    
+    // Tie-breaker: points difference
+    const aDiff = a.points_for - a.points_against;
+    const bDiff = b.points_for - b.points_against;
+    return bDiff - aDiff;
+  });
 }
 
 export async function GET(request) {

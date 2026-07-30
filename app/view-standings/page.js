@@ -93,7 +93,20 @@ export default function ViewStandingsPage() {
 
       return Object.entries(stats)
         .map(([pid, s]) => ({ id: Number(pid), ...s }))
-        .sort((a, b) => b.points - a.points);
+        .sort((a, b) => {
+          const aGames = (a.wins || 0) + (a.losses || 0) + (a.draws || 0);
+          const bGames = (b.wins || 0) + (b.losses || 0) + (b.draws || 0);
+          const aWinPct = aGames > 0 ? (a.wins || 0) / aGames : 0;
+          const bWinPct = bGames > 0 ? (b.wins || 0) / bGames : 0;
+          
+          // Sort by win percentage first
+          if (aWinPct !== bWinPct) {
+            return bWinPct - aWinPct;
+          }
+          
+          // Tie-breaker: points
+          return (b.points || 0) - (a.points || 0);
+        });
     };
 
     const prevStandings = computeStandingsFromMatches(matchesFirstHalf);
