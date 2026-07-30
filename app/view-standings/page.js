@@ -194,19 +194,19 @@ export default function ViewStandingsPage() {
       <div className="bg-gray-800 border-b border-gray-700 p-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold text-white">Fylde Pickleball Club</h1>
-          <div className="flex items-start justify-between mt-4">
+          <div className="flex flex-col gap-3 items-start justify-between mt-4 md:flex-row md:items-center">
             <p className="text-gray-400">All League Standings</p>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 w-full md:w-auto">
               <button
                 onClick={() => router.push('/welcome')}
-                className="px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 transition"
+                className="px-3 py-2 md:px-4 md:py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 transition text-sm md:text-base"
               >
                 ← Back
               </button>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setFormat('league')}
-                  className={`px-4 py-2 rounded font-semibold transition ${
+                  className={`px-2 py-1 md:px-4 md:py-2 rounded font-semibold transition text-xs md:text-sm ${
                     format === 'league'
                       ? 'bg-yellow-500 text-gray-900'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -216,17 +216,17 @@ export default function ViewStandingsPage() {
                 </button>
                 <button
                   onClick={() => setFormat('points')}
-                  className={`px-4 py-2 rounded font-semibold transition ${
+                  className={`px-2 py-1 md:px-4 md:py-2 rounded font-semibold transition text-xs md:text-sm ${
                     format === 'points'
                       ? 'bg-yellow-500 text-gray-900'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
                 >
-                  Points Difference
+                  Points
                 </button>
                 <button
                   onClick={() => setFormat('5player')}
-                  className={`px-4 py-2 rounded font-semibold transition ${
+                  className={`px-2 py-1 md:px-4 md:py-2 rounded font-semibold transition text-xs md:text-sm ${
                     format === '5player'
                       ? 'bg-yellow-500 text-gray-900'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -236,13 +236,13 @@ export default function ViewStandingsPage() {
                 </button>
                 <button
                   onClick={() => setFormat('roundrobin')}
-                  className={`px-4 py-2 rounded font-semibold transition ${
+                  className={`px-2 py-1 md:px-4 md:py-2 rounded font-semibold transition text-xs md:text-sm ${
                     format === 'roundrobin'
                       ? 'bg-yellow-500 text-gray-900'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
                 >
-                  Round Robin
+                  RR
                 </button>
               </div>
             </div>
