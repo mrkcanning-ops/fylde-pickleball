@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 // Helper function to compute leaderboard for a division
-async function computeLeaderboardForDivision(supabase, division, formatSuffix) {
+async function computeLeaderboardForDivision(supabase, division, formatSuffix, format = 'league') {
   const playersTable = formatSuffix ? `players_${formatSuffix}` : 'players';
   const matchesTable = formatSuffix ? `previous_matches_${formatSuffix}` : 'previous_matches';
 
@@ -105,27 +105,51 @@ async function computeLeaderboardForDivision(supabase, division, formatSuffix) {
     });
   });
 
-  // Return sorted by win percentage, then points
+  // Return sorted by format-specific criteria
   return Object.values(standings).sort((a, b) => {
     const aGames = a.wins + a.losses + a.draws;
     const bGames = b.wins + b.losses + b.draws;
     const aWinPct = aGames > 0 ? a.wins / aGames : 0;
     const bWinPct = bGames > 0 ? b.wins / bGames : 0;
-    
-    // Sort by win percentage first
-    if (aWinPct !== bWinPct) {
-      return bWinPct - aWinPct;
-    }
-    
-    // Tie-breaker: points
-    if (a.points !== b.points) {
-      return b.points - a.points;
-    }
-    
-    // Tie-breaker: points difference
     const aDiff = a.points_for - a.points_against;
     const bDiff = b.points_for - b.points_against;
-    return bDiff - aDiff;
+    
+    // Format: 'league'
+    if (format === 'league') {
+      // 1. Win %
+      if (aWinPct !== bWinPct) return bWinPct - aWinPct;
+      // 2. Points difference
+      if (aDiff !== bDiff) return bDiff - aDiff;
+      // 3. Games played
+      if (aGames !== bGames) return bGames - aGames;
+      // 4. Name
+      return (a.name || "").localeCompare(b.name || "");
+    }
+    
+    // Format: 'points' (Doubles - Point Difference mode)
+    if (format === 'points') {
+      // 1. Point difference
+      if (aDiff !== bDiff) return bDiff - aDiff;
+      // 2. Games played
+      if (aGames !== bGames) return bGames - aGames;
+      // 3. Name
+      return (a.name || "").localeCompare(b.name || "");
+    }
+    
+    // Format: '5player' (5 Player Champ) or 'roundrobin' (Round Robin)
+    if (format === '5player' || format === 'roundrobin') {
+      // 1. Points (3 for win, 1 for draw)
+      if (a.points !== b.points) return b.points - a.points;
+      // 2. Games played
+      if (aGames !== bGames) return bGames - aGames;
+      // 3. Point difference
+      if (aDiff !== bDiff) return bDiff - aDiff;
+      // 4. Name
+      return (a.name || "").localeCompare(b.name || "");
+    }
+    
+    // Default fallback (shouldn't reach here)
+    return b.points - a.points;
   });
 }
 
@@ -177,7 +201,7 @@ export async function GET(request) {
       // For each running season, compute its final_standings
       if (runningResult.data && runningResult.data.length > 0) {
         for (const season of runningResult.data) {
-          const standings = await computeLeaderboardForDivision(supabase, season.division, formatSuffix);
+          const standings = await computeLeaderboardForDivision(supabase, season.division, formatSuffix, format);
           season.final_standings = standings;
           season.timestamp = season.started_at; // Use started_at as timestamp for sorting
         }

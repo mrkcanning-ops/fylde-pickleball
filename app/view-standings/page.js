@@ -36,7 +36,7 @@ export default function ViewStandingsPage() {
   };
 
   // Helper: Calculate position changes by comparing positions at different time periods
-  const calculatePositionChanges = (standings, matches) => {
+  const calculatePositionChanges = (standings, matches, fmt = 'league') => {
     if (!matches || matches.length === 0 || !standings || standings.length === 0) {
       return standings.map((p) => ({ ...p, positionChange: 0 }));
     }
@@ -50,7 +50,7 @@ export default function ViewStandingsPage() {
     const computeStandingsFromMatches = (matchSubset) => {
       const stats = {};
       standings.forEach(p => {
-        stats[p.id] = { wins: 0, losses: 0, draws: 0, points: 0 };
+        stats[p.id] = { wins: 0, losses: 0, draws: 0, points: 0, points_for: 0, points_against: 0 };
       });
 
       matchSubset.forEach(match => {
@@ -89,6 +89,14 @@ export default function ViewStandingsPage() {
             if (stats[pid]) { stats[pid].draws++; stats[pid].points += 1; }
           });
         }
+
+        // Track points for/against
+        team1.forEach(pid => {
+          if (stats[pid]) { stats[pid].points_for += score1; stats[pid].points_against += score2; }
+        });
+        team2.forEach(pid => {
+          if (stats[pid]) { stats[pid].points_for += score2; stats[pid].points_against += score1; }
+        });
       });
 
       return Object.entries(stats)
@@ -98,13 +106,33 @@ export default function ViewStandingsPage() {
           const bGames = (b.wins || 0) + (b.losses || 0) + (b.draws || 0);
           const aWinPct = aGames > 0 ? (a.wins || 0) / aGames : 0;
           const bWinPct = bGames > 0 ? (b.wins || 0) / bGames : 0;
+          const aDiff = (a.points_for || 0) - (a.points_against || 0);
+          const bDiff = (b.points_for || 0) - (b.points_against || 0);
           
-          // Sort by win percentage first
-          if (aWinPct !== bWinPct) {
-            return bWinPct - aWinPct;
+          // Format: 'league'
+          if (fmt === 'league') {
+            if (aWinPct !== bWinPct) return bWinPct - aWinPct;
+            if (aDiff !== bDiff) return bDiff - aDiff;
+            if (aGames !== bGames) return bGames - aGames;
+            return (a.name || "").localeCompare(b.name || "");
           }
           
-          // Tie-breaker: points
+          // Format: 'points' (Doubles)
+          if (fmt === 'points') {
+            if (aDiff !== bDiff) return bDiff - aDiff;
+            if (aGames !== bGames) return bGames - aGames;
+            return (a.name || "").localeCompare(b.name || "");
+          }
+          
+          // Format: '5player' or 'roundrobin'
+          if (fmt === '5player' || fmt === 'roundrobin') {
+            if ((a.points || 0) !== (b.points || 0)) return (b.points || 0) - (a.points || 0);
+            if (aGames !== bGames) return bGames - aGames;
+            if (aDiff !== bDiff) return bDiff - aDiff;
+            return (a.name || "").localeCompare(b.name || "");
+          }
+          
+          // Default
           return (b.points || 0) - (a.points || 0);
         });
     };
@@ -352,7 +380,7 @@ export default function ViewStandingsPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {league.final_standings && calculatePositionChanges(league.final_standings || [], league.matches || []).map((player, idx) => {
+                              {league.final_standings && calculatePositionChanges(league.final_standings || [], league.matches || [], format).map((player, idx) => {
                                 const gp = (player.wins || 0) + (player.losses || 0) + (player.draws || 0);
                                 const winPct = gp > 0 ? ((player.wins || 0) / gp * 100).toFixed(0) + '%' : '0%';
                                 const diff = (player.points_for || 0) - (player.points_against || 0);
