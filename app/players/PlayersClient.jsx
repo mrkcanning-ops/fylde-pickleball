@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "../../lib/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { getViewMode, getLSJson, setLSJson, getLSRaw } from "../../lib/ls";
 
 export default function PlayersClient() {
+  const { user } = useAuth();
   const [players, setPlayers] = useState(() => {
     if (typeof window !== "undefined") {
       return getLSJson("players", [
@@ -52,7 +54,7 @@ export default function PlayersClient() {
       const DOUBLES_SUFFIX = "_doubles";
       const vm = getViewMode();
       const table = `players${vm === "doubles" ? DOUBLES_SUFFIX : ""}`;
-      const payload = { name, active: true };
+      const payload = { name, active: true, owner_id: user?.id };
       if (vm === "doubles") {
         // include division and generate text id for players_doubles
         payload.division = Number(getLSRaw("division")) || 1;

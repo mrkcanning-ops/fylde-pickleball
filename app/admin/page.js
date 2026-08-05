@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "../../lib/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { getViewMode, getLSRaw } from "../../lib/ls";
 import { generateLeagueSchedules } from "../../lib/matchGenerator";
 
 export default function Admin() {
+  const { user } = useAuth();
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newPlayerName, setNewPlayerName] = useState("");
@@ -57,7 +59,7 @@ export default function Admin() {
     if (!newPlayerName) return;
     // include division for doubles mode (players_doubles requires division)
     const division = Number(getLSRaw("division")) || 1;
-    const payload = { name: newPlayerName, active: true, division };
+    const payload = { name: newPlayerName, active: true, division, owner_id: user?.id };
     // players_doubles uses text `id` primary key — generate one when in doubles mode
     if (getViewMode() === "doubles") {
       try {

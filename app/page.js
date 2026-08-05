@@ -1033,7 +1033,7 @@ const fetchPreviousMatches = async () => {
     const playerId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 
     const { data, error } = await db("players")
-      .insert([{ id: playerId, name, wins: 0, draws: 0, losses: 0, points: 0, active: true, division }])
+      .insert([{ id: playerId, name, wins: 0, draws: 0, losses: 0, points: 0, active: true, division, owner_id: user?.id }])
       .select();
 
     if (!error) setPlayers((prev) => [...prev, data[0]]);
@@ -2369,7 +2369,10 @@ const addDivision = async (name) => {
   try {
     // Persist on server first (mode-aware table)
     const { data, error } = await db("divisions")
-      .insert([{ name: trimmed }])
+      .insert([{ 
+        name: trimmed,
+        owner_id: user?.id 
+      }])
       .select();
 
     if (error) {
