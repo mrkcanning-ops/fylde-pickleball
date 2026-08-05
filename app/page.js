@@ -1734,79 +1734,113 @@ const fetchPreviousMatches = async () => {
       return;
     }
 
-    const { courtMatches, error } = generatePartnerPracticeMatches(available, numCourts);
+    try {
+      const result = generatePartnerPracticeMatches(available, numCourts);
+      const { courtMatches, error } = result || {};
 
-    if (error) {
-      alert(error);
+      if (error) {
+        alert(error);
+        return;
+      }
+
+      if (!courtMatches || !Array.isArray(courtMatches)) {
+        console.error("Partner Practice: Invalid courtMatches return", result);
+        alert("❌ Error generating matches. Please check the console for details.");
+        return;
+      }
+
+      // Set court 1 matches
+      if (courtMatches[0] && courtMatches[0].length > 0) {
+        setCourt1Matches(courtMatches[0]);
+        setCourt1Scores(courtMatches[0].map(() => ({ team1: "", team2: "" })));
+        setCourt1Round(0);
+      } else {
+        setCourt1Matches([]);
+        setCourt1Scores([]);
+      }
+
+      // Set court 2 matches
+      if (courtMatches[1] && courtMatches[1].length > 0) {
+        setCourt2Matches(courtMatches[1]);
+        setCourt2Scores(courtMatches[1].map(() => ({ team1: "", team2: "" })));
+        setCourt2Round(0);
+      } else {
+        setCourt2Matches([]);
+        setCourt2Scores([]);
+      }
+
+      // Set court 3 matches
+      if (courtMatches[2] && courtMatches[2].length > 0) {
+        setCourt3Matches(courtMatches[2]);
+        setCourt3Scores(courtMatches[2].map(() => ({ team1: "", team2: "" })));
+        setCourt3Round(0);
+      } else {
+        setCourt3Matches([]);
+        setCourt3Scores([]);
+      }
+
+      // Set court 4 matches
+      if (courtMatches[3] && courtMatches[3].length > 0) {
+        setCourt4Matches(courtMatches[3]);
+        setCourt4Scores(courtMatches[3].map(() => ({ team1: "", team2: "" })));
+        setCourt4Round(0);
+      } else {
+        setCourt4Matches([]);
+        setCourt4Scores([]);
+      }
+
+      // Calculate total matches generated
+      const totalMatches = courtMatches.reduce((sum, court) => sum + (court ? court.length : 0), 0);
+      if (totalMatches === 0) {
+        alert("⚠️ Warning: No matches were generated. Please check your player configuration and try again.");
+        return;
+      }
+
+      // Save to pending fixtures
+      const payload = {
+        division,
+        court1_matches: (courtMatches[0] || []).map((match) => [
+          match[0].map((p) => p.id),
+          match[1].map((p) => p.id),
+        ]),
+        court1_scores: (courtMatches[0] || []).map(() => ({ team1: "", team2: "" })),
+        court1_byes: [],
+        court2_matches: (courtMatches[1] || []).map((match) => [
+          match[0].map((p) => p.id),
+          match[1].map((p) => p.id),
+        ]),
+        court2_scores: (courtMatches[1] || []).map(() => ({ team1: "", team2: "" })),
+        court2_byes: [],
+        court3_matches: (courtMatches[2] || []).map((match) => [
+          match[0].map((p) => p.id),
+          match[1].map((p) => p.id),
+        ]),
+        court3_scores: (courtMatches[2] || []).map(() => ({ team1: "", team2: "" })),
+        court3_byes: [],
+        court4_matches: (courtMatches[3] || []).map((match) => [
+          match[0].map((p) => p.id),
+          match[1].map((p) => p.id),
+        ]),
+        court4_scores: (courtMatches[3] || []).map(() => ({ team1: "", team2: "" })),
+        court4_byes: [],
+        status: "generated",
+      };
+
+      const { error: saveError } = await db("pending_fixtures").upsert(payload, { onConflict: "division" });
+
+      if (saveError) {
+        console.warn("Could not save partner practice fixtures to database:", saveError);
+        alert("✅ Matches generated locally! (Note: Could not sync to database)");
+      } else {
+        console.log(`✅ Generated ${totalMatches} Partner Practice matches`);
+      }
+
+      return;
+    } catch (err) {
+      console.error("Partner Practice generation error:", err);
+      alert(`❌ Error: ${err?.message || String(err)}`);
       return;
     }
-
-    // Set court 1 matches
-    if (courtMatches[0]) {
-      setCourt1Matches(courtMatches[0]);
-      setCourt1Scores(courtMatches[0].map(() => ({ team1: "", team2: "" })));
-      setCourt1Round(0);
-    }
-
-    // Set court 2 matches
-    if (courtMatches[1]) {
-      setCourt2Matches(courtMatches[1]);
-      setCourt2Scores(courtMatches[1].map(() => ({ team1: "", team2: "" })));
-      setCourt2Round(0);
-    }
-
-    // Set court 3 matches
-    if (courtMatches[2]) {
-      setCourt3Matches(courtMatches[2]);
-      setCourt3Scores(courtMatches[2].map(() => ({ team1: "", team2: "" })));
-      setCourt3Round(0);
-    }
-
-    // Set court 4 matches
-    if (courtMatches[3]) {
-      setCourt4Matches(courtMatches[3]);
-      setCourt4Scores(courtMatches[3].map(() => ({ team1: "", team2: "" })));
-      setCourt4Round(0);
-    }
-
-    // Save to pending fixtures
-    const payload = {
-      division,
-      court1_matches: (courtMatches[0] || []).map((match) => [
-        match[0].map((p) => p.id),
-        match[1].map((p) => p.id),
-      ]),
-      court1_scores: (courtMatches[0] || []).map(() => ({ team1: "", team2: "" })),
-      court1_byes: [],
-      court2_matches: (courtMatches[1] || []).map((match) => [
-        match[0].map((p) => p.id),
-        match[1].map((p) => p.id),
-      ]),
-      court2_scores: (courtMatches[1] || []).map(() => ({ team1: "", team2: "" })),
-      court2_byes: [],
-      court3_matches: (courtMatches[2] || []).map((match) => [
-        match[0].map((p) => p.id),
-        match[1].map((p) => p.id),
-      ]),
-      court3_scores: (courtMatches[2] || []).map(() => ({ team1: "", team2: "" })),
-      court3_byes: [],
-      court4_matches: (courtMatches[3] || []).map((match) => [
-        match[0].map((p) => p.id),
-        match[1].map((p) => p.id),
-      ]),
-      court4_scores: (courtMatches[3] || []).map(() => ({ team1: "", team2: "" })),
-      court4_byes: [],
-      status: "generated",
-    };
-
-    const { error: saveError } = await db("pending_fixtures").upsert(payload, { onConflict: "division" });
-
-    if (saveError) {
-      console.warn("Could not save partner practice fixtures to database:", saveError);
-      // Still allow local play even if save fails
-    }
-
-    return;
   }
 
   const shouldSplitAcrossCourts = available.length >= 8;
