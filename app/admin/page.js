@@ -59,7 +59,11 @@ export default function Admin() {
     if (!newPlayerName) return;
     // include division for doubles mode (players_doubles requires division)
     const division = Number(getLSRaw("division")) || 1;
-    const payload = { name: newPlayerName, active: true, division, owner_id: user?.id };
+    const payload = { name: newPlayerName, active: true, division };
+    // Only add owner_id for club members (not for guests)
+    if (user?.id && typeof user.id === 'string' && user.id.length === 36) {
+      payload.owner_id = user.id;
+    }
     // players_doubles uses text `id` primary key — generate one when in doubles mode
     if (getViewMode() === "doubles") {
       try {

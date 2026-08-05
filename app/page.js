@@ -8,7 +8,7 @@ import HeaderStats from "@/components/HeaderStats";
 import { supabase } from "@/lib/supabase";
 import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode, setUserType } from "@/lib/ls";
-import { generate5PlayerChampMatches, generateRoundRobinMatches } from "../lib/matchGenerator";
+import { generate5PlayerChampMatches, generateRoundRobinMatches, generatePartnerPracticeMatches } from "../lib/matchGenerator";
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
 // Minimum games required to qualify for ranked positions. Configure via env var
@@ -209,10 +209,12 @@ export default function HomePage() {
   const DOUBLES_SUFFIX = "_doubles";
   const FIVE_CHAMP_SUFFIX = "_5champ";
   const ROUND_ROBIN_SUFFIX = "_roundrobin";
+  const PARTNER_PRACTICE_SUFFIX = "_partner_practice";
   const getTableSuffix = (mode) => {
     if (mode === "doubles") return DOUBLES_SUFFIX;
     if (mode === "5-player-champ") return FIVE_CHAMP_SUFFIX;
     if (mode === "round-robin") return ROUND_ROBIN_SUFFIX;
+    if (mode === "partner-practice") return PARTNER_PRACTICE_SUFFIX;
     return "";
   };
   const db = (table) => supabase.from(`${table}${getTableSuffix(viewMode)}`);
@@ -1032,6 +1034,15 @@ const fetchPreviousMatches = async () => {
     // Generate a unique ID for the player
     const playerId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 
+    // For guests, skip database and use local-only storage
+    if (userType === 'guest') {
+      const newPlayer = { id: playerId, name, wins: 0, draws: 0, losses: 0, points: 0, active: true, division };
+      setPlayers((prev) => [...prev, newPlayer]);
+      try { saveData(`players_${viewMode}`, [...players, newPlayer]); } catch (e) {}
+      return;
+    }
+
+    // Insert to database for club members
     const { data, error } = await db("players")
       .insert([{ id: playerId, name, wins: 0, draws: 0, losses: 0, points: 0, active: true, division, owner_id: user?.id }])
       .select();
@@ -1057,6 +1068,33 @@ const fetchPreviousMatches = async () => {
 
     setPlayers((prev) =>
       prev.map((p) => (String(p.id) === String(id) ? { ...p, active: newActive } : p))
+    );
+  };
+
+  const updatePlayerPartner = async (playerId, partnerId) => {
+    // Update the player's partner_id
+    await db("players")
+      .update({ partner_id: partnerId })
+      .eq("id", playerId);
+
+    // If partnerId exists, also update the partner's partner_id to maintain bidirectional relationship
+    if (partnerId) {
+      await db("players")
+        .update({ partner_id: playerId })
+        .eq("id", partnerId);
+    }
+
+    // Update local state
+    setPlayers((prev) =>
+      prev.map((p) => {
+        if (String(p.id) === String(playerId)) {
+          return { ...p, partner_id: partnerId };
+        }
+        if (partnerId && String(p.id) === String(partnerId)) {
+          return { ...p, partner_id: playerId };
+        }
+        return p;
+      })
     );
   };
 
@@ -1688,6 +1726,89 @@ const fetchPreviousMatches = async () => {
 
     return;
   }
+
+  // Special handling for partner-practice format: designated partners play together
+  if (viewMode === "partner-practice") {
+    if (available.length < 4) {
+      alert(`❌ Partner Practice Error: Requires at least 4 active players.\n\nYou currently have ${available.length} active player${available.length !== 1 ? 's' : ''}.\n\nPlease add more active players before generating matches.`);
+      return;
+    }
+
+    const { courtMatches, error } = generatePartnerPracticeMatches(available, numCourts);
+
+    if (error) {
+      alert(error);
+      return;
+    }
+
+    // Set court 1 matches
+    if (courtMatches[0]) {
+      setCourt1Matches(courtMatches[0]);
+      setCourt1Scores(courtMatches[0].map(() => ({ team1: "", team2: "" })));
+      setCourt1Round(0);
+    }
+
+    // Set court 2 matches
+    if (courtMatches[1]) {
+      setCourt2Matches(courtMatches[1]);
+      setCourt2Scores(courtMatches[1].map(() => ({ team1: "", team2: "" })));
+      setCourt2Round(0);
+    }
+
+    // Set court 3 matches
+    if (courtMatches[2]) {
+      setCourt3Matches(courtMatches[2]);
+      setCourt3Scores(courtMatches[2].map(() => ({ team1: "", team2: "" })));
+      setCourt3Round(0);
+    }
+
+    // Set court 4 matches
+    if (courtMatches[3]) {
+      setCourt4Matches(courtMatches[3]);
+      setCourt4Scores(courtMatches[3].map(() => ({ team1: "", team2: "" })));
+      setCourt4Round(0);
+    }
+
+    // Save to pending fixtures
+    const payload = {
+      division,
+      court1_matches: (courtMatches[0] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court1_scores: (courtMatches[0] || []).map(() => ({ team1: "", team2: "" })),
+      court1_byes: [],
+      court2_matches: (courtMatches[1] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court2_scores: (courtMatches[1] || []).map(() => ({ team1: "", team2: "" })),
+      court2_byes: [],
+      court3_matches: (courtMatches[2] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court3_scores: (courtMatches[2] || []).map(() => ({ team1: "", team2: "" })),
+      court3_byes: [],
+      court4_matches: (courtMatches[3] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court4_scores: (courtMatches[3] || []).map(() => ({ team1: "", team2: "" })),
+      court4_byes: [],
+      status: "generated",
+    };
+
+    const { error: saveError } = await db("pending_fixtures").upsert(payload, { onConflict: "division" });
+
+    if (saveError) {
+      console.warn("Could not save partner practice fixtures to database:", saveError);
+      // Still allow local play even if save fails
+    }
+
+    return;
+  }
+
   const shouldSplitAcrossCourts = available.length >= 8;
   const half = Math.ceil(available.length / 2);
   const court1Group = shouldSplitAcrossCourts ? available.slice(0, half) : available;
@@ -2367,7 +2488,21 @@ const addDivision = async (name) => {
   if (!trimmed) return;
 
   try {
-    // Persist on server first (mode-aware table)
+    // For guests, skip database and use local-only storage
+    if (userType === 'guest') {
+      const maxId = divisions.length ? Math.max(...divisions.map((d) => d.id)) : 0;
+      const newId = maxId + 1;
+      const localDiv = { id: newId, name: trimmed };
+      setDivisions((prev) => [...prev, localDiv]);
+      try { saveData(`divisions_${viewMode}`, [...divisions, localDiv]); } catch (e) {}
+      setDivision(newId);
+      await fetchAllDivisionPlayers(newId);
+      setShowAddDivisionModal(false);
+      setNewDivisionName("");
+      return;
+    }
+
+    // Persist on server first (mode-aware table) for club members
     const { data, error } = await db("divisions")
       .insert([{ 
         name: trimmed,
@@ -2637,6 +2772,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
               next = "5-player-champ";
             } else if (viewMode === "5-player-champ") {
               next = "round-robin";
+            } else if (viewMode === "round-robin") {
+              next = "partner-practice";
             } else {
               next = "league";
             }
@@ -2672,16 +2809,16 @@ const activePlayerCount = players.filter((p) => p.active).length;
         >
           <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
             <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
-              {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : viewMode === "5-player-champ" ? "👑" : "🔁"}
+              {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : viewMode === "5-player-champ" ? "👑" : viewMode === "round-robin" ? "🔁" : "🤝"}
             </span>
-            {viewMode === "league" ? "Fylde Pickleball League" : viewMode === "doubles" ? "Doubles - Points Difference" : viewMode === "5-player-champ" ? "5 Player Champ" : "Round Robin"}
+            {viewMode === "league" ? "Fylde Pickleball League" : viewMode === "doubles" ? "Doubles - Points Difference" : viewMode === "5-player-champ" ? "5 Player Champ" : viewMode === "round-robin" ? "Round Robin" : "Partner Practice"}
             <span className="ml-3 text-gray-400 text-2xl sm:text-4xl">›</span>
           </h1>
         </button>
         <p className="text-gray-400 mt-2 text-xs sm:text-sm tracking-wide">
-          {viewMode === "league" ? "Weekly Matches • Live Updates • Prize for Winner!🏆" : viewMode === "doubles" ? "Casual doubles format • Points-difference scoring" : viewMode === "5-player-champ" ? "Championship format • 5-player rotation" : "Fair partnerships • All players with all players"}
+          {viewMode === "league" ? "Weekly Matches • Live Updates • Prize for Winner!🏆" : viewMode === "doubles" ? "Casual doubles format • Points-difference scoring" : viewMode === "5-player-champ" ? "Championship format • 5-player rotation" : viewMode === "round-robin" ? "Fair partnerships • All players with all players" : "Practice with your partner • Designated partnerships"}
         </p>
-        <div className={`absolute -bottom-3 left-0 w-20 sm:w-24 h-1 rounded-full ${viewMode === "league" ? "bg-yellow-400" : viewMode === "doubles" ? "bg-green-400" : viewMode === "5-player-champ" ? "bg-purple-400" : "bg-blue-400"}`} />
+        <div className={`absolute -bottom-3 left-0 w-20 sm:w-24 h-1 rounded-full ${viewMode === "league" ? "bg-yellow-400" : viewMode === "doubles" ? "bg-green-400" : viewMode === "5-player-champ" ? "bg-purple-400" : viewMode === "round-robin" ? "bg-blue-400" : "bg-pink-400"}`} />
       </header>
       {serverError && (
         <div className="mb-6 p-3 rounded bg-red-600 text-white flex items-start justify-between">
@@ -2820,6 +2957,16 @@ const activePlayerCount = players.filter((p) => p.active).length;
                     ? `✓ ${activePlayerCount} active players - ready to generate matches!` 
                     : `⚠️ Round Robin requires at least 4 active players (currently ${activePlayerCount})`}
                 </p>
+              </div>
+            )}
+            {viewMode === "partner-practice" && (
+              <div className={`mb-4 p-3 rounded ${activePlayerCount >= 4 ? "bg-green-900 border border-green-600" : "bg-red-900 border border-red-600"}`}>
+                <p className={`text-sm font-semibold ${activePlayerCount >= 4 ? "text-green-200" : "text-red-200"}`}>
+                  {activePlayerCount >= 4 
+                    ? `✓ ${activePlayerCount} active players - ready to generate matches!` 
+                    : `⚠️ Partner Practice requires at least 4 active players (currently ${activePlayerCount})`}
+                </p>
+                <p className="text-xs text-gray-300 mt-2">💡 Select partners from the Partner column to practice with designated teammates.</p>
               </div>
             )}
             <div className="flex justify-end gap-2">
@@ -3539,6 +3686,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
           <th className="p-2">#</th>
           <th className="p-2">Player</th>
           <th className="p-2 text-center">Available</th>
+          {viewMode === "partner-practice" && <th className="p-2 text-center">Partner</th>}
         </tr>
       </thead>
       <tbody>
@@ -3571,6 +3719,29 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 </span>
               </label>
             </td>
+            {viewMode === "partner-practice" && (
+              <td className="p-2 text-center">
+                <select
+                  value={p.partner_id || ""}
+                  onChange={(e) => updatePlayerPartner(p.id, e.target.value || null)}
+                  className="bg-gray-100 text-gray-700 border border-gray-300 rounded px-2 py-1 text-sm outline-none"
+                >
+                  <option value="">— No Partner —</option>
+                  {players
+                    .filter((other) => other.id !== p.id && !other.partner_id)
+                    .map((other) => (
+                      <option key={other.id} value={other.id}>
+                        {other.name}
+                      </option>
+                    ))}
+                  {p.partner_id && (
+                    <option value={p.partner_id}>
+                      {players.find((x) => x.id === p.partner_id)?.name || "Unknown"}
+                    </option>
+                  )}
+                </select>
+              </td>
+            )}
           </tr>
         ))}
       </tbody>

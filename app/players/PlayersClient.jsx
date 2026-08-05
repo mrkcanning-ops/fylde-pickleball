@@ -54,7 +54,11 @@ export default function PlayersClient() {
       const DOUBLES_SUFFIX = "_doubles";
       const vm = getViewMode();
       const table = `players${vm === "doubles" ? DOUBLES_SUFFIX : ""}`;
-      const payload = { name, active: true, owner_id: user?.id };
+      const payload = { name, active: true };
+      // Only add owner_id for club members (not for guests)
+      if (user?.id && typeof user.id === 'string' && user.id.length === 36) {
+        payload.owner_id = user.id;
+      }
       if (vm === "doubles") {
         // include division and generate text id for players_doubles
         payload.division = Number(getLSRaw("division")) || 1;
