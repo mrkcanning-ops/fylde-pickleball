@@ -94,6 +94,7 @@ export default function HomePage() {
   });
   const [editingMatchId, setEditingMatchId] = useState(null);
   const [editMatchError, setEditMatchError] = useState("");
+  const [genderFilterMode, setGenderFilterMode] = useState('mixed'); // 'mixed' or 'gender'
 
   // ===== NOW useEffect hooks and conditional logic CAN come after all state declarations =====
 
@@ -1098,6 +1099,20 @@ const fetchPreviousMatches = async () => {
     );
   };
 
+  const updatePlayerGender = async (playerId, gender) => {
+    // Update the player's gender
+    await db("players")
+      .update({ gender })
+      .eq("id", playerId);
+
+    // Update local state
+    setPlayers((prev) =>
+      prev.map((p) =>
+        String(p.id) === String(playerId) ? { ...p, gender } : p
+      )
+    );
+  };
+
   const currentLeader = players[0]?.name || "—";
   // determine most improved solely by positive position change
   const maxPositionChange = players.length
@@ -1577,7 +1592,7 @@ const fetchPreviousMatches = async () => {
   };
 
  const generateMatches = async () => {
-  const available = sortPlayersByStats(
+  let available = sortPlayersByStats(
     players.filter((p) => p.active)
   );
 
@@ -1586,6 +1601,105 @@ const fetchPreviousMatches = async () => {
     return;
   }
 
+  // If gender-separated mode, split into male and female groups and generate separately
+  if (genderFilterMode === 'gender') {
+    const males = available.filter(p => p.gender === 'male');
+    const females = available.filter(p => p.gender === 'female');
+    
+    // Check if we have enough players in each group
+    if (males.length < 4 && females.length < 4) {
+      alert("❌ Gender Separated Error: Need at least 4 players of one gender to generate matches.\n\nCurrent:\n♂ Males: " + males.length + "\n♀ Females: " + females.length + "\n\nEither add more players or switch to Mixed gameplay mode.");
+      return;
+    }
+
+    // Generate matches for each gender group separately
+    const allMatches = [];
+    const allCourts = [[], [], [], []];
+    let courtIndex = 0;
+
+    // Generate male matches if enough players
+    if (males.length >= 4) {
+      try {
+        const maleResult = generatePartnerPracticeMatches(males, numCourts);
+        if (maleResult.courtMatches) {
+          maleResult.courtMatches.forEach((courtMatches, idx) => {
+            allCourts[idx] = allCourts[idx].concat(courtMatches);
+          });
+        }
+      } catch (err) {
+        console.error("Error generating male matches:", err);
+      }
+    }
+
+    // Generate female matches if enough players
+    if (females.length >= 4) {
+      try {
+        const femaleResult = generatePartnerPracticeMatches(females, numCourts);
+        if (femaleResult.courtMatches) {
+          femaleResult.courtMatches.forEach((courtMatches, idx) => {
+            allCourts[idx] = allCourts[idx].concat(courtMatches);
+          });
+        }
+      } catch (err) {
+        console.error("Error generating female matches:", err);
+      }
+    }
+
+    // Set court displays
+    setCourt1Matches(allCourts[0] || []);
+    setCourt1Scores((allCourts[0] || []).map(() => ({ team1: "", team2: "" })));
+    setCourt1Round(0);
+    
+    setCourt2Matches(allCourts[1] || []);
+    setCourt2Scores((allCourts[1] || []).map(() => ({ team1: "", team2: "" })));
+    setCourt2Round(0);
+    
+    setCourt3Matches(allCourts[2] || []);
+    setCourt3Scores((allCourts[2] || []).map(() => ({ team1: "", team2: "" })));
+    setCourt3Round(0);
+    
+    setCourt4Matches(allCourts[3] || []);
+    setCourt4Scores((allCourts[3] || []).map(() => ({ team1: "", team2: "" })));
+    setCourt4Round(0);
+
+    // Save to pending fixtures
+    const payload = {
+      division,
+      court1_matches: (allCourts[0] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court1_scores: (allCourts[0] || []).map(() => ({ team1: "", team2: "" })),
+      court1_byes: [],
+      court2_matches: (allCourts[1] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court2_scores: (allCourts[1] || []).map(() => ({ team1: "", team2: "" })),
+      court2_byes: [],
+      court3_matches: (allCourts[2] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court3_scores: (allCourts[2] || []).map(() => ({ team1: "", team2: "" })),
+      court3_byes: [],
+      court4_matches: (allCourts[3] || []).map((match) => [
+        match[0].map((p) => p.id),
+        match[1].map((p) => p.id),
+      ]),
+      court4_scores: (allCourts[3] || []).map(() => ({ team1: "", team2: "" })),
+      court4_byes: [],
+      status: "generated",
+    };
+
+    const { error: saveError } = await db("pending_fixtures").upsert(payload, { onConflict: "division" });
+    if (saveError) {
+      console.warn("Could not save gender-separated fixtures to database:", saveError);
+    }
+    return;
+  }
+
+  // Standard mixed-gender matching continues below...
   // Special handling for 5-player championship format: 15 games with all partnerships
   if (viewMode === "5-player-champ") {
     if (available.length !== 5) {
@@ -3044,7 +3158,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         {/* Previous Seasons tab removed */}
 
         {activeTab === "Matches" && (
-          <div className="mt-4 flex flex-row items-center justify-between gap-4">
+          <div className="mt-4 flex flex-row items-center justify-between gap-4 flex-wrap">
             {viewMode !== "5-player-champ" && (
               <div className="flex items-center gap-2">
                 <label htmlFor="numCourts" className="text-xs text-gray-300 uppercase tracking-wide">
@@ -3063,6 +3177,22 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 </select>
               </div>
             )}
+
+            {/* Gender Filter Toggle */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="genderFilter" className="text-xs text-gray-300 uppercase tracking-wide">
+                Gameplay
+              </label>
+              <select
+                id="genderFilter"
+                value={genderFilterMode}
+                onChange={(e) => setGenderFilterMode(e.target.value)}
+                className="bg-gray-800 text-white border border-gray-600 rounded px-4 py-2 outline-none focus:border-yellow-400"
+              >
+                <option value="mixed">Mixed</option>
+                <option value="gender">Gender Separated</option>
+              </select>
+            </div>
 
             <div className={`flex flex-row items-center gap-2 ${viewMode === "5-player-champ" || viewMode === "round-robin" ? "ml-auto" : ""}`}>
               <button
@@ -3719,6 +3849,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         <tr>
           <th className="p-2">#</th>
           <th className="p-2">Player</th>
+          <th className="p-2 text-center">Gender</th>
           <th className="p-2 text-center">Available</th>
           {viewMode === "partner-practice" && <th className="p-2 text-center">Partner</th>}
         </tr>
@@ -3731,6 +3862,17 @@ const activePlayerCount = players.filter((p) => p.active).length;
           >
             <td className="p-2">{i + 1}</td>
             <td className="p-2 font-semibold">{p.name}</td>
+            <td className="p-2 text-center">
+              <select
+                value={p.gender || ""}
+                onChange={(e) => updatePlayerGender(p.id, e.target.value || null)}
+                className="bg-gray-100 text-gray-700 border border-gray-300 rounded px-2 py-1 text-sm outline-none cursor-pointer hover:bg-gray-200 transition"
+              >
+                <option value="">—</option>
+                <option value="male">♂ Male</option>
+                <option value="female">♀ Female</option>
+              </select>
+            </td>
             <td className="p-2 text-center">
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
