@@ -3863,15 +3863,28 @@ const activePlayerCount = players.filter((p) => p.active).length;
             <td className="p-2">{i + 1}</td>
             <td className="p-2 font-semibold">{p.name}</td>
             <td className="p-2 text-center">
-              <select
-                value={p.gender || ""}
-                onChange={(e) => updatePlayerGender(p.id, e.target.value || null)}
-                className="bg-gray-100 text-gray-700 border border-gray-300 rounded px-2 py-1 text-sm outline-none cursor-pointer hover:bg-gray-200 transition"
-              >
-                <option value="">—</option>
-                <option value="male">♂ Male</option>
-                <option value="female">♀ Female</option>
-              </select>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  onClick={() => updatePlayerGender(p.id, p.gender === 'male' ? null : 'male')}
+                  className={`px-4 py-2 rounded font-semibold transition ${
+                    p.gender === 'male' 
+                      ? 'bg-blue-500 text-white shadow-md' 
+                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                  }`}
+                >
+                  ♂ Male
+                </button>
+                <button
+                  onClick={() => updatePlayerGender(p.id, p.gender === 'female' ? null : 'female')}
+                  className={`px-4 py-2 rounded font-semibold transition ${
+                    p.gender === 'female' 
+                      ? 'bg-pink-500 text-white shadow-md' 
+                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                  }`}
+                >
+                  ♀ Female
+                </button>
+              </div>
             </td>
             <td className="p-2 text-center">
               <label className="relative inline-flex items-center cursor-pointer">
