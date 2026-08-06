@@ -2565,10 +2565,6 @@ const handleConfirmRemoveDivision = () => {
 };
 
 const confirmRemovePlayer = async () => {
-  if (!window.confirm("Are you sure you want to remove this player?")) {
-    return;
-  }
-  
   if (selectedPlayerToRemove) {
     const { error } = await db("players")
       .delete()
@@ -2578,12 +2574,12 @@ const confirmRemovePlayer = async () => {
       setPlayers((prev) => prev.filter((p) => p.id !== selectedPlayerToRemove.id));
       setAllDivisionPlayers((prev) => prev.filter((p) => p.id !== selectedPlayerToRemove.id));
       alert(`${selectedPlayerToRemove.name} has been removed ✅`);
+      setShowRemovePlayerModal(false);
+      setSelectedPlayerToRemove(null);
     } else {
       alert("Error removing player");
     }
   }
-  
-  setSelectedPlayerToRemove(null);
 };
 
 const addDivision = async (name) => {
