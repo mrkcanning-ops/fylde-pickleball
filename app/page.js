@@ -70,6 +70,9 @@ export default function HomePage() {
   const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
   const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState(null);
   const [showRemovePlayerModal, setShowRemovePlayerModal] = useState(false);
+  const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
+  const [newPlayerName, setNewPlayerName] = useState("");
+  const [newPlayerGender, setNewPlayerGender] = useState(null);
   const [showAddMatchModal, setShowAddMatchModal] = useState(false);
   const [addMatchData, setAddMatchData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -1029,27 +1032,41 @@ const fetchPreviousMatches = async () => {
     }
   };
 
-  const handleAddPlayer = async () => {
-    const name = prompt("Enter new player's name:");
-    if (!name) return;
+  const handleAddPlayer = () => {
+    setNewPlayerName("");
+    setNewPlayerGender(null);
+    setShowAddPlayerModal(true);
+  };
+
+  const handleConfirmAddPlayer = async () => {
+    if (!newPlayerName.trim()) {
+      alert("Please enter a player name");
+      return;
+    }
 
     // Generate a unique ID for the player
     const playerId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 
     // For guests, skip database and use local-only storage
     if (userType === 'guest') {
-      const newPlayer = { id: playerId, name, wins: 0, draws: 0, losses: 0, points: 0, active: true, division };
+      const newPlayer = { id: playerId, name: newPlayerName, wins: 0, draws: 0, losses: 0, points: 0, active: true, division, gender: newPlayerGender };
       setPlayers((prev) => [...prev, newPlayer]);
       try { saveData(`players_${viewMode}`, [...players, newPlayer]); } catch (e) {}
+      setShowAddPlayerModal(false);
       return;
     }
 
     // Insert to database for club members
     const { data, error } = await db("players")
-      .insert([{ id: playerId, name, wins: 0, draws: 0, losses: 0, points: 0, active: true, division, owner_id: user?.id }])
+      .insert([{ id: playerId, name: newPlayerName, wins: 0, draws: 0, losses: 0, points: 0, active: true, division, owner_id: user?.id, gender: newPlayerGender }])
       .select();
 
-    if (!error) setPlayers((prev) => [...prev, data[0]]);
+    if (!error) {
+      setPlayers((prev) => [...prev, data[0]]);
+      setShowAddPlayerModal(false);
+    } else {
+      alert("Error adding player: " + (error?.message || "Unknown error"));
+    }
   };
 
   const handleRemovePlayer = () => {
@@ -3788,7 +3805,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
         <tr>
           <th className="p-2">#</th>
           <th className="p-2">Player</th>
-          <th className="p-2 text-center">Gender</th>
           <th className="p-2 text-center">Available</th>
           {viewMode === "partner-practice" && <th className="p-2 text-center">Partner</th>}
         </tr>
@@ -3800,30 +3816,10 @@ const activePlayerCount = players.filter((p) => p.active).length;
             className={`border-b hover:bg-gray-100 transition`}
           >
             <td className="p-2">{i + 1}</td>
-            <td className="p-2 font-semibold">{p.name}</td>
-            <td className="p-2 text-center">
-              <div className="flex items-center justify-center gap-2">
-                <button
-                  onClick={() => updatePlayerGender(p.id, p.gender === 'male' ? null : 'male')}
-                  className={`px-4 py-2 rounded font-semibold transition ${
-                    p.gender === 'male' 
-                      ? 'bg-blue-500 text-white shadow-md' 
-                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                  }`}
-                >
-                  ♂ Male
-                </button>
-                <button
-                  onClick={() => updatePlayerGender(p.id, p.gender === 'female' ? null : 'female')}
-                  className={`px-4 py-2 rounded font-semibold transition ${
-                    p.gender === 'female' 
-                      ? 'bg-pink-500 text-white shadow-md' 
-                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                  }`}
-                >
-                  ♀ Female
-                </button>
-              </div>
+            <td className="p-2 font-semibold flex items-center gap-2">
+              {p.name}
+              {p.gender === 'male' && <span className="text-blue-600 text-lg">♂</span>}
+              {p.gender === 'female' && <span className="text-pink-600 text-lg">♀</span>}
             </td>
             <td className="p-2 text-center">
               <label className="relative inline-flex items-center cursor-pointer">
@@ -5297,6 +5293,72 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 className="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded text-sm"
               >
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Player Modal */}
+      {showAddPlayerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-96 border border-gray-700">
+            <h2 className="text-xl font-bold text-blue-400 mb-4">👤 Add Player</h2>
+
+            {/* Player Name Input */}
+            <div className="mb-4">
+              <label className="text-gray-300 text-sm block mb-2">Player Name</label>
+              <input
+                type="text"
+                value={newPlayerName}
+                onChange={(e) => setNewPlayerName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleConfirmAddPlayer()}
+                placeholder="Enter player name"
+                className="w-full px-4 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
+                autoFocus
+              />
+            </div>
+
+            {/* Gender Selection */}
+            <div className="mb-6">
+              <label className="text-gray-300 text-sm block mb-2">Gender (Optional)</label>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setNewPlayerGender(newPlayerGender === 'male' ? null : 'male')}
+                  className={`flex-1 py-2 px-4 rounded font-semibold transition ${
+                    newPlayerGender === 'male' 
+                      ? 'bg-blue-500 text-white shadow-md' 
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  ♂ Male
+                </button>
+                <button
+                  onClick={() => setNewPlayerGender(newPlayerGender === 'female' ? null : 'female')}
+                  className={`flex-1 py-2 px-4 rounded font-semibold transition ${
+                    newPlayerGender === 'female' 
+                      ? 'bg-pink-500 text-white shadow-md' 
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  ♀ Female
+                </button>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowAddPlayerModal(false)}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmAddPlayer}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-semibold"
+              >
+                Add Player
               </button>
             </div>
           </div>
