@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode, setUserType } from "@/lib/ls";
 import { generate5PlayerChampMatches, generateRoundRobinMatches, generatePartnerPracticeMatches } from "../lib/matchGenerator";
+import { generatePartnerPracticeRandom, generatePartnerPracticeGenderDoubles, generatePartnerPracticeGenderMixed } from "../lib/matchGeneratorPartnerPractice";
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
 // Minimum games required to qualify for ranked positions. Configure via env var
@@ -94,7 +95,7 @@ export default function HomePage() {
   });
   const [editingMatchId, setEditingMatchId] = useState(null);
   const [editMatchError, setEditMatchError] = useState("");
-  const [genderFilterMode, setGenderFilterMode] = useState('mixed'); // 'mixed' or 'gender'
+  const [genderFilterMode, setGenderFilterMode] = useState('random'); // 'random', 'gender-doubles', or 'gender-mixed'
 
   // ===== NOW useEffect hooks and conditional logic CAN come after all state declarations =====
 
@@ -1601,102 +1602,26 @@ const fetchPreviousMatches = async () => {
     return;
   }
 
-  // If gender-separated mode, split into male and female groups and generate separately
-  if (genderFilterMode === 'gender') {
+  // If gender-filtered mode, use appropriate game generator based on genderFilterMode
+  if (genderFilterMode === 'gender-doubles' || genderFilterMode === 'gender-mixed') {
     const males = available.filter(p => p.gender === 'male');
     const females = available.filter(p => p.gender === 'female');
     
-    // Check if we have enough players in each group
-    if (males.length < 4 && females.length < 4) {
-      alert("❌ Gender Separated Error: Need at least 4 players of one gender to generate matches.\n\nCurrent:\n♂ Males: " + males.length + "\n♀ Females: " + females.length + "\n\nEither add more players or switch to Mixed gameplay mode.");
-      return;
-    }
-
-    // Generate matches for each gender group separately
-    const allMatches = [];
-    const allCourts = [[], [], [], []];
-    let courtIndex = 0;
-
-    // Generate male matches if enough players
-    if (males.length >= 4) {
-      try {
-        const maleResult = generatePartnerPracticeMatches(males, numCourts);
-        if (maleResult.courtMatches) {
-          maleResult.courtMatches.forEach((courtMatches, idx) => {
-            allCourts[idx] = allCourts[idx].concat(courtMatches);
-          });
-        }
-      } catch (err) {
-        console.error("Error generating male matches:", err);
+    // Gender Doubles: need at least 4 of one gender OR 4 total with fallback
+    if (genderFilterMode === 'gender-doubles') {
+      if (available.length < 4) {
+        alert("At least 4 active players required.");
+        return;
       }
     }
-
-    // Generate female matches if enough players
-    if (females.length >= 4) {
-      try {
-        const femaleResult = generatePartnerPracticeMatches(females, numCourts);
-        if (femaleResult.courtMatches) {
-          femaleResult.courtMatches.forEach((courtMatches, idx) => {
-            allCourts[idx] = allCourts[idx].concat(courtMatches);
-          });
-        }
-      } catch (err) {
-        console.error("Error generating female matches:", err);
+    
+    // Gender Mixed: need at least 2 males and 2 females
+    if (genderFilterMode === 'gender-mixed') {
+      if (males.length < 2 || females.length < 2) {
+        alert(`❌ Gender Mixed Error: Requires at least 2 males and 2 females.\n\nCurrent:\n♂ Males: ${males.length}\n♀ Females: ${females.length}`);
+        return;
       }
     }
-
-    // Set court displays
-    setCourt1Matches(allCourts[0] || []);
-    setCourt1Scores((allCourts[0] || []).map(() => ({ team1: "", team2: "" })));
-    setCourt1Round(0);
-    
-    setCourt2Matches(allCourts[1] || []);
-    setCourt2Scores((allCourts[1] || []).map(() => ({ team1: "", team2: "" })));
-    setCourt2Round(0);
-    
-    setCourt3Matches(allCourts[2] || []);
-    setCourt3Scores((allCourts[2] || []).map(() => ({ team1: "", team2: "" })));
-    setCourt3Round(0);
-    
-    setCourt4Matches(allCourts[3] || []);
-    setCourt4Scores((allCourts[3] || []).map(() => ({ team1: "", team2: "" })));
-    setCourt4Round(0);
-
-    // Save to pending fixtures
-    const payload = {
-      division,
-      court1_matches: (allCourts[0] || []).map((match) => [
-        match[0].map((p) => p.id),
-        match[1].map((p) => p.id),
-      ]),
-      court1_scores: (allCourts[0] || []).map(() => ({ team1: "", team2: "" })),
-      court1_byes: [],
-      court2_matches: (allCourts[1] || []).map((match) => [
-        match[0].map((p) => p.id),
-        match[1].map((p) => p.id),
-      ]),
-      court2_scores: (allCourts[1] || []).map(() => ({ team1: "", team2: "" })),
-      court2_byes: [],
-      court3_matches: (allCourts[2] || []).map((match) => [
-        match[0].map((p) => p.id),
-        match[1].map((p) => p.id),
-      ]),
-      court3_scores: (allCourts[2] || []).map(() => ({ team1: "", team2: "" })),
-      court3_byes: [],
-      court4_matches: (allCourts[3] || []).map((match) => [
-        match[0].map((p) => p.id),
-        match[1].map((p) => p.id),
-      ]),
-      court4_scores: (allCourts[3] || []).map(() => ({ team1: "", team2: "" })),
-      court4_byes: [],
-      status: "generated",
-    };
-
-    const { error: saveError } = await db("pending_fixtures").upsert(payload, { onConflict: "division" });
-    if (saveError) {
-      console.warn("Could not save gender-separated fixtures to database:", saveError);
-    }
-    return;
   }
 
   // Standard mixed-gender matching continues below...
@@ -1849,7 +1774,20 @@ const fetchPreviousMatches = async () => {
     }
 
     try {
-      const result = generatePartnerPracticeMatches(available, numCourts);
+      // Select the appropriate match generator based on gameplay mode
+      let result;
+      
+      if (genderFilterMode === 'random') {
+        result = generatePartnerPracticeRandom(available, numCourts);
+      } else if (genderFilterMode === 'gender-doubles') {
+        result = generatePartnerPracticeGenderDoubles(available, numCourts);
+      } else if (genderFilterMode === 'gender-mixed') {
+        result = generatePartnerPracticeGenderMixed(available, numCourts);
+      } else {
+        // Fallback to random
+        result = generatePartnerPracticeRandom(available, numCourts);
+      }
+
       const { courtMatches, error } = result || {};
 
       if (error) {
@@ -3189,8 +3127,9 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 onChange={(e) => setGenderFilterMode(e.target.value)}
                 className="bg-gray-800 text-white border border-gray-600 rounded px-4 py-2 outline-none focus:border-yellow-400"
               >
-                <option value="mixed">Mixed</option>
-                <option value="gender">Gender Separated</option>
+                <option value="random">Random</option>
+                <option value="gender-doubles">Gender Doubles</option>
+                <option value="gender-mixed">Gender Mixed</option>
               </select>
             </div>
 
