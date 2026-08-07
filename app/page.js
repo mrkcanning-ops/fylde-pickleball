@@ -36,14 +36,20 @@ export default function HomePage() {
   const [court2Matches, setCourt2Matches] = useState([]);
   const [court3Matches, setCourt3Matches] = useState([]);
   const [court4Matches, setCourt4Matches] = useState([]);
+  const [court5Matches, setCourt5Matches] = useState([]);
+  const [court6Matches, setCourt6Matches] = useState([]);
   const [court1Scores, setCourt1Scores] = useState([]);
   const [court2Scores, setCourt2Scores] = useState([]);
   const [court3Scores, setCourt3Scores] = useState([]);
   const [court4Scores, setCourt4Scores] = useState([]);
+  const [court5Scores, setCourt5Scores] = useState([]);
+  const [court6Scores, setCourt6Scores] = useState([]);
   const [court1Round, setCourt1Round] = useState(0);
   const [court2Round, setCourt2Round] = useState(0);
   const [court3Round, setCourt3Round] = useState(0);
   const [court4Round, setCourt4Round] = useState(0);
+  const [court5Round, setCourt5Round] = useState(0);
+  const [court6Round, setCourt6Round] = useState(0);
   const [currentRound, setCurrentRound] = useState(0);
   const [roundMatches, setRoundMatches] = useState([]);
   const [showNqModalFor, setShowNqModalFor] = useState(null);
@@ -1171,6 +1177,8 @@ const fetchPreviousMatches = async () => {
     setCourt2Round(prev => Math.min(prev + 1, court2Matches.length - 1));
     if (numCourts >= 3) setCourt3Round(prev => Math.min(prev + 1, court3Matches.length - 1));
     if (numCourts >= 4) setCourt4Round(prev => Math.min(prev + 1, court4Matches.length - 1));
+    if (numCourts >= 5) setCourt5Round(prev => Math.min(prev + 1, court5Matches.length - 1));
+    if (numCourts >= 6) setCourt6Round(prev => Math.min(prev + 1, court6Matches.length - 1));
   };
 
   const rewindAllRounds = () => {
@@ -1178,6 +1186,8 @@ const fetchPreviousMatches = async () => {
     setCourt2Round(prev => Math.max(prev - 1, 0));
     if (numCourts >= 3) setCourt3Round(prev => Math.max(prev - 1, 0));
     if (numCourts >= 4) setCourt4Round(prev => Math.max(prev - 1, 0));
+    if (numCourts >= 5) setCourt5Round(prev => Math.max(prev - 1, 0));
+    if (numCourts >= 6) setCourt6Round(prev => Math.max(prev - 1, 0));
   };
 
   const currentLeader = players[0]?.name || "—";
@@ -1907,6 +1917,26 @@ const fetchPreviousMatches = async () => {
         setCourt4Scores([]);
       }
 
+      // Set court 5 matches
+      if (courtMatches[4] && courtMatches[4].length > 0) {
+        setCourt5Matches(courtMatches[4]);
+        setCourt5Scores(courtMatches[4].map(() => ({ team1: "", team2: "" })));
+        setCourt5Round(0);
+      } else {
+        setCourt5Matches([]);
+        setCourt5Scores([]);
+      }
+
+      // Set court 6 matches
+      if (courtMatches[5] && courtMatches[5].length > 0) {
+        setCourt6Matches(courtMatches[5]);
+        setCourt6Scores(courtMatches[5].map(() => ({ team1: "", team2: "" })));
+        setCourt6Round(0);
+      } else {
+        setCourt6Matches([]);
+        setCourt6Scores([]);
+      }
+
       // Calculate total matches generated
       const totalMatches = courtMatches.reduce((sum, court) => sum + (court ? court.length : 0), 0);
       if (totalMatches === 0) {
@@ -1941,6 +1971,18 @@ const fetchPreviousMatches = async () => {
         ]),
         court4_scores: (courtMatches[3] || []).map(() => ({ team1: "", team2: "" })),
         court4_byes: [],
+        court5_matches: (courtMatches[4] || []).map((match) => [
+          match[0].map((p) => p.id),
+          match[1].map((p) => p.id),
+        ]),
+        court5_scores: (courtMatches[4] || []).map(() => ({ team1: "", team2: "" })),
+        court5_byes: [],
+        court6_matches: (courtMatches[5] || []).map((match) => [
+          match[0].map((p) => p.id),
+          match[1].map((p) => p.id),
+        ]),
+        court6_scores: (courtMatches[5] || []).map(() => ({ team1: "", team2: "" })),
+        court6_byes: [],
         status: "generated",
       };
 
@@ -2255,6 +2297,16 @@ const fetchPreviousMatches = async () => {
     if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
     newScores[idx][team] = value;
     setCourt4Scores(newScores);
+  } else if (court === "court5") {
+    const newScores = [...court5Scores];
+    if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
+    newScores[idx][team] = value;
+    setCourt5Scores(newScores);
+  } else if (court === "court6") {
+    const newScores = [...court6Scores];
+    if (!newScores[idx]) newScores[idx] = { team1: "", team2: "" };
+    newScores[idx][team] = value;
+    setCourt6Scores(newScores);
   }
 };
 
@@ -3174,6 +3226,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                   <option value={2}>2</option>
                   <option value={3}>3</option>
                   <option value={4}>4</option>
+                  <option value={5}>5</option>
+                  <option value={6}>6</option>
                 </select>
               </div>
             )}
@@ -3388,6 +3442,76 @@ const activePlayerCount = players.filter((p) => p.active).length;
                           </div>
                           {showEnterScore && (
                             <input type="number" min={0} value={court4Scores[court4Round]?.team2 ?? ""} onChange={(e) => updateScore(court4Round, "team2", e.target.value, "court4")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-gray-400 text-xs italic">No match</p>
+                  )}
+                </div>
+              )}
+
+              {/* Court 5 */}
+              {numCourts >= 5 && (
+                <div className="bg-gray-700 rounded shadow p-3">
+                  <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 5</h3>
+                  {court5Matches[court5Round] ? (
+                    <>
+                      <div className="bg-gray-600 rounded p-3 space-y-2">
+                        <div className="text-center text-xs text-gray-300 mb-2">
+                          Round {court5Round + 1} of {court5Matches.length}
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court5Matches[court5Round][0].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court5Scores[court5Round]?.team1 ?? ""} onChange={(e) => updateScore(court5Round, "team1", e.target.value, "court5")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                        <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court5Matches[court5Round][1].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court5Scores[court5Round]?.team2 ?? ""} onChange={(e) => updateScore(court5Round, "team2", e.target.value, "court5")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-gray-400 text-xs italic">No match</p>
+                  )}
+                </div>
+              )}
+
+              {/* Court 6 */}
+              {numCourts >= 6 && (
+                <div className="bg-gray-700 rounded shadow p-3">
+                  <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 6</h3>
+                  {court6Matches[court6Round] ? (
+                    <>
+                      <div className="bg-gray-600 rounded p-3 space-y-2">
+                        <div className="text-center text-xs text-gray-300 mb-2">
+                          Round {court6Round + 1} of {court6Matches.length}
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court6Matches[court6Round][0].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court6Scores[court6Round]?.team1 ?? ""} onChange={(e) => updateScore(court6Round, "team1", e.target.value, "court6")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                        <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court6Matches[court6Round][1].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court6Scores[court6Round]?.team2 ?? ""} onChange={(e) => updateScore(court6Round, "team2", e.target.value, "court6")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
                           )}
                         </div>
                       </div>
