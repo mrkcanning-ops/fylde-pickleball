@@ -3766,31 +3766,62 @@ const activePlayerCount = players.filter((p) => p.active).length;
       {players.map((p) => (
         <div
           key={p.id}
-          className="rounded-lg shadow border p-4 transition bg-white border-gray-200 flex justify-between items-center"
+          className="rounded-lg shadow border p-4 transition bg-white border-gray-200"
         >
-          <span className="font-semibold">{p.name}</span>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={p.active}
-              onChange={() => toggleAvailability(p.id)}
-              className="sr-only"
-            />
-            {/* Track */}
-            <div
-              className={`w-16 h-7 rounded-full transition-colors duration-300 ease-in-out ${
-                p.active ? "bg-green-500" : "bg-red-500"
-              }`}
-            />
-            {/* Thumb with text */}
-            <span
-              className={`absolute left-0 top-0 w-8 h-7 flex items-center justify-center text-xs font-bold text-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${
-                p.active ? "translate-x-8 scale-105" : "translate-x-0 scale-100"
-              }`}
-            >
-              {p.active ? "Yes" : "No"}
-            </span>
-          </label>
+          <div className="flex justify-between items-start gap-2">
+            <div className="flex-1">
+              <div className="font-semibold flex items-center gap-2">
+                {p.name}
+                {p.gender === 'male' && <span className="text-blue-600 text-sm">♂</span>}
+                {p.gender === 'female' && <span className="text-pink-600 text-sm">♀</span>}
+              </div>
+              {viewMode === "partner-practice" && (
+                <div className="mt-2">
+                  <select
+                    value={p.partner_id || ""}
+                    onChange={(e) => updatePlayerPartner(p.id, e.target.value || null)}
+                    className="w-full bg-gray-100 text-gray-700 border border-gray-300 rounded px-2 py-1 text-xs outline-none"
+                  >
+                    <option value="">— No Partner —</option>
+                    {players
+                      .filter((other) => other.id !== p.id && !other.partner_id)
+                      .map((other) => (
+                        <option key={other.id} value={other.id}>
+                          {other.name}
+                        </option>
+                      ))}
+                    {p.partner_id && (
+                      <option value={p.partner_id}>
+                        {players.find((x) => x.id === p.partner_id)?.name || "Unknown"}
+                      </option>
+                    )}
+                  </select>
+                </div>
+              )}
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+              <input
+                type="checkbox"
+                checked={p.active}
+                onChange={() => toggleAvailability(p.id)}
+                className="sr-only"
+              />
+              {/* Track */}
+              <div
+                className={`w-16 h-7 rounded-full transition-colors duration-300 ease-in-out ${
+                  p.active ? "bg-green-500" : "bg-red-500"
+                }`}
+              />
+              {/* Thumb with text */}
+              <span
+                className={`absolute left-0 top-0 w-8 h-7 flex items-center justify-center text-xs font-bold text-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${
+                  p.active ? "translate-x-8 scale-105" : "translate-x-0 scale-100"
+                }`}
+              >
+                {p.active ? "Yes" : "No"}
+              </span>
+            </label>
+          </div>
         </div>
       ))}
     </div>
