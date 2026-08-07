@@ -1091,12 +1091,23 @@ const fetchPreviousMatches = async () => {
   };
 
   const updatePlayerPartner = async (playerId, partnerId) => {
+    // Get the current player's existing partner (if any) before updating
+    const currentPlayer = players.find((p) => String(p.id) === String(playerId));
+    const previousPartnerId = currentPlayer?.partner_id;
+
     // Update the player's partner_id
     await db("players")
       .update({ partner_id: partnerId })
       .eq("id", playerId);
 
-    // If partnerId exists, also update the partner's partner_id to maintain bidirectional relationship
+    // If we're removing a partnership, clear the previous partner's reference too
+    if (!partnerId && previousPartnerId) {
+      await db("players")
+        .update({ partner_id: null })
+        .eq("id", previousPartnerId);
+    }
+
+    // If we're setting a new partnership, update the partner's partner_id bidirectionally
     if (partnerId) {
       await db("players")
         .update({ partner_id: playerId })
@@ -1109,12 +1120,35 @@ const fetchPreviousMatches = async () => {
         if (String(p.id) === String(playerId)) {
           return { ...p, partner_id: partnerId };
         }
+        if (previousPartnerId && String(p.id) === String(previousPartnerId)) {
+          return { ...p, partner_id: null };
+        }
         if (partnerId && String(p.id) === String(partnerId)) {
           return { ...p, partner_id: playerId };
         }
         return p;
       })
     );
+  };
+
+  const clearAllPartnerships = async () => {
+    const confirmed = window.confirm("Are you sure you want to remove all partnerships? This will reset all partner assignments.");
+    if (!confirmed) return;
+
+    try {
+      // Clear all partnerships in database
+      await db("players")
+        .update({ partner_id: null })
+        .neq("partner_id", null);
+
+      // Update local state
+      setPlayers((prev) =>
+        prev.map((p) => ({ ...p, partner_id: null }))
+      );
+    } catch (e) {
+      console.error("Error clearing partnerships:", e);
+      alert("Error clearing partnerships. See console.");
+    }
   };
 
   const updatePlayerGender = async (playerId, gender) => {
@@ -3897,6 +3931,18 @@ const activePlayerCount = players.filter((p) => p.active).length;
         ))}
       </tbody>
     </table>
+
+    {/* Refresh Partners Button */}
+    {viewMode === "partner-practice" && (
+      <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+        <button
+          onClick={clearAllPartnerships}
+          className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-4 py-2 rounded font-semibold transition"
+        >
+          🔄 Refresh Partners
+        </button>
+      </div>
+    )}
   </div>
 )}
 
