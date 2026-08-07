@@ -3163,22 +3163,24 @@ const activePlayerCount = players.filter((p) => p.active).length;
               </div>
             )}
 
-            {/* Gender Filter Toggle */}
-            <div className="flex items-center gap-2">
-              <label htmlFor="genderFilter" className="text-xs text-gray-300 uppercase tracking-wide">
-                Gameplay
-              </label>
-              <select
-                id="genderFilter"
-                value={genderFilterMode}
-                onChange={(e) => setGenderFilterMode(e.target.value)}
-                className="bg-gray-800 text-white border border-gray-600 rounded px-4 py-2 outline-none focus:border-yellow-400"
-              >
-                <option value="random">Random</option>
-                <option value="gender-doubles">Gender Doubles</option>
-                <option value="gender-mixed">Gender Mixed</option>
-              </select>
-            </div>
+            {/* Gender Filter Toggle - Partner Practice Only */}
+            {viewMode === "partner-practice" && (
+              <div className="flex items-center gap-2">
+                <label htmlFor="genderFilter" className="text-xs text-gray-300 uppercase tracking-wide">
+                  Gameplay
+                </label>
+                <select
+                  id="genderFilter"
+                  value={genderFilterMode}
+                  onChange={(e) => setGenderFilterMode(e.target.value)}
+                  className="bg-gray-800 text-white border border-gray-600 rounded px-4 py-2 outline-none focus:border-yellow-400"
+                >
+                  <option value="random">Random</option>
+                  <option value="gender-doubles">Gender Doubles</option>
+                  <option value="gender-mixed">Gender Mixed</option>
+                </select>
+              </div>
+            )}
 
             <div className={`flex flex-row items-center gap-2 ${viewMode === "5-player-champ" || viewMode === "round-robin" ? "ml-auto" : ""}`}>
               <button
