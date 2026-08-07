@@ -3227,6 +3227,193 @@ const activePlayerCount = players.filter((p) => p.active).length;
             </div>
           </div>
         )}
+
+        {/* Match Display - Partner Practice vs Others */}
+        {viewMode === "partner-practice" ? (
+          /* Partner Practice: Compact 4-Court Display */
+          <div className="mt-6">
+            {/* Global Controls */}
+            <div className="flex flex-col sm:flex-row gap-2 mb-4 justify-center sm:justify-between items-center px-4 py-3 bg-gray-800 rounded-lg">
+              <button
+                onClick={() => setShowEnterScore(!showEnterScore)}
+                className={`px-4 py-2 rounded font-semibold transition ${
+                  showEnterScore
+                    ? "bg-green-600 hover:bg-green-500 text-white"
+                    : "bg-gray-600 hover:bg-gray-500 text-white"
+                }`}
+              >
+                {showEnterScore ? "✓ Enter Score" : "Enter Score"}
+              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={rewindAllRounds}
+                  className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded font-semibold"
+                >
+                  ◀ Previous Round
+                </button>
+                <button
+                  onClick={advanceAllRounds}
+                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded font-semibold"
+                >
+                  Next Round ▶
+                </button>
+              </div>
+            </div>
+
+            {/* Compact 4-Court Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Court 1 */}
+              <div className="bg-gray-700 rounded shadow p-3">
+                <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 1</h3>
+                {court1Matches[court1Round] ? (
+                  <>
+                    <div className="bg-gray-600 rounded p-3 space-y-2">
+                      <div className="text-center text-xs text-gray-300 mb-2">
+                        Round {court1Round + 1} of {court1Matches.length}
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-100 mb-1">
+                          {court1Matches[court1Round][0].map(p => p.name).join(" & ")}
+                        </div>
+                        {showEnterScore && (
+                          <input type="number" min={0} value={court1Scores[court1Round]?.team1 ?? ""} onChange={(e) => updateScore(court1Round, "team1", e.target.value, "court1")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                        )}
+                      </div>
+                      <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-100 mb-1">
+                          {court1Matches[court1Round][1].map(p => p.name).join(" & ")}
+                        </div>
+                        {showEnterScore && (
+                          <input type="number" min={0} value={court1Scores[court1Round]?.team2 ?? ""} onChange={(e) => updateScore(court1Round, "team2", e.target.value, "court1")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-gray-400 text-xs italic">No match</p>
+                )}
+              </div>
+
+              {/* Court 2 */}
+              <div className="bg-gray-700 rounded shadow p-3">
+                <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 2</h3>
+                {court2Matches[court2Round] ? (
+                  <>
+                    <div className="bg-gray-600 rounded p-3 space-y-2">
+                      <div className="text-center text-xs text-gray-300 mb-2">
+                        Round {court2Round + 1} of {court2Matches.length}
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-100 mb-1">
+                          {court2Matches[court2Round][0].map(p => p.name).join(" & ")}
+                        </div>
+                        {showEnterScore && (
+                          <input type="number" min={0} value={court2Scores[court2Round]?.team1 ?? ""} onChange={(e) => updateScore(court2Round, "team1", e.target.value, "court2")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                        )}
+                      </div>
+                      <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-100 mb-1">
+                          {court2Matches[court2Round][1].map(p => p.name).join(" & ")}
+                        </div>
+                        {showEnterScore && (
+                          <input type="number" min={0} value={court2Scores[court2Round]?.team2 ?? ""} onChange={(e) => updateScore(court2Round, "team2", e.target.value, "court2")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-gray-400 text-xs italic">No match</p>
+                )}
+              </div>
+
+              {/* Court 3 */}
+              {numCourts >= 3 && (
+                <div className="bg-gray-700 rounded shadow p-3">
+                  <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 3</h3>
+                  {court3Matches[court3Round] ? (
+                    <>
+                      <div className="bg-gray-600 rounded p-3 space-y-2">
+                        <div className="text-center text-xs text-gray-300 mb-2">
+                          Round {court3Round + 1} of {court3Matches.length}
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court3Matches[court3Round][0].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court3Scores[court3Round]?.team1 ?? ""} onChange={(e) => updateScore(court3Round, "team1", e.target.value, "court3")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                        <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court3Matches[court3Round][1].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court3Scores[court3Round]?.team2 ?? ""} onChange={(e) => updateScore(court3Round, "team2", e.target.value, "court3")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-gray-400 text-xs italic">No match</p>
+                  )}
+                </div>
+              )}
+
+              {/* Court 4 */}
+              {numCourts >= 4 && (
+                <div className="bg-gray-700 rounded shadow p-3">
+                  <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 4</h3>
+                  {court4Matches[court4Round] ? (
+                    <>
+                      <div className="bg-gray-600 rounded p-3 space-y-2">
+                        <div className="text-center text-xs text-gray-300 mb-2">
+                          Round {court4Round + 1} of {court4Matches.length}
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court4Matches[court4Round][0].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court4Scores[court4Round]?.team1 ?? ""} onChange={(e) => updateScore(court4Round, "team1", e.target.value, "court4")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                        <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court4Matches[court4Round][1].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court4Scores[court4Round]?.team2 ?? ""} onChange={(e) => updateScore(court4Round, "team2", e.target.value, "court4")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-gray-400 text-xs italic">No match</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Save/Clear Buttons */}
+            <div className="flex gap-3 justify-center mt-4">
+              <button onClick={saveMatches} className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded font-semibold">
+                💾 Save
+              </button>
+              <button
+                onClick={clearGeneratedMatches}
+                disabled={!hasGeneratedFixtures}
+                className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              >
+                🗑 Clear
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {/* Content */}
@@ -3961,600 +4148,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
       </div>
     )}
   </div>
-)}
-
-        {/* Matches */}
-{activeTab === "Matches" && (
-  <>
-    {viewMode === "partner-practice" ? (
-      /* Partner Practice: Compact Display with Global Controls */
-      <div>
-        {/* Global Controls */}
-        <div className="flex flex-col sm:flex-row gap-2 mb-4 justify-center sm:justify-between items-center px-4 py-3 bg-gray-800 rounded-lg">
-          <button
-            onClick={() => setShowEnterScore(!showEnterScore)}
-            className={`px-4 py-2 rounded font-semibold transition ${
-              showEnterScore
-                ? "bg-green-600 hover:bg-green-500 text-white"
-                : "bg-gray-600 hover:bg-gray-500 text-white"
-            }`}
-          >
-            {showEnterScore ? "✓ Enter Score" : "Enter Score"}
-          </button>
-          <div className="flex gap-2">
-            <button
-              onClick={rewindAllRounds}
-              className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded font-semibold"
-            >
-              ◀ Previous Round
-            </button>
-            <button
-              onClick={advanceAllRounds}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded font-semibold"
-            >
-              Next Round ▶
-            </button>
-          </div>
-        </div>
-
-        {/* Compact 4-Court Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Court 1 */}
-          <div className="bg-gray-700 rounded shadow p-3">
-            <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 1</h3>
-            {court1Matches[court1Round] ? (
-              <>
-                <div className="bg-gray-600 rounded p-3 space-y-2">
-                  <div className="text-center text-xs text-gray-300 mb-2">
-                    Round {court1Round + 1} of {court1Matches.length}
-                  </div>
-
-                  {/* Team 1 */}
-                  <div className="text-center">
-                    <div className="text-xs font-semibold text-gray-100 mb-1">
-                      {court1Matches[court1Round][0].map(p => p.name).join(" & ")}
-                    </div>
-                    {showEnterScore && (
-                      <input
-                        type="number"
-                        min={0}
-                        value={court1Scores[court1Round]?.team1 ?? ""}
-                        onChange={(e) =>
-                          updateScore(court1Round, "team1", e.target.value, "court1")
-                        }
-                        className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none"
-                        placeholder="0"
-                      />
-                    )}
-                  </div>
-
-                  <div className="text-center text-xs text-gray-400 font-bold">VS</div>
-
-                  {/* Team 2 */}
-                  <div className="text-center">
-                    <div className="text-xs font-semibold text-gray-100 mb-1">
-                      {court1Matches[court1Round][1].map(p => p.name).join(" & ")}
-                    </div>
-                    {showEnterScore && (
-                      <input
-                        type="number"
-                        min={0}
-                        value={court1Scores[court1Round]?.team2 ?? ""}
-                        onChange={(e) =>
-                          updateScore(court1Round, "team2", e.target.value, "court1")
-                        }
-                        className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none"
-                        placeholder="0"
-                      />
-                    )}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p className="text-gray-400 text-xs italic">No match</p>
-            )}
-          </div>
-
-          {/* Court 2 */}
-          <div className="bg-gray-700 rounded shadow p-3">
-            <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 2</h3>
-            {court2Matches[court2Round] ? (
-              <>
-                <div className="bg-gray-600 rounded p-3 space-y-2">
-                  <div className="text-center text-xs text-gray-300 mb-2">
-                    Round {court2Round + 1} of {court2Matches.length}
-                  </div>
-
-                  {/* Team 1 */}
-                  <div className="text-center">
-                    <div className="text-xs font-semibold text-gray-100 mb-1">
-                      {court2Matches[court2Round][0].map(p => p.name).join(" & ")}
-                    </div>
-                    {showEnterScore && (
-                      <input
-                        type="number"
-                        min={0}
-                        value={court2Scores[court2Round]?.team1 ?? ""}
-                        onChange={(e) =>
-                          updateScore(court2Round, "team1", e.target.value, "court2")
-                        }
-                        className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none"
-                        placeholder="0"
-                      />
-                    )}
-                  </div>
-
-                  <div className="text-center text-xs text-gray-400 font-bold">VS</div>
-
-                  {/* Team 2 */}
-                  <div className="text-center">
-                    <div className="text-xs font-semibold text-gray-100 mb-1">
-                      {court2Matches[court2Round][1].map(p => p.name).join(" & ")}
-                    </div>
-                    {showEnterScore && (
-                      <input
-                        type="number"
-                        min={0}
-                        value={court2Scores[court2Round]?.team2 ?? ""}
-                        onChange={(e) =>
-                          updateScore(court2Round, "team2", e.target.value, "court2")
-                        }
-                        className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none"
-                        placeholder="0"
-                      />
-                    )}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p className="text-gray-400 text-xs italic">No match</p>
-            )}
-          </div>
-
-          {/* Court 3 */}
-          {numCourts >= 3 && (
-            <div className="bg-gray-700 rounded shadow p-3">
-              <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 3</h3>
-              {court3Matches[court3Round] ? (
-                <>
-                  <div className="bg-gray-600 rounded p-3 space-y-2">
-                    <div className="text-center text-xs text-gray-300 mb-2">
-                      Round {court3Round + 1} of {court3Matches.length}
-                    </div>
-
-                    {/* Team 1 */}
-                    <div className="text-center">
-                      <div className="text-xs font-semibold text-gray-100 mb-1">
-                        {court3Matches[court3Round][0].map(p => p.name).join(" & ")}
-                      </div>
-                      {showEnterScore && (
-                        <input
-                          type="number"
-                          min={0}
-                          value={court3Scores[court3Round]?.team1 ?? ""}
-                          onChange={(e) =>
-                            updateScore(court3Round, "team1", e.target.value, "court3")
-                          }
-                          className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none"
-                          placeholder="0"
-                        />
-                      )}
-                    </div>
-
-                    <div className="text-center text-xs text-gray-400 font-bold">VS</div>
-
-                    {/* Team 2 */}
-                    <div className="text-center">
-                      <div className="text-xs font-semibold text-gray-100 mb-1">
-                        {court3Matches[court3Round][1].map(p => p.name).join(" & ")}
-                      </div>
-                      {showEnterScore && (
-                        <input
-                          type="number"
-                          min={0}
-                          value={court3Scores[court3Round]?.team2 ?? ""}
-                          onChange={(e) =>
-                            updateScore(court3Round, "team2", e.target.value, "court3")
-                          }
-                          className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none"
-                          placeholder="0"
-                        />
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-gray-400 text-xs italic">No match</p>
-              )}
-            </div>
-          )}
-
-          {/* Court 4 */}
-          {numCourts >= 4 && (
-            <div className="bg-gray-700 rounded shadow p-3">
-              <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 4</h3>
-              {court4Matches[court4Round] ? (
-                <>
-                  <div className="bg-gray-600 rounded p-3 space-y-2">
-                    <div className="text-center text-xs text-gray-300 mb-2">
-                      Round {court4Round + 1} of {court4Matches.length}
-                    </div>
-
-                    {/* Team 1 */}
-                    <div className="text-center">
-                      <div className="text-xs font-semibold text-gray-100 mb-1">
-                        {court4Matches[court4Round][0].map(p => p.name).join(" & ")}
-                      </div>
-                      {showEnterScore && (
-                        <input
-                          type="number"
-                          min={0}
-                          value={court4Scores[court4Round]?.team1 ?? ""}
-                          onChange={(e) =>
-                            updateScore(court4Round, "team1", e.target.value, "court4")
-                          }
-                          className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none"
-                          placeholder="0"
-                        />
-                      )}
-                    </div>
-
-                    <div className="text-center text-xs text-gray-400 font-bold">VS</div>
-
-                    {/* Team 2 */}
-                    <div className="text-center">
-                      <div className="text-xs font-semibold text-gray-100 mb-1">
-                        {court4Matches[court4Round][1].map(p => p.name).join(" & ")}
-                      </div>
-                      {showEnterScore && (
-                        <input
-                          type="number"
-                          min={0}
-                          value={court4Scores[court4Round]?.team2 ?? ""}
-                          onChange={(e) =>
-                            updateScore(court4Round, "team2", e.target.value, "court4")
-                          }
-                          className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none"
-                          placeholder="0"
-                        />
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-gray-400 text-xs italic">No match</p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Save/Clear Buttons */}
-        <div className="flex gap-3 justify-center mt-4">
-          <button onClick={saveMatches} className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded font-semibold">
-            💾 Save
-          </button>
-          <button
-            onClick={clearGeneratedMatches}
-            disabled={!hasGeneratedFixtures}
-            className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-          >
-            🗑 Clear
-          </button>
-        </div>
-      </div>
-    ) : (
-      /* Non-Partner Practice Display - Original Grid Layout */
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-    {/* Court 1 */}
-<div className="bg-gray-700 rounded shadow p-4">
-  <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">Court 1</h2>
-  {court1Matches[court1Round] ? (
-    <>
-      <div className="mb-2 bg-white rounded-2xl shadow-xl p-6 text-gray-900">
-         {/* ROUND INDICATOR */}
-  <div className="text-center text-xs uppercase tracking-widest text-yellow-500 font-bold mb-4">
-  Round {court1Round + 1} of {court1Matches.length}
-</div>
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
-          {/* Team 1 */}
-          <div className="text-center">
-            <div className="font-bold text-lg mb-3 text-gray-700">
-              {court1Matches[court1Round][0].map(p => p.name).join(" & ")}
-            </div>
-            <input
-              type="number"
-              min={0}
-              value={court1Scores[court1Round]?.team1 ?? ""}
-              onChange={(e) =>
-                updateScore(court1Round, "team1", e.target.value, "court1")
-              }
-              className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
-            />
-          </div>
-
-          {/* Team 2 */}
-          <div className="text-center">
-            <div className="font-bold text-lg mb-3 text-gray-700">
-              {court1Matches[court1Round][1].map(p => p.name).join(" & ")}
-            </div>
-            <input
-              type="number"
-              min={0}
-              value={court1Scores[court1Round]?.team2 ?? ""}
-              onChange={(e) =>
-                updateScore(court1Round, "team2", e.target.value, "court1")
-              }
-              className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
-            />
-          </div>
-        </div>
-
-        <div className="text-center text-gray-400 font-bold mt-6 text-lg tracking-widest">
-          VS
-        </div>
-
-        {/* Bye players */}
-        {roundMatches?.court1?.[court1Round]?.length > 0 && (
-          <div className="mt-2 text-gray-400 text-sm italic text-center">
-            Resting: {roundMatches.court1[court1Round].map(p => p.name).join(", ")}
-          </div>
-        )}
-      </div>
-    </>
-  ) : (
-    <p className="text-gray-300 italic">No matches scheduled for this court.</p>
-  )}
-
-  <div className="flex justify-between mt-4">
-    <button
-      onClick={() => setCourt1Round(prev => Math.max(prev - 1, 0))}
-      disabled={court1Round === 0}
-      className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded disabled:opacity-50"
-    >
-      ◀ Previous Round
-    </button>
-    <button
-      onClick={() => setCourt1Round(prev => Math.min(prev + 1, court1Matches.length - 1))}
-      disabled={court1Round >= court1Matches.length - 1}
-      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
-    >
-      Next Round ▶
-    </button>
-  </div>
-</div>
-
-{/* Court 2 */}
-<div className="bg-gray-700 rounded shadow p-4">
-  <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">Court 2</h2>
-  {court2Matches[court2Round] ? (
-    <>
-      <div className="mb-2 bg-white rounded-2xl shadow-xl p-6 text-gray-900">
-         {/* ROUND INDICATOR */}
-  <div className="text-center text-xs uppercase tracking-widest text-yellow-500 font-bold mb-4">
-  Round {court2Round + 1} of {court2Matches.length}
-</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
-          {/* Team 1 */}
-          <div className="text-center">
-            <div className="font-bold text-lg mb-3 text-gray-700">
-              {court2Matches[court2Round][0].map(p => p.name).join(" & ")}
-            </div>
-            <input
-              type="number"
-              min={0}
-              value={court2Scores[court2Round]?.team1 ?? ""}
-              onChange={(e) =>
-                updateScore(court2Round, "team1", e.target.value, "court2")
-              }
-              className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
-            />
-          </div>
-
-          {/* Team 2 */}
-          <div className="text-center">
-            <div className="font-bold text-lg mb-3 text-gray-700">
-              {court2Matches[court2Round][1].map(p => p.name).join(" & ")}
-            </div>
-            <input
-              type="number"
-              min={0}
-              value={court2Scores[court2Round]?.team2 ?? ""}
-              onChange={(e) =>
-                updateScore(court2Round, "team2", e.target.value, "court2")
-              }
-              className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
-            />
-          </div>
-        </div>
-
-        <div className="text-center text-gray-400 font-bold mt-6 text-lg tracking-widest">
-          VS
-        </div>
-
-        {/* Bye players */}
-        {roundMatches?.court2?.[court2Round]?.length > 0 && (
-          <div className="mt-2 text-gray-400 text-sm italic text-center">
-            Resting: {roundMatches.court2[court2Round].map(p => p.name).join(", ")}
-          </div>
-        )}
-      </div>
-    </>
-  ) : (
-    <p className="text-gray-300 italic">No matches scheduled for this court.</p>
-  )}
-
-  <div className="flex justify-between mt-4">
-    <button
-      onClick={() => setCourt2Round(prev => Math.max(prev - 1, 0))}
-      disabled={court2Round === 0}
-      className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded disabled:opacity-50"
-    >
-      ◀ Previous Round
-    </button>
-    <button
-      onClick={() => setCourt2Round(prev => Math.min(prev + 1, court2Matches.length - 1))}
-      disabled={court2Round >= court2Matches.length - 1}
-      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
-    >
-      Next Round ▶
-    </button>
-  </div>
-</div>
-
-{numCourts >= 3 && (
-  <div className="bg-gray-700 rounded shadow p-4">
-    <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">Court 3</h2>
-    {court3Matches[court3Round] ? (
-      <>
-        <div className="mb-2 bg-white rounded-2xl shadow-xl p-6 text-gray-900">
-          <div className="text-center text-xs uppercase tracking-widest text-yellow-500 font-bold mb-4">
-            Round {court3Round + 1} of {court3Matches.length}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
-            <div className="text-center">
-              <div className="font-bold text-lg mb-3 text-gray-700">
-                {court3Matches[court3Round][0].map((p) => p.name).join(" & ")}
-              </div>
-              <input
-                type="number"
-                min={0}
-                value={court3Scores[court3Round]?.team1 ?? ""}
-                onChange={(e) =>
-                  updateScore(court3Round, "team1", e.target.value, "court3")
-                }
-                className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
-              />
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-lg mb-3 text-gray-700">
-                {court3Matches[court3Round][1].map((p) => p.name).join(" & ")}
-              </div>
-              <input
-                type="number"
-                min={0}
-                value={court3Scores[court3Round]?.team2 ?? ""}
-                onChange={(e) =>
-                  updateScore(court3Round, "team2", e.target.value, "court3")
-                }
-                className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
-              />
-            </div>
-          </div>
-          <div className="text-center text-gray-400 font-bold mt-6 text-lg tracking-widest">VS</div>
-          {roundMatches?.court3?.[court3Round]?.length > 0 && (
-            <div className="mt-2 text-gray-400 text-sm italic text-center">
-              Resting: {roundMatches.court3[court3Round].map((p) => p.name).join(", ")}
-            </div>
-          )}
-        </div>
-        <div className="flex justify-between mt-4">
-          <button
-            onClick={() => setCourt3Round((prev) => Math.max(prev - 1, 0))}
-            disabled={court3Round === 0}
-            className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded disabled:opacity-50"
-          >
-            ◀ Previous Round
-          </button>
-          <button
-            onClick={() => setCourt3Round((prev) => Math.min(prev + 1, court3Matches.length - 1))}
-            disabled={court3Round >= court3Matches.length - 1}
-            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
-          >
-            Next Round ▶
-          </button>
-        </div>
-      </>
-    ) : (
-      <p className="text-gray-300 italic">No matches scheduled for this court.</p>
-    )}
-  </div>
-)}
-
-{numCourts >= 4 && (
-  <div className="bg-gray-700 rounded shadow p-4">
-    <h2 className="text-yellow-400 font-bold mb-4 text-lg sm:text-xl">Court 4</h2>
-    {court4Matches[court4Round] ? (
-      <>
-        <div className="mb-2 bg-white rounded-2xl shadow-xl p-6 text-gray-900">
-          <div className="text-center text-xs uppercase tracking-widest text-yellow-500 font-bold mb-4">
-            Round {court4Round + 1} of {court4Matches.length}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
-            <div className="text-center">
-              <div className="font-bold text-lg mb-3 text-gray-700">
-                {court4Matches[court4Round][0].map((p) => p.name).join(" & ")}
-              </div>
-              <input
-                type="number"
-                min={0}
-                value={court4Scores[court4Round]?.team1 ?? ""}
-                onChange={(e) =>
-                  updateScore(court4Round, "team1", e.target.value, "court4")
-                }
-                className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
-              />
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-lg mb-3 text-gray-700">
-                {court4Matches[court4Round][1].map((p) => p.name).join(" & ")}
-              </div>
-              <input
-                type="number"
-                min={0}
-                value={court4Scores[court4Round]?.team2 ?? ""}
-                onChange={(e) =>
-                  updateScore(court4Round, "team2", e.target.value, "court4")
-                }
-                className="w-24 h-20 text-4xl font-extrabold text-center rounded-xl border-2 border-gray-300 focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200 outline-none transition"
-              />
-            </div>
-          </div>
-          <div className="text-center text-gray-400 font-bold mt-6 text-lg tracking-widest">VS</div>
-          {roundMatches?.court4?.[court4Round]?.length > 0 && (
-            <div className="mt-2 text-gray-400 text-sm italic text-center">
-              Resting: {roundMatches.court4[court4Round].map((p) => p.name).join(", ")}
-            </div>
-          )}
-        </div>
-        <div className="flex justify-between mt-4">
-          <button
-            onClick={() => setCourt4Round((prev) => Math.max(prev - 1, 0))}
-            disabled={court4Round === 0}
-            className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded disabled:opacity-50"
-          >
-            ◀ Previous Round
-          </button>
-          <button
-            onClick={() => setCourt4Round((prev) => Math.min(prev + 1, court4Matches.length - 1))}
-            disabled={court4Round >= court4Matches.length - 1}
-            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
-          >
-            Next Round ▶
-          </button>
-        </div>
-      </>
-    ) : (
-      <p className="text-gray-300 italic">No matches scheduled for this court.</p>
-    )}
-  </div>
-)}
-
-    {/* Save All Matches */}
-    <div className="col-span-1 md:col-span-2 flex justify-center gap-3 mt-4">
-      <button onClick={saveMatches} className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded">
-        💾 Save Matches
-      </button>
-      <button
-        onClick={clearGeneratedMatches}
-        disabled={!hasGeneratedFixtures}
-        className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        🗑 Clear Matches
-      </button>
-    </div>
-      </div>
-    )}
-  </>
 )}
 
         {activeTab === "Previous Matches" && (
