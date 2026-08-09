@@ -98,9 +98,9 @@ export default function WelcomePage() {
         {/* Logo */}
         <div className="mb-8">
           <img
-            src="/fcp-logo.svg"
+            src="/fcp-logo.jpeg"
             alt="Fylde Coast Pickleball Logo"
-            className="h-32 w-32 mx-auto drop-shadow-lg"
+            className="h-40 w-40 mx-auto drop-shadow-lg"
           />
         </div>
 
