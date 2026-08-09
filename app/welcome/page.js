@@ -136,37 +136,6 @@ export default function WelcomePage() {
       }}></div>
 
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-10 pt-8">
-        {/* Header */}
-        <header className="mb-6">
-          <div className="flex items-center justify-between text-white/95 text-sm">
-            <div className="text-2xl font-medium tracking-tight">9:41</div>
-            <div className="flex items-center gap-2">
-              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M2 13.5A1.5 1.5 0 0 1 3.5 12H5v5H3.5A1.5 1.5 0 0 1 2 15.5v-2Zm5-3A1.5 1.5 0 0 1 8.5 9H10v8H8.5A1.5 1.5 0 0 1 7 15.5v-5Zm5-3A1.5 1.5 0 0 1 13.5 6H15v11h-1.5A1.5 1.5 0 0 1 12 15.5v-8Zm5-2A1.5 1.5 0 0 1 18.5 4H20v13h-1.5A1.5 1.5 0 0 1 17 15.5v-10Z"/>
-              </svg>
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M2 9.5C5.5 6.2 9 4.5 12 4.5s6.5 1.7 10 5" />
-                <path d="M5 13c2.3-2 4.7-3 7-3s4.7 1 7 3" />
-                <path d="M8.5 16.5c1.2-1 2.4-1.5 3.5-1.5s2.3.5 3.5 1.5" />
-                <circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none"/>
-              </svg>
-              <div className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-900">100</div>
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center gap-3 rounded-[22px] border border-white/10 bg-white/8 px-4 py-3 backdrop-blur-md">
-            <div className="text-lg font-medium text-white/90">AA</div>
-            <svg className="h-4 w-4 text-white/80" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5Zm-3 8V6a3 3 0 1 1 6 0v3H9Z"/>
-            </svg>
-            <div className="min-w-0 flex-1 truncate text-sm font-medium text-white/95">fyldepickleballclub.co.uk</div>
-            <svg className="h-6 w-6 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
-              <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
-              <path d="M21 3v6h-6"/>
-            </svg>
-          </div>
-        </header>
-
         {/* Main Section */}
         <section className="relative flex-1 overflow-hidden rounded-[28px] border border-white/8 px-6 pb-10 pt-8 shadow-lg"
           style={{
