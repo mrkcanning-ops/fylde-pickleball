@@ -95,6 +95,15 @@ export default function WelcomePage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900">
       <div className="text-center">
+        {/* Logo */}
+        <div className="mb-8">
+          <img
+            src="/fcp-logo.svg"
+            alt="Fylde Coast Pickleball Logo"
+            className="h-32 w-32 mx-auto drop-shadow-lg"
+          />
+        </div>
+
         {/* Title */}
         <h1 className="text-5xl font-bold text-white mb-4">
           Fylde Pickleball Club
