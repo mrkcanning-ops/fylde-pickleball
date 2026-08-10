@@ -1797,22 +1797,13 @@ const fetchPreviousMatches = async () => {
 
     const { courtMatches, error } = generateRoundRobinMatches(available, numCourts);
 
-    console.log("🔁 Round Robin Handler:", { courtMatches, error, numCourts, availablePlayers: available.length });
-
     if (error) {
       alert(error);
       return;
     }
 
-    if (!courtMatches || !Array.isArray(courtMatches)) {
-      console.error("🔁 Invalid courtMatches:", courtMatches);
-      alert("Error: Invalid matches generated. Check console for details.");
-      return;
-    }
-
     // Set court 1 matches
     if (courtMatches[0]) {
-      console.log("🔁 Setting Court 1:", courtMatches[0].length, "matches");
       setCourt1Matches(courtMatches[0]);
       setCourt1Scores(courtMatches[0].map(() => ({ team1: "", team2: "" })));
       setCourt1Round(0);
