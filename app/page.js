@@ -3620,8 +3620,247 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </div>
       </div>
     </div>
+        ) : (
+          /* Other modes: League, Doubles, 5-Player Champ, Round Robin */
+          <div className="mt-6">
+            {/* Global Controls */}
+            <div className="flex flex-col sm:flex-row gap-2 mb-4 justify-center sm:justify-between items-center px-4 py-3 bg-gray-800 rounded-lg">
+              <button
+                onClick={() => setShowEnterScore(!showEnterScore)}
+                className={`px-4 py-2 rounded font-semibold transition ${
+                  showEnterScore
+                    ? "bg-green-600 hover:bg-green-500 text-white"
+                    : "bg-gray-600 hover:bg-gray-500 text-white"
+                }`}
+              >
+                {showEnterScore ? "✓ Enter Score" : "Enter Score"}
+              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={rewindAllRounds}
+                  className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded font-semibold"
+                >
+                  ◀ Previous Round
+                </button>
+                <button
+                  onClick={advanceAllRounds}
+                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded font-semibold"
+                >
+                  Next Round ▶
+                </button>
+              </div>
+            </div>
 
-    {standingsView === "Leaderboard" ? (
+            {/* 4-Court Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Court 1 */}
+              <div className="bg-gray-700 rounded shadow p-3">
+                <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 1</h3>
+                {court1Matches[court1Round] ? (
+                  <>
+                    <div className="bg-gray-600 rounded p-3 space-y-2">
+                      <div className="text-center text-xs text-gray-300 mb-2">
+                        Round {court1Round + 1} of {court1Matches.length}
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-100 mb-1">
+                          {court1Matches[court1Round][0].map(p => p.name).join(" & ")}
+                        </div>
+                        {showEnterScore && (
+                          <input type="number" min={0} value={court1Scores[court1Round]?.team1 ?? ""} onChange={(e) => updateScore(court1Round, "team1", e.target.value, "court1")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                        )}
+                      </div>
+                      <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-100 mb-1">
+                          {court1Matches[court1Round][1].map(p => p.name).join(" & ")}
+                        </div>
+                        {showEnterScore && (
+                          <input type="number" min={0} value={court1Scores[court1Round]?.team2 ?? ""} onChange={(e) => updateScore(court1Round, "team2", e.target.value, "court1")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-gray-400 text-xs italic">No match</p>
+                )}
+              </div>
+
+              {/* Court 2 */}
+              <div className="bg-gray-700 rounded shadow p-3">
+                <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 2</h3>
+                {court2Matches[court2Round] ? (
+                  <>
+                    <div className="bg-gray-600 rounded p-3 space-y-2">
+                      <div className="text-center text-xs text-gray-300 mb-2">
+                        Round {court2Round + 1} of {court2Matches.length}
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-100 mb-1">
+                          {court2Matches[court2Round][0].map(p => p.name).join(" & ")}
+                        </div>
+                        {showEnterScore && (
+                          <input type="number" min={0} value={court2Scores[court2Round]?.team1 ?? ""} onChange={(e) => updateScore(court2Round, "team1", e.target.value, "court2")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                        )}
+                      </div>
+                      <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-100 mb-1">
+                          {court2Matches[court2Round][1].map(p => p.name).join(" & ")}
+                        </div>
+                        {showEnterScore && (
+                          <input type="number" min={0} value={court2Scores[court2Round]?.team2 ?? ""} onChange={(e) => updateScore(court2Round, "team2", e.target.value, "court2")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-gray-400 text-xs italic">No match</p>
+                )}
+              </div>
+
+              {/* Court 3 */}
+              {numCourts >= 3 && (
+                <div className="bg-gray-700 rounded shadow p-3">
+                  <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 3</h3>
+                  {court3Matches[court3Round] ? (
+                    <>
+                      <div className="bg-gray-600 rounded p-3 space-y-2">
+                        <div className="text-center text-xs text-gray-300 mb-2">
+                          Round {court3Round + 1} of {court3Matches.length}
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court3Matches[court3Round][0].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court3Scores[court3Round]?.team1 ?? ""} onChange={(e) => updateScore(court3Round, "team1", e.target.value, "court3")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                        <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court3Matches[court3Round][1].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court3Scores[court3Round]?.team2 ?? ""} onChange={(e) => updateScore(court3Round, "team2", e.target.value, "court3")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-gray-400 text-xs italic">No match</p>
+                  )}
+                </div>
+              )}
+
+              {/* Court 4 */}
+              {numCourts >= 4 && (
+                <div className="bg-gray-700 rounded shadow p-3">
+                  <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 4</h3>
+                  {court4Matches[court4Round] ? (
+                    <>
+                      <div className="bg-gray-600 rounded p-3 space-y-2">
+                        <div className="text-center text-xs text-gray-300 mb-2">
+                          Round {court4Round + 1} of {court4Matches.length}
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court4Matches[court4Round][0].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court4Scores[court4Round]?.team1 ?? ""} onChange={(e) => updateScore(court4Round, "team1", e.target.value, "court4")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                        <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court4Matches[court4Round][1].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court4Scores[court4Round]?.team2 ?? ""} onChange={(e) => updateScore(court4Round, "team2", e.target.value, "court4")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-gray-400 text-xs italic">No match</p>
+                  )}
+                </div>
+              )}
+
+              {/* Court 5 */}
+              {numCourts >= 5 && (
+                <div className="bg-gray-700 rounded shadow p-3">
+                  <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 5</h3>
+                  {court5Matches[court5Round] ? (
+                    <>
+                      <div className="bg-gray-600 rounded p-3 space-y-2">
+                        <div className="text-center text-xs text-gray-300 mb-2">
+                          Round {court5Round + 1} of {court5Matches.length}
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court5Matches[court5Round][0].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court5Scores[court5Round]?.team1 ?? ""} onChange={(e) => updateScore(court5Round, "team1", e.target.value, "court5")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                        <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court5Matches[court5Round][1].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court5Scores[court5Round]?.team2 ?? ""} onChange={(e) => updateScore(court5Round, "team2", e.target.value, "court5")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-gray-400 text-xs italic">No match</p>
+                  )}
+                </div>
+              )}
+
+              {/* Court 6 */}
+              {numCourts >= 6 && (
+                <div className="bg-gray-700 rounded shadow p-3">
+                  <h3 className="text-yellow-400 font-bold mb-2 text-sm">🏐 Court 6</h3>
+                  {court6Matches[court6Round] ? (
+                    <>
+                      <div className="bg-gray-600 rounded p-3 space-y-2">
+                        <div className="text-center text-xs text-gray-300 mb-2">
+                          Round {court6Round + 1} of {court6Matches.length}
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court6Matches[court6Round][0].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court6Scores[court6Round]?.team1 ?? ""} onChange={(e) => updateScore(court6Round, "team1", e.target.value, "court6")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                        <div className="text-center text-xs text-gray-400 font-bold">VS</div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-100 mb-1">
+                            {court6Matches[court6Round][1].map(p => p.name).join(" & ")}
+                          </div>
+                          {showEnterScore && (
+                            <input type="number" min={0} value={court6Scores[court6Round]?.team2 ?? ""} onChange={(e) => updateScore(court6Round, "team2", e.target.value, "court6")} className="w-16 h-12 text-2xl font-bold text-center rounded border-2 border-gray-500 bg-gray-800 text-white outline-none" placeholder="0" />
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-gray-400 text-xs italic">No match</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       <>
         {/* Mobile Cards */}
 <div className="sm:hidden p-4 space-y-2 bg-gray-50">
