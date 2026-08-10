@@ -1656,16 +1656,34 @@ const fetchPreviousMatches = async () => {
       (match[1] || []).map(findPlayer),
     ]);
 
+    const mappedCourt3Matches = (pendingObj.court3_matches || []).map((match) => [
+      (match[0] || []).map(findPlayer),
+      (match[1] || []).map(findPlayer),
+    ]);
+
+    const mappedCourt4Matches = (pendingObj.court4_matches || []).map((match) => [
+      (match[0] || []).map(findPlayer),
+      (match[1] || []).map(findPlayer),
+    ]);
+
     const mappedCourt1Byes = (pendingObj.court1_byes || []).map((round) => (round || []).map(findPlayer));
     const mappedCourt2Byes = (pendingObj.court2_byes || []).map((round) => (round || []).map(findPlayer));
+    const mappedCourt3Byes = (pendingObj.court3_byes || []).map((round) => (round || []).map(findPlayer));
+    const mappedCourt4Byes = (pendingObj.court4_byes || []).map((round) => (round || []).map(findPlayer));
 
     setCourt1Matches(mappedCourt1Matches);
     setCourt2Matches(mappedCourt2Matches);
+    setCourt3Matches(mappedCourt3Matches);
+    setCourt4Matches(mappedCourt4Matches);
     setCourt1Scores(pending.court1_scores || mappedCourt1Matches.map(() => ({ team1: "", team2: "" })));
     setCourt2Scores(pending.court2_scores || mappedCourt2Matches.map(() => ({ team1: "", team2: "" })));
-    setRoundMatches({ court1: mappedCourt1Byes, court2: mappedCourt2Byes });
+    setCourt3Scores(pending.court3_scores || mappedCourt3Matches.map(() => ({ team1: "", team2: "" })));
+    setCourt4Scores(pending.court4_scores || mappedCourt4Matches.map(() => ({ team1: "", team2: "" })));
+    setRoundMatches({ court1: mappedCourt1Byes, court2: mappedCourt2Byes, court3: mappedCourt3Byes, court4: mappedCourt4Byes });
     setCourt1Round(0);
     setCourt2Round(0);
+    setCourt3Round(0);
+    setCourt4Round(0);
   };
 
  const generateMatches = async () => {
