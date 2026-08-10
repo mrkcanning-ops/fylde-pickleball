@@ -18,7 +18,6 @@ export default function WelcomePage() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirect if already logged in
   useEffect(() => {
     if (!isLoading && user && userType) {
       router.push('/');
@@ -74,7 +73,6 @@ export default function WelcomePage() {
       }
 
       const data = await res.json();
-      // Auto-login after signup
       await loginClubMember(signupUsername, signupPassword);
       router.push('/');
     } catch (err) {
@@ -94,40 +92,40 @@ export default function WelcomePage() {
 
   return (
     <>
-    <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-[#05101f]">
-      {/* Exact background image, constrained to its true aspect ratio so nothing is cropped */}
-      <div className="relative mx-auto w-full max-w-md">
-        <img
-          src="/welcome-bg.jpeg"
-          alt="Fylde Coast Pickleball - Welcome"
-          className="w-full h-auto"
-        />
+      <div className="relative min-h-screen w-full overflow-hidden bg-[#05101f] flex items-center justify-center p-4">
+        {/* Background image with natural aspect ratio preserved */}
+        <div className="relative w-full max-w-md">
+          <img
+            src="/welcome-bg.jpeg"
+            alt="Fylde Coast Pickleball - Welcome"
+            className="block w-full h-auto"
+          />
 
-        {/* Clickable overlays positioned over the buttons in the image */}
-        <button
-          onClick={() => setShowLoginModal(true)}
-          aria-label="Club Member"
-          className="absolute left-[17%] w-[66%] rounded-[18px]"
-          style={{ top: '68.1%', height: '5.9%' }}
-        />
-        <button
-          onClick={handleGuestClick}
-          aria-label="Guest Access"
-          className="absolute left-[17%] w-[66%] rounded-[18px]"
-          style={{ top: '78.0%', height: '5.9%' }}
-        />
-        <button
-          onClick={handleViewStandingsClick}
-          aria-label="View Standings"
-          className="absolute left-[17%] w-[66%] rounded-[18px]"
-          style={{ top: '86.4%', height: '5.9%' }}
-        />
+          {/* Invisible clickable overlays positioned over button areas */}
+          <button
+            onClick={() => setShowLoginModal(true)}
+            aria-label="Club Member"
+            className="absolute left-[17%] w-[66%] rounded-[18px]"
+            style={{ top: '68.1%', height: '5.9%' }}
+          />
+          <button
+            onClick={handleGuestClick}
+            aria-label="Guest Access"
+            className="absolute left-[17%] w-[66%] rounded-[18px]"
+            style={{ top: '78.0%', height: '5.9%' }}
+          />
+          <button
+            onClick={handleViewStandingsClick}
+            aria-label="View Standings"
+            className="absolute left-[17%] w-[66%] rounded-[18px]"
+            style={{ top: '86.4%', height: '5.9%' }}
+          />
+        </div>
       </div>
-    </div>
 
-    {/* Login Modal */}
+      {/* Login Modal */}
       {showLoginModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-800 rounded-lg p-8 max-w-md w-full">
             <h2 className="text-2xl font-bold text-white mb-6">Club Member Login</h2>
 
@@ -200,7 +198,7 @@ export default function WelcomePage() {
 
       {/* Signup Modal */}
       {showSignupModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-800 rounded-lg p-8 max-w-md w-full">
             <h2 className="text-2xl font-bold text-white mb-6">Create Account</h2>
 
@@ -253,6 +251,7 @@ export default function WelcomePage() {
                   {isSubmitting ? 'Creating Account...' : 'Create Account'}
                 </button>
 
+                <p className="text-gray-300">Already have an account?</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -280,6 +279,6 @@ export default function WelcomePage() {
           </div>
         </div>
       )}
-  </>
+    </>
   );
 }
