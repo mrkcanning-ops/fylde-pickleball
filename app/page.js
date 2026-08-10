@@ -1554,7 +1554,7 @@ const fetchPreviousMatches = async () => {
     return results.reverse();
   };
 
-  const savePendingFixtures = async (nextCourt1Matches, nextCourt2Matches, nextCourt1Scores, nextCourt2Scores, nextRoundMatches) => {
+  const savePendingFixtures = async (nextCourt1Matches, nextCourt2Matches, nextCourt1Scores, nextCourt2Scores, nextRoundMatches, nextCourt3Matches = [], nextCourt4Matches = [], nextCourt3Scores = [], nextCourt4Scores = []) => {
     if (!supabase) {
       console.warn("Supabase client is not configured. Skipping live fixture sync.");
       return;
@@ -1568,10 +1568,20 @@ const fetchPreviousMatches = async () => {
       court2_matches: (nextCourt2Matches || []).map((match) =>
         (match || []).map((team) => (team || []).map((p) => p.id))
       ),
+      court3_matches: (nextCourt3Matches || []).map((match) =>
+        (match || []).map((team) => (team || []).map((p) => p.id))
+      ),
+      court4_matches: (nextCourt4Matches || []).map((match) =>
+        (match || []).map((team) => (team || []).map((p) => p.id))
+      ),
       court1_scores: nextCourt1Scores || [],
       court2_scores: nextCourt2Scores || [],
+      court3_scores: nextCourt3Scores || [],
+      court4_scores: nextCourt4Scores || [],
       court1_byes: (nextRoundMatches?.court1 || []).map((round) => (round || []).map((p) => p.id)),
       court2_byes: (nextRoundMatches?.court2 || []).map((round) => (round || []).map((p) => p.id)),
+      court3_byes: (nextRoundMatches?.court3 || []).map((round) => (round || []).map((p) => p.id)),
+      court4_byes: (nextRoundMatches?.court4 || []).map((round) => (round || []).map((p) => p.id)),
       status: "generated",
     };
 
@@ -2290,7 +2300,11 @@ const fetchPreviousMatches = async () => {
     courts[1]?.matches || [],
     (courts[0]?.matches || []).map(() => ({ team1: "", team2: "" })),
     (courts[1]?.matches || []).map(() => ({ team1: "", team2: "" })),
-    { court1: courts[0]?.byes || [], court2: courts[1]?.byes || [] }
+    { court1: courts[0]?.byes || [], court2: courts[1]?.byes || [], court3: courts[2]?.byes || [], court4: courts[3]?.byes || [] },
+    courts[2]?.matches || [],
+    courts[3]?.matches || [],
+    (courts[2]?.matches || []).map(() => ({ team1: "", team2: "" })),
+    (courts[3]?.matches || []).map(() => ({ team1: "", team2: "" }))
   );
 };
 
