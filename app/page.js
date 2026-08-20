@@ -2308,6 +2308,33 @@ const fetchPreviousMatches = async () => {
   );
 };
 
+  // Helper function to get players who are resting (not playing) in the current round
+  const getRestingPlayers = () => {
+    const playersInMatches = new Set();
+    
+    // Get all match arrays for the current round
+    const matchArrays = [
+      { matches: court1Matches, round: court1Round },
+      { matches: court2Matches, round: court2Round },
+      { matches: court3Matches, round: court3Round },
+      { matches: court4Matches, round: court4Round },
+      { matches: court5Matches, round: court5Round },
+      { matches: court6Matches, round: court6Round },
+    ];
+    
+    // Collect all players currently in matches
+    matchArrays.forEach(({ matches, round }) => {
+      if (matches[round]) {
+        const [team1, team2] = matches[round];
+        if (team1) team1.forEach(p => playersInMatches.add(p.id));
+        if (team2) team2.forEach(p => playersInMatches.add(p.id));
+      }
+    });
+    
+    // Return players who are not in any match
+    return players.filter(p => !playersInMatches.has(p.id));
+  };
+
   const updateScore = (idx, team, value, court) => {
   if (court === "court1") {
     const newScores = [...court1Scores];
@@ -3557,6 +3584,20 @@ const activePlayerCount = players.filter((p) => p.active).length;
               )}
             </div>
 
+            {/* Resting Players */}
+            {getRestingPlayers().length > 0 && (
+              <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-yellow-600">
+                <h4 className="text-yellow-400 font-semibold mb-2">⏸️ Resting this round:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {getRestingPlayers().map(p => (
+                    <span key={p.id} className="bg-yellow-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                      {p.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Save/Clear Buttons */}
             <div className="flex gap-3 justify-center mt-4">
               <button onClick={saveMatches} className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded font-semibold">
@@ -3810,6 +3851,20 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 </div>
               )}
             </div>
+
+            {/* Resting Players */}
+            {getRestingPlayers().length > 0 && (
+              <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-yellow-600">
+                <h4 className="text-yellow-400 font-semibold mb-2">⏸️ Resting this round:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {getRestingPlayers().map(p => (
+                    <span key={p.id} className="bg-yellow-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                      {p.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Save/Clear Buttons */}
             <div className="flex gap-3 justify-center mt-4">
