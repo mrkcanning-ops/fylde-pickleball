@@ -3314,6 +3314,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         )}
 
+        {activeTab === "Matches" ? (
+          <>
         {/* Match Display - Partner Practice vs Others */}
         {viewMode === "partner-practice" ? (
           /* Partner Practice: Compact 4-Court Display */
@@ -3824,6 +3826,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
             </div>
           </div>
         )}
+          </>
+        ) : null}
       </section>
 
       {/* Content */}
