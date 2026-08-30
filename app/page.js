@@ -2383,7 +2383,7 @@ const saveMatches = async () => {
             division,
             // Use player IDs instead of names
             players: m.flat().map((p) => p.id),
-            scores: scores[roundIdx]?.[matchIdx],
+            scores: scores[roundIdx]?.[matchIdx] || { team1: 0, team2: 0 }, // Provide default scores
             round: roundIdx + 1, // Round numbers start at 1
           };
 
