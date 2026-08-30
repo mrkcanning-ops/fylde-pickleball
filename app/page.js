@@ -582,7 +582,16 @@ const fetchPreviousMatches = async () => {
   // Try Supabase client first; if unavailable or returns error, fallback to server API
   if (supabase) {
     try {
-      const { data, error } = await db("previous_matches")
+      let tableName = "previous_matches";
+      if (viewMode === "doubles") {
+        tableName = "previous_matches_doubles";
+      } else if (viewMode === "5-player-champ") {
+        tableName = "previous_matches_5champ";
+      } else if (viewMode === "round-robin" || viewMode === "partner-practice") {
+        tableName = "previous_matches_roundrobin";
+      }
+      
+      const { data, error } = await db(tableName)
         .select("*")
         .eq("division", division)
         .order("created_at", { ascending: false }); // Most recent first
@@ -2413,8 +2422,17 @@ const saveMatches = async () => {
     console.log("Saving matches with player IDs:", allMatches);
 
     // Insert into Supabase
-      console.debug("Saving matches to table:", viewMode === 'doubles' ? 'previous_matches_doubles' : 'previous_matches');
-      const { data, error } = await db("previous_matches")
+      let tableName = "previous_matches";
+      if (viewMode === "doubles") {
+        tableName = "previous_matches_doubles";
+      } else if (viewMode === "5-player-champ") {
+        tableName = "previous_matches_5champ";
+      } else if (viewMode === "round-robin" || viewMode === "partner-practice") {
+        tableName = "previous_matches_roundrobin";
+      }
+      
+      console.debug("Saving matches to table:", tableName);
+      const { data, error } = await db(tableName)
         .insert(allMatches)
         .select();
 
