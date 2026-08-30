@@ -4640,9 +4640,24 @@ const activePlayerCount = players.filter((p) => p.active).length;
                   const isOpen = openDates.includes(date);
                   const allMatches = [...(courtMatches.court1 || []), ...(courtMatches.court2 || [])];
 
+                  // Group matches by round
+                  const matchesByRound = {};
+                  allMatches.forEach(match => {
+                    const roundNum = match.round || 1;
+                    if (!matchesByRound[roundNum]) {
+                      matchesByRound[roundNum] = { court1: [], court2: [] };
+                    }
+                    const courtNum = (match.court === "court2" || match.court === "Court 2") ? "court2" : "court1";
+                    matchesByRound[roundNum][courtNum].push(match);
+                  });
+
+                  const sortedRounds = Object.keys(matchesByRound)
+                    .map(Number)
+                    .sort((a, b) => a - b);
+
                   return (
-                    <div key={`round-${week}`} className="border border-yellow-600 rounded-lg overflow-hidden bg-gray-800">
-                      {/* Round Header */}
+                    <div key={`date-${week}`} className="border border-yellow-600 rounded-lg overflow-hidden bg-gray-800">
+                      {/* Date Header */}
                       <button
                         onClick={() => {
                           if (isOpen) {
@@ -4654,11 +4669,8 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         className="w-full px-4 py-3 bg-gray-900 hover:bg-gray-800 flex items-center justify-between cursor-pointer text-left"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">🔁</span>
-                          <div>
-                            <div className="font-bold text-yellow-300 text-lg">Round {week}</div>
-                            <div className="text-sm text-gray-400">{date}</div>
-                          </div>
+                          <span className="text-2xl">📅</span>
+                          <div className="font-bold text-yellow-300 text-lg">{date}</div>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold bg-yellow-600 text-white px-2 py-1 rounded">
@@ -4670,61 +4682,119 @@ const activePlayerCount = players.filter((p) => p.active).length;
                         </div>
                       </button>
 
-                      {/* Round Matches */}
+                      {/* Rounds and Courts */}
                       {isOpen && (
-                        <div className="p-4 space-y-3 bg-gray-700">
+                        <div className="p-4 space-y-4 bg-gray-700">
                           {allMatches.length === 0 ? (
                             <p className="text-gray-400 text-sm italic">No matches recorded</p>
                           ) : (
-                            allMatches.map((m, idx) => {
-                              const courtNum = (m.court === "court2" || m.court === "Court 2") ? "2" : "1";
-                              return (
-                                <div
-                                  key={idx}
-                                  className="bg-gray-800 border border-gray-600 rounded-lg p-3"
-                                >
-                                  {/* Court Number & Edit Button */}
-                                  <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-600">
-                                    <div className="text-sm font-bold text-yellow-400">🎾 Court {courtNum}</div>
-                                    <button
-                                      onClick={() => requestEditMatch(m)}
-                                      className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded"
-                                    >
-                                      Edit
-                                    </button>
-                                  </div>
-                                  
-                                  {/* Match Scorecard */}
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {/* Team 1 */}
-                                    <div className="text-center bg-gray-900 rounded p-2">
-                                      <div className="text-sm font-semibold text-gray-300 mb-1">
-                                        {m.players
-                                          .slice(0, 2)
-                                          .map((id) => getPlayerNameFromId(id))
-                                          .join(" & ")}
-                                      </div>
-                                      <div className="text-3xl font-bold text-yellow-400">
-                                        {m.scores?.team1 ?? "—"}
-                                      </div>
-                                    </div>
-                                    
-                                    {/* Team 2 */}
-                                    <div className="text-center bg-gray-900 rounded p-2">
-                                      <div className="text-sm font-semibold text-gray-300 mb-1">
-                                        {m.players
-                                          .slice(2, 4)
-                                          .map((id) => getPlayerNameFromId(id))
-                                          .join(" & ")}
-                                      </div>
-                                      <div className="text-3xl font-bold text-yellow-400">
-                                        {m.scores?.team2 ?? "—"}
-                                      </div>
-                                    </div>
-                                  </div>
+                            sortedRounds.map((roundNum) => (
+                              <div key={`round-${roundNum}`} className="border border-gray-600 rounded-lg p-3 bg-gray-800">
+                                {/* Round Number */}
+                                <div className="text-sm font-bold text-yellow-400 mb-3 pb-2 border-b border-gray-600">
+                                  🔁 Round {roundNum}
                                 </div>
-                              );
-                            })
+
+                                {/* Court Matches */}
+                                <div className="space-y-3">
+                                  {/* Court 1 */}
+                                  {matchesByRound[roundNum].court1.length > 0 && (
+                                    <div className="bg-gray-900 border border-gray-600 rounded-lg p-3">
+                                      <div className="text-sm font-bold text-yellow-400 mb-2">🎾 Court 1</div>
+                                      <div className="space-y-2">
+                                        {matchesByRound[roundNum].court1.map((m, idx) => (
+                                          <div key={idx} className="bg-gray-800 rounded p-2">
+                                            <div className="flex items-center justify-between mb-2">
+                                              <div className="flex-1"></div>
+                                              <button
+                                                onClick={() => requestEditMatch(m)}
+                                                className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded"
+                                              >
+                                                Edit
+                                              </button>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                              {/* Team 1 */}
+                                              <div className="text-center">
+                                                <div className="text-xs font-semibold text-gray-300 mb-1">
+                                                  {m.players
+                                                    .slice(0, 2)
+                                                    .map((id) => getPlayerNameFromId(id))
+                                                    .join(" & ")}
+                                                </div>
+                                                <div className="text-2xl font-bold text-yellow-400">
+                                                  {m.scores?.team1 ?? "—"}
+                                                </div>
+                                              </div>
+                                              {/* Team 2 */}
+                                              <div className="text-center">
+                                                <div className="text-xs font-semibold text-gray-300 mb-1">
+                                                  {m.players
+                                                    .slice(2, 4)
+                                                    .map((id) => getPlayerNameFromId(id))
+                                                    .join(" & ")}
+                                                </div>
+                                                <div className="text-2xl font-bold text-yellow-400">
+                                                  {m.scores?.team2 ?? "—"}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Court 2 */}
+                                  {matchesByRound[roundNum].court2.length > 0 && (
+                                    <div className="bg-gray-900 border border-gray-600 rounded-lg p-3">
+                                      <div className="text-sm font-bold text-yellow-400 mb-2">🎾 Court 2</div>
+                                      <div className="space-y-2">
+                                        {matchesByRound[roundNum].court2.map((m, idx) => (
+                                          <div key={idx} className="bg-gray-800 rounded p-2">
+                                            <div className="flex items-center justify-between mb-2">
+                                              <div className="flex-1"></div>
+                                              <button
+                                                onClick={() => requestEditMatch(m)}
+                                                className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded"
+                                              >
+                                                Edit
+                                              </button>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                              {/* Team 1 */}
+                                              <div className="text-center">
+                                                <div className="text-xs font-semibold text-gray-300 mb-1">
+                                                  {m.players
+                                                    .slice(0, 2)
+                                                    .map((id) => getPlayerNameFromId(id))
+                                                    .join(" & ")}
+                                                </div>
+                                                <div className="text-2xl font-bold text-yellow-400">
+                                                  {m.scores?.team1 ?? "—"}
+                                                </div>
+                                              </div>
+                                              {/* Team 2 */}
+                                              <div className="text-center">
+                                                <div className="text-xs font-semibold text-gray-300 mb-1">
+                                                  {m.players
+                                                    .slice(2, 4)
+                                                    .map((id) => getPlayerNameFromId(id))
+                                                    .join(" & ")}
+                                                </div>
+                                                <div className="text-2xl font-bold text-yellow-400">
+                                                  {m.scores?.team2 ?? "—"}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
                           )}
                         </div>
                       )}
