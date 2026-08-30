@@ -2371,41 +2371,46 @@ const fetchPreviousMatches = async () => {
 
 const saveMatches = async () => {
   try {
-    // Helper to format matches for saving
-    const formatMatches = (matches, scores, court, roundNum) => {
-      return matches.map((m, idx) => {
-        const row = {
-          division,
-          // Use player IDs instead of names
-          players: m.flat().map((p) => p.id),
-          scores: scores[idx],
-          round: roundNum, // Save the round number
-        };
+    // Helper to format matches for saving - handles 2D array where each index is a round
+    const formatMatches = (matches, scores, court) => {
+      const result = [];
+      matches.forEach((roundMatches, roundIdx) => {
+        if (!roundMatches || roundMatches.length === 0) return;
+        
+        // Each round may have multiple matches (but typically 1 per court)
+        roundMatches.forEach((m, matchIdx) => {
+          const row = {
+            division,
+            // Use player IDs instead of names
+            players: m.flat().map((p) => p.id),
+            scores: scores[roundIdx]?.[matchIdx],
+            round: roundIdx + 1, // Round numbers start at 1
+          };
 
-        // Only include `court` for league mode —
-        // `previous_matches_doubles` and `previous_matches_5champ` schemas do not have a `court` column.
-        if (viewMode === "league") {
-          row.court = court;
-        }
-
-        // `previous_matches_doubles` and `previous_matches_5champ` require a text `id` primary key.
-        // Generate one when not in league mode so inserts do not fail.
-        if (viewMode !== "league") {
-          try {
-            row.id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-          } catch (e) {
-            row.id = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+          // Only include `court` for league mode
+          if (viewMode === "league") {
+            row.court = court;
           }
-        }
 
-        return row;
+          // Generate ID for non-league modes
+          if (viewMode !== "league") {
+            try {
+              row.id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+            } catch (e) {
+              row.id = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+            }
+          }
+
+          result.push(row);
+        });
       });
+      return result;
     };
 
-    const court1Data = formatMatches(court1Matches, court1Scores, "court1", court1Round);
-    const court2Data = formatMatches(court2Matches, court2Scores, "court2", court2Round);
-    const court3Data = formatMatches(court3Matches, court3Scores, "court3", court3Round);
-    const court4Data = formatMatches(court4Matches, court4Scores, "court4", court4Round);
+    const court1Data = formatMatches(court1Matches, court1Scores, "court1");
+    const court2Data = formatMatches(court2Matches, court2Scores, "court2");
+    const court3Data = formatMatches(court3Matches, court3Scores, "court3");
+    const court4Data = formatMatches(court4Matches, court4Scores, "court4");
 
     const allMatches = [...court1Data, ...court2Data, ...court3Data, ...court4Data];
 
