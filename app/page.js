@@ -2385,12 +2385,8 @@ const saveMatches = async () => {
             players: m.flat().map((p) => p.id),
             scores: scores[roundIdx]?.[matchIdx] || { team1: 0, team2: 0 }, // Provide default scores
             round: roundIdx + 1, // Round numbers start at 1
+            court: court, // Store court information for all modes
           };
-
-          // Only include `court` for league mode
-          if (viewMode === "league") {
-            row.court = court;
-          }
 
           // Generate ID for non-league modes
           if (viewMode !== "league") {
