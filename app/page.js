@@ -2371,35 +2371,36 @@ const fetchPreviousMatches = async () => {
 
 const saveMatches = async () => {
   try {
-    // Helper to format matches for saving - handles 2D array where each index is a round
+    // Helper to format matches for saving
+    // Each court's matches array contains one match per round, stored sequentially
     const formatMatches = (matches, scores, court) => {
       const result = [];
-      matches.forEach((roundMatches, roundIdx) => {
-        if (!roundMatches || roundMatches.length === 0) return;
+      
+      matches.forEach((match, idx) => {
+        // Skip empty matches
+        if (!match || match.length === 0) return;
         
-        // Each round may have multiple matches (but typically 1 per court)
-        roundMatches.forEach((m, matchIdx) => {
-          const row = {
-            division,
-            // Use player IDs instead of names
-            players: m.flat().map((p) => p.id),
-            scores: scores[roundIdx]?.[matchIdx] || { team1: 0, team2: 0 }, // Provide default scores
-            round: roundIdx + 1, // Round numbers start at 1
-            court: court, // Store court information for all modes
-          };
+        const row = {
+          division,
+          // Use player IDs instead of names
+          players: match.flat().map((p) => p.id),
+          scores: scores[idx] || { team1: 0, team2: 0 }, // Provide default scores
+          round: idx + 1, // idx 0 = round 1, idx 1 = round 2, etc.
+          court: court, // Store court information for all modes
+        };
 
-          // Generate ID for non-league modes
-          if (viewMode !== "league") {
-            try {
-              row.id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-            } catch (e) {
-              row.id = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-            }
+        // Generate ID for non-league modes
+        if (viewMode !== "league") {
+          try {
+            row.id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+          } catch (e) {
+            row.id = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
           }
+        }
 
-          result.push(row);
-        });
+        result.push(row);
       });
+      
       return result;
     };
 
