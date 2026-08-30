@@ -2372,13 +2372,14 @@ const fetchPreviousMatches = async () => {
 const saveMatches = async () => {
   try {
     // Helper to format matches for saving
-    const formatMatches = (matches, scores, court) => {
+    const formatMatches = (matches, scores, court, roundNum) => {
       return matches.map((m, idx) => {
         const row = {
           division,
           // Use player IDs instead of names
           players: m.flat().map((p) => p.id),
           scores: scores[idx],
+          round: roundNum, // Save the round number
         };
 
         // Only include `court` for league mode —
@@ -2401,10 +2402,10 @@ const saveMatches = async () => {
       });
     };
 
-    const court1Data = formatMatches(court1Matches, court1Scores, "court1");
-    const court2Data = formatMatches(court2Matches, court2Scores, "court2");
-    const court3Data = formatMatches(court3Matches, court3Scores, "court3");
-    const court4Data = formatMatches(court4Matches, court4Scores, "court4");
+    const court1Data = formatMatches(court1Matches, court1Scores, "court1", court1Round);
+    const court2Data = formatMatches(court2Matches, court2Scores, "court2", court2Round);
+    const court3Data = formatMatches(court3Matches, court3Scores, "court3", court3Round);
+    const court4Data = formatMatches(court4Matches, court4Scores, "court4", court4Round);
 
     const allMatches = [...court1Data, ...court2Data, ...court3Data, ...court4Data];
 
