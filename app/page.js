@@ -10,6 +10,22 @@ import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode, setUserType } from "@/lib/ls";
 import { generate5PlayerChampMatches, generateRoundRobinMatches, generatePartnerPracticeMatches } from "../lib/matchGenerator";
 import { generatePartnerPracticeRandom, generatePartnerPracticeGenderDoubles, generatePartnerPracticeGenderMixed } from "../lib/matchGeneratorPartnerPractice";
+
+// === NEW IMPORTS: Custom Hooks ===
+import { 
+  useStandingsLogic, 
+  usePlayersLogic, 
+  useMatchesLogic, 
+  useSeasonLogic,
+} from "@/lib/hooks";
+
+// === NEW IMPORTS: Modal Components ===
+import { 
+  AddPlayerModal, 
+  RemovePlayerModal, 
+  AddDivisionModal 
+} from "@/components/modals";
+
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
 // Minimum games required to qualify for ranked positions. Configure via env var
@@ -20,92 +36,166 @@ export default function HomePage() {
   const router = useRouter();
   const { user, userType, isLoading, logout } = useAuth();
 
-  // ===== ALL STATE DECLARATIONS MUST COME FIRST (BEFORE ANY useEffect, BEFORE ANY CONDITIONAL RETURNS) =====
+  // ===== REFACTORED: Replace individual useState calls with custom hooks =====
+  
+  // Tab switching state (kept in main component - it's UI navigation state)
   const [activeTab, setActiveTab] = useState("Standings");
   const [standingsView, setStandingsView] = useState("Leaderboard");
-  const [division, setDivision] = useState(1);
-  const [divisions, setDivisions] = useState([]);
-  const [showAddDivisionModal, setShowAddDivisionModal] = useState(false);
-  const [newDivisionName, setNewDivisionName] = useState("");
-  const [showSelectDivisionModal, setShowSelectDivisionModal] = useState(false);
-  const [selectedDivisionToRemove, setSelectedDivisionToRemove] = useState(null);
-  const [showConfirmRemoveDivisionModal, setShowConfirmRemoveDivisionModal] = useState(false);
-  const [players, setPlayers] = useState([]);
-  const [numCourts, setNumCourts] = useState(2);
-  const [court1Matches, setCourt1Matches] = useState([]);
-  const [court2Matches, setCourt2Matches] = useState([]);
-  const [court3Matches, setCourt3Matches] = useState([]);
-  const [court4Matches, setCourt4Matches] = useState([]);
-  const [court5Matches, setCourt5Matches] = useState([]);
-  const [court6Matches, setCourt6Matches] = useState([]);
-  const [court1Scores, setCourt1Scores] = useState([]);
-  const [court2Scores, setCourt2Scores] = useState([]);
-  const [court3Scores, setCourt3Scores] = useState([]);
-  const [court4Scores, setCourt4Scores] = useState([]);
-  const [court5Scores, setCourt5Scores] = useState([]);
-  const [court6Scores, setCourt6Scores] = useState([]);
-  const [court1Round, setCourt1Round] = useState(0);
-  const [court2Round, setCourt2Round] = useState(0);
-  const [court3Round, setCourt3Round] = useState(0);
-  const [court4Round, setCourt4Round] = useState(0);
-  const [court5Round, setCourt5Round] = useState(0);
-  const [court6Round, setCourt6Round] = useState(0);
-  const [currentRound, setCurrentRound] = useState(0);
-  const [roundMatches, setRoundMatches] = useState([]);
-  const [showNqModalFor, setShowNqModalFor] = useState(null);
-  const [minQualifyByDivision, setMinQualifyByDivision] = useState({});
-  const [minQualifyGames, setMinQualifyGames] = useState(MIN_QUALIFY_GAMES);
-  const [showEditMinModal, setShowEditMinModal] = useState(false);
-  const [minQualifyInput, setMinQualifyInput] = useState(String(MIN_QUALIFY_GAMES));
-  const [pendingMinSave, setPendingMinSave] = useState(null);
-  const [previousMatches, setPreviousMatches] = useState([]);
-  const [currentSeason, setCurrentSeason] = useState(null);
-  const [seasonSummariesList, setSeasonSummariesList] = useState([]);
-  const [selectedSeasonSummaryId, setSelectedSeasonSummaryId] = useState(null);
+  const [genderFilterMode, setGenderFilterMode] = useState('random');
+  const [showEnterScore, setShowEnterScore] = useState(false);
+  
+  // Main view mode state
   const [viewMode, setViewMode] = useState('league');
   const [hydrated, setHydrated] = useState(false);
   const [serverError, setServerError] = useState(null);
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [allDivisionPlayers, setAllDivisionPlayers] = useState([]);
+  const [showNqModalFor, setShowNqModalFor] = useState(null);
   const [openDates, setOpenDates] = useState([]);
-  const [showRecalculateModal, setShowRecalculateModal] = useState(false);
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [showEndSeasonChoiceModal, setShowEndSeasonChoiceModal] = useState(false);
-  const [endSummaryContext, setEndSummaryContext] = useState(null);
-  const [newSeasonName, setNewSeasonName] = useState("");
-  const [showSelectPlayerModal, setShowSelectPlayerModal] = useState(false);
-  const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState(null);
-  const [showRemovePlayerModal, setShowRemovePlayerModal] = useState(false);
-  const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
-  const [newPlayerName, setNewPlayerName] = useState("");
-  const [newPlayerGender, setNewPlayerGender] = useState(null);
-  const [showAddMatchModal, setShowAddMatchModal] = useState(false);
-  const [addMatchData, setAddMatchData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    team1Players: [],
-    team1Name: "",
-    team2Players: [],
-    team2Name: "",
-    team1Score: "",
-    team2Score: "",
-    court: "court1",
-  });
-  const [addMatchError, setAddMatchError] = useState("");
 
-  const [pendingEditMatch, setPendingEditMatch] = useState(null);
-  const [showEditMatchModal, setShowEditMatchModal] = useState(false);
-  const [editMatchData, setEditMatchData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    team1Players: [],
-    team2Players: [],
-    team1Score: "",
-    team2Score: "",
-    court: "court1",
-  });
-  const [editingMatchId, setEditingMatchId] = useState(null);
-  const [editMatchError, setEditMatchError] = useState("");
-  const [genderFilterMode, setGenderFilterMode] = useState('random'); // 'random', 'gender-doubles', or 'gender-mixed'
-  const [showEnterScore, setShowEnterScore] = useState(false); // Toggle score input visibility in Partner Practice
+  // === Standings-related state via custom hook ===
+  const standingsLogic = useStandingsLogic(viewMode, MIN_QUALIFY_GAMES);
+  // Provides: division, divisions, leaderboard, minQualifyGames, modals, handlers, etc.
+
+  // === Players-related state via custom hook ===
+  const playersLogic = usePlayersLogic(viewMode);
+  // Provides: players, allDivisionPlayers, modals, newPlayerName, newPlayerGender, etc.
+
+  // === Matches-related state via custom hook ===
+  const matchesLogic = useMatchesLogic(viewMode);
+  // Provides: numCourts, court[1-6]Matches, court[1-6]Scores, court[1-6]Round, currentRound, etc.
+
+  // === Seasons-related state via custom hook ===
+  const seasonLogic = useSeasonLogic();
+  // Provides: currentSeason, previousMatches, seasonSummariesList, modals, etc.
+
+  // ===== BACKWARD COMPATIBILITY: Create aliases from hooks to old variable names =====
+  // This allows us to keep all existing handler functions unchanged during refactoring
+  // These will gradually be replaced with direct hook usage in future phases
+  
+  // Standings aliases
+  const division = standingsLogic.division;
+  const setDivision = standingsLogic.setDivision;
+  const divisions = standingsLogic.divisions;
+  const setDivisions = standingsLogic.setDivisions;
+  const leaderboard = standingsLogic.leaderboard;
+  const setLeaderboard = standingsLogic.setLeaderboard;
+  const minQualifyByDivision = standingsLogic.minQualifyByDivision;
+  const setMinQualifyByDivision = standingsLogic.setMinQualifyByDivision;
+  const minQualifyGames = standingsLogic.minQualifyGames;
+  const setMinQualifyGames = standingsLogic.setMinQualifyGames;
+  const showAddDivisionModal = standingsLogic.modals.addDivision.isOpen;
+  const setShowAddDivisionModal = (v) => v ? standingsLogic.modals.addDivision.open() : standingsLogic.modals.addDivision.close();
+  const newDivisionName = standingsLogic.newDivisionName;
+  const setNewDivisionName = standingsLogic.setNewDivisionName;
+  const showSelectDivisionModal = standingsLogic.modals.removeDivision.isOpen;
+  const setShowSelectDivisionModal = (v) => v ? standingsLogic.modals.removeDivision.open() : standingsLogic.modals.removeDivision.close();
+  const selectedDivisionToRemove = standingsLogic.selectedDivisionToRemove;
+  const setSelectedDivisionToRemove = standingsLogic.setSelectedDivisionToRemove;
+  const showConfirmRemoveDivisionModal = standingsLogic.modals.confirmRemoveDivision.isOpen;
+  const setShowConfirmRemoveDivisionModal = (v) => v ? standingsLogic.modals.confirmRemoveDivision.open() : standingsLogic.modals.confirmRemoveDivision.close();
+  const minQualifyInput = standingsLogic.minQualifyInput;
+  const setMinQualifyInput = standingsLogic.setMinQualifyInput;
+  const showEditMinModal = standingsLogic.modals.editMinQualify.isOpen;
+  const setShowEditMinModal = (v) => v ? standingsLogic.modals.editMinQualify.open() : standingsLogic.modals.editMinQualify.close();
+  const pendingMinSave = standingsLogic.pendingMinSave;
+  const setPendingMinSave = standingsLogic.setPendingMinSave;
+
+  // Players aliases
+  const players = playersLogic.players;
+  const setPlayers = playersLogic.setPlayers;
+  const allDivisionPlayers = playersLogic.allDivisionPlayers;
+  const setAllDivisionPlayers = playersLogic.setAllDivisionPlayers;
+  const showAddPlayerModal = playersLogic.modals.addPlayer.isOpen;
+  const setShowAddPlayerModal = (v) => v ? playersLogic.modals.addPlayer.open() : playersLogic.modals.addPlayer.close();
+  const newPlayerName = playersLogic.newPlayerName;
+  const setNewPlayerName = playersLogic.setNewPlayerName;
+  const newPlayerGender = playersLogic.newPlayerGender;
+  const setNewPlayerGender = playersLogic.setNewPlayerGender;
+  const showSelectPlayerModal = playersLogic.modals.selectPlayerToRemove.isOpen;
+  const setShowSelectPlayerModal = (v) => v ? playersLogic.modals.selectPlayerToRemove.open() : playersLogic.modals.selectPlayerToRemove.close();
+  const selectedPlayerToRemove = playersLogic.selectedPlayerToRemove;
+  const setSelectedPlayerToRemove = playersLogic.setSelectedPlayerToRemove;
+  const showRemovePlayerModal = playersLogic.modals.confirmRemovePlayer.isOpen;
+  const setShowRemovePlayerModal = (v) => v ? playersLogic.modals.confirmRemovePlayer.open() : playersLogic.modals.confirmRemovePlayer.close();
+
+  // Matches aliases
+  const numCourts = matchesLogic.numCourts;
+  const setNumCourts = matchesLogic.setNumCourts;
+  const court1Matches = matchesLogic.court1Matches;
+  const setCourt1Matches = matchesLogic.setCourt1Matches;
+  const court2Matches = matchesLogic.court2Matches;
+  const setCourt2Matches = matchesLogic.setCourt2Matches;
+  const court3Matches = matchesLogic.court3Matches;
+  const setCourt3Matches = matchesLogic.setCourt3Matches;
+  const court4Matches = matchesLogic.court4Matches;
+  const setCourt4Matches = matchesLogic.setCourt4Matches;
+  const court5Matches = matchesLogic.court5Matches;
+  const setCourt5Matches = matchesLogic.setCourt5Matches;
+  const court6Matches = matchesLogic.court6Matches;
+  const setCourt6Matches = matchesLogic.setCourt6Matches;
+  const court1Scores = matchesLogic.court1Scores;
+  const setCourt1Scores = matchesLogic.setCourt1Scores;
+  const court2Scores = matchesLogic.court2Scores;
+  const setCourt2Scores = matchesLogic.setCourt2Scores;
+  const court3Scores = matchesLogic.court3Scores;
+  const setCourt3Scores = matchesLogic.setCourt3Scores;
+  const court4Scores = matchesLogic.court4Scores;
+  const setCourt4Scores = matchesLogic.setCourt4Scores;
+  const court5Scores = matchesLogic.court5Scores;
+  const setCourt5Scores = matchesLogic.setCourt5Scores;
+  const court6Scores = matchesLogic.court6Scores;
+  const setCourt6Scores = matchesLogic.setCourt6Scores;
+  const court1Round = matchesLogic.court1Round;
+  const setCourt1Round = matchesLogic.setCourt1Round;
+  const court2Round = matchesLogic.court2Round;
+  const setCourt2Round = matchesLogic.setCourt2Round;
+  const court3Round = matchesLogic.court3Round;
+  const setCourt3Round = matchesLogic.setCourt3Round;
+  const court4Round = matchesLogic.court4Round;
+  const setCourt4Round = matchesLogic.setCourt4Round;
+  const court5Round = matchesLogic.court5Round;
+  const setCourt5Round = matchesLogic.setCourt5Round;
+  const court6Round = matchesLogic.court6Round;
+  const setCourt6Round = matchesLogic.setCourt6Round;
+  const currentRound = matchesLogic.currentRound;
+  const setCurrentRound = matchesLogic.setCurrentRound;
+  const roundMatches = matchesLogic.roundMatches;
+  const setRoundMatches = matchesLogic.setRoundMatches;
+  const showAddMatchModal = matchesLogic.modals.addMatch.isOpen;
+  const setShowAddMatchModal = (v) => v ? matchesLogic.modals.addMatch.open() : matchesLogic.modals.addMatch.close();
+  const addMatchData = matchesLogic.addMatchData;
+  const setAddMatchData = matchesLogic.setAddMatchData;
+  const addMatchError = matchesLogic.addMatchError;
+  const setAddMatchError = matchesLogic.setAddMatchError;
+  const showEditMatchModal = matchesLogic.modals.editMatch.isOpen;
+  const setShowEditMatchModal = (v) => v ? matchesLogic.modals.editMatch.open() : matchesLogic.modals.editMatch.close();
+  const editMatchData = matchesLogic.editMatchData;
+  const setEditMatchData = matchesLogic.setEditMatchData;
+  const editingMatchId = matchesLogic.editingMatchId;
+  const setEditingMatchId = matchesLogic.setEditingMatchId;
+  const editMatchError = matchesLogic.editMatchError;
+  const setEditMatchError = matchesLogic.setEditMatchError;
+  const pendingEditMatch = matchesLogic.pendingEditMatch;
+  const setPendingEditMatch = matchesLogic.setPendingEditMatch;
+
+  // Seasons aliases
+  const currentSeason = seasonLogic.currentSeason;
+  const setCurrentSeason = seasonLogic.setCurrentSeason;
+  const previousMatches = seasonLogic.previousMatches;
+  const setPreviousMatches = seasonLogic.setPreviousMatches;
+  const seasonSummariesList = seasonLogic.seasonSummariesList;
+  const setSeasonSummariesList = seasonLogic.setSeasonSummariesList;
+  const selectedSeasonSummaryId = seasonLogic.selectedSeasonSummaryId;
+  const setSelectedSeasonSummaryId = seasonLogic.setSelectedSeasonSummaryId;
+  const showRecalculateModal = seasonLogic.modals.recalculate.isOpen;
+  const setShowRecalculateModal = (v) => v ? seasonLogic.modals.recalculate.open() : seasonLogic.modals.recalculate.close();
+  const showResetModal = seasonLogic.modals.reset.isOpen;
+  const setShowResetModal = (v) => v ? seasonLogic.modals.reset.open() : seasonLogic.modals.reset.close();
+  const showEndSeasonChoiceModal = seasonLogic.modals.endSeasonChoice.isOpen;
+  const setShowEndSeasonChoiceModal = (v) => v ? seasonLogic.modals.endSeasonChoice.open() : seasonLogic.modals.endSeasonChoice.close();
+  const endSummaryContext = seasonLogic.endSummaryContext;
+  const setEndSummaryContext = seasonLogic.setEndSummaryContext;
+  const newSeasonName = seasonLogic.newSeasonName;
+  const setNewSeasonName = seasonLogic.setNewSeasonName;
 
   // ===== NOW useEffect hooks and conditional logic CAN come after all state declarations =====
 
@@ -5622,41 +5712,17 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
       {/* Add Division Modal */}
 
-      {showAddDivisionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
-            <h2 className="text-lg font-bold text-blue-400 mb-4 text-center">Add Division</h2>
-            <p className="text-gray-300 mb-4 text-center text-sm">Enter a name for the new division.</p>
-
-            <input
-              type="text"
-              value={newDivisionName}
-              onChange={(e) => setNewDivisionName(e.target.value)}
-              placeholder="Division name"
-              className="w-full px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
-            />
-
-            <div className="flex justify-between mt-5">
-              <button
-                onClick={() => {
-                  setShowAddDivisionModal(false);
-                  setNewDivisionName("");
-                }}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={() => addDivision(newDivisionName)}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Add Division Modal - using refactored component */}
+      <AddDivisionModal
+        isOpen={showAddDivisionModal}
+        onClose={() => {
+          setShowAddDivisionModal(false);
+          setNewDivisionName("");
+        }}
+        onSubmit={(name) => addDivision(name)}
+        divisionName={newDivisionName}
+        onNameChange={setNewDivisionName}
+      />
 
 
       {/* Select Division To Remove Modal */}
@@ -5740,103 +5806,28 @@ const activePlayerCount = players.filter((p) => p.active).length;
       )}
 
       {/* Add Player Modal */}
-      {showAddPlayerModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-96 border border-gray-700">
-            <h2 className="text-xl font-bold text-blue-400 mb-4">👤 Add Player</h2>
-
-            {/* Player Name Input */}
-            <div className="mb-4">
-              <label className="text-gray-300 text-sm block mb-2">Player Name</label>
-              <input
-                type="text"
-                value={newPlayerName}
-                onChange={(e) => setNewPlayerName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleConfirmAddPlayer()}
-                placeholder="Enter player name"
-                className="w-full px-4 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-blue-400"
-                autoFocus
-              />
-            </div>
-
-            {/* Gender Selection */}
-            <div className="mb-6">
-              <label className="text-gray-300 text-sm block mb-2">Gender (Optional)</label>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setNewPlayerGender(newPlayerGender === 'male' ? null : 'male')}
-                  className={`flex-1 py-2 px-4 rounded font-semibold transition ${
-                    newPlayerGender === 'male' 
-                      ? 'bg-blue-500 text-white shadow-md' 
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  ♂ Male
-                </button>
-                <button
-                  onClick={() => setNewPlayerGender(newPlayerGender === 'female' ? null : 'female')}
-                  className={`flex-1 py-2 px-4 rounded font-semibold transition ${
-                    newPlayerGender === 'female' 
-                      ? 'bg-pink-500 text-white shadow-md' 
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  ♀ Female
-                </button>
-              </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAddPlayerModal(false)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmAddPlayer}
-                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-semibold"
-              >
-                Add Player
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Add Player Modal - using refactored component */}
+      <AddPlayerModal
+        isOpen={showAddPlayerModal}
+        onClose={() => setShowAddPlayerModal(false)}
+        onSubmit={handleConfirmAddPlayer}
+        playerName={newPlayerName}
+        onNameChange={setNewPlayerName}
+        playerGender={newPlayerGender}
+        onGenderChange={setNewPlayerGender}
+      />
 
       {/* Remove Player Confirmation Modal */}
-      {showRemovePlayerModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-80 border border-gray-700">
-            <h2 className="text-lg font-bold text-red-400 mb-4 text-center">
-              Remove Player
-            </h2>
-            <p className="text-gray-300 mb-4 text-center text-sm">
-              Are you sure you want to remove <span className="font-semibold">{selectedPlayerToRemove?.name}</span>?
-            </p>
-
-            <div className="flex justify-between mt-5">
-              <button
-                onClick={() => {
-                  setShowRemovePlayerModal(false);
-                  setSelectedPlayerToRemove(null);
-                }}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={confirmRemovePlayer}
-                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Remove Player Modal - using refactored component */}
+      <RemovePlayerModal
+        isOpen={showRemovePlayerModal}
+        onClose={() => {
+          setShowRemovePlayerModal(false);
+          setSelectedPlayerToRemove(null);
+        }}
+        selectedPlayer={selectedPlayerToRemove}
+        onConfirm={confirmRemovePlayer}
+      />
 
 
 
