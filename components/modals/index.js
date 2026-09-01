@@ -4,3 +4,6 @@
 export { AddPlayerModal } from './AddPlayerModal';
 export { RemovePlayerModal } from './RemovePlayerModal';
 export { AddDivisionModal } from './AddDivisionModal';
+export { RemoveDivisionModal } from './RemoveDivisionModal';
+export { ConfirmRemoveDivisionModal } from './ConfirmRemoveDivisionModal';
+export { MinQualifyModal } from './MinQualifyModal';

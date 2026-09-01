@@ -23,7 +23,10 @@ import {
 import { 
   AddPlayerModal, 
   RemovePlayerModal, 
-  AddDivisionModal 
+  AddDivisionModal,
+  RemoveDivisionModal,
+  ConfirmRemoveDivisionModal,
+  MinQualifyModal,
 } from "@/components/modals";
 
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
@@ -4339,53 +4342,32 @@ const activePlayerCount = players.filter((p) => p.active).length;
     )}
 
     {/* Edit Min Qualify Games modal */}
-    {showEditMinModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/40" onClick={() => setShowEditMinModal(false)} />
-        <div className="relative w-full max-w-md bg-white rounded-xl p-6 shadow-xl">
-          <h3 className="text-lg font-semibold">Minimum Games to Qualify</h3>
-          <p className="text-sm text-gray-600 mt-1">Set how many games a player must play before they qualify for ranked positions.</p>
-          <div className="mt-4">
-            <input
-              type="number"
-              min={0}
-              value={minQualifyInput}
-              onChange={(e) => setMinQualifyInput(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2"
-            />
-          </div>
-          <div className="mt-4 flex justify-end gap-2">
-            <button onClick={() => setShowEditMinModal(false)} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
-            <button
-              onClick={() => {
-                const v = parseInt(minQualifyInput || "0", 10) || 0;
-                const confirmed = window.confirm("Are you sure you want to save this minimum games requirement?");
-                if (confirmed) {
-                  // save the value
-                  const next = { ...(minQualifyByDivision || {}) };
-                  next[String(division)] = v;
-                  setMinQualifyByDivision(next);
-                  try { setLSJson("min_qualify_by_division", next); } catch (e) {}
-                  // update current displayed value
-                  setMinQualifyGames(v);
-
-                  // Persist per-division min to DB for canonical storage
-                  try {
-                    db('divisions').update({ min_qualify_games: v }).eq('id', division).then(() => {
-                      setShowEditMinModal(false);
-                    });
-                  } catch (e) {
-                    console.warn('Failed to persist min_qualify_games to DB:', e);
-                    // not fatal — keep local value
-                  }
-                }
-              }}
-              className="px-4 py-2 rounded bg-blue-600 text-white"
-            >Save</button>
-          </div>
-        </div>
-      </div>
-    )}
+    {/* Min Qualify Modal - using refactored component */}
+    <MinQualifyModal
+      isOpen={showEditMinModal}
+      onClose={() => setShowEditMinModal(false)}
+      onSave={(value) => {
+        const confirmed = window.confirm("Are you sure you want to save this minimum games requirement?");
+        if (confirmed) {
+          const next = { ...(minQualifyByDivision || {}) };
+          next[String(division)] = value;
+          setMinQualifyByDivision(next);
+          try { setLSJson("min_qualify_by_division", next); } catch (e) {}
+          setMinQualifyGames(value);
+          
+          try {
+            db('divisions').update({ min_qualify_games: value }).eq('id', division).then(() => {
+              setShowEditMinModal(false);
+            });
+          } catch (e) {
+            console.warn('Failed to persist min_qualify_games to DB:', e);
+          }
+        }
+      }}
+      currentValue={minQualifyGames}
+      inputValue={minQualifyInput}
+      onInputChange={setMinQualifyInput}
+    />
   </>
 ) : (
   <div className="p-6 bg-gray-50">
@@ -5726,84 +5708,34 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
 
       {/* Select Division To Remove Modal */}
-      {showSelectDivisionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-96 border border-gray-700">
-            <h2 className="text-lg font-bold text-red-400 mb-4 text-center">Select Division to Remove</h2>
-            <p className="text-gray-300 mb-4 text-center text-sm">Choose which division to delete. This will remove the division from the local UI.</p>
+      {/* Remove Division Modal - using refactored component */}
+      <RemoveDivisionModal
+        isOpen={showSelectDivisionModal}
+        onClose={() => {
+          setShowSelectDivisionModal(false);
+          setSelectedDivisionToRemove(null);
+        }}
+        divisions={divisions}
+        selectedId={selectedDivisionToRemove}
+        onSelect={setSelectedDivisionToRemove}
+        onConfirm={() => {
+          setShowSelectDivisionModal(false);
+          setShowConfirmRemoveDivisionModal(true);
+        }}
+      />
 
-            <div className="mb-4 max-h-48 overflow-auto">
-              {divisions.map((d) => (
-                <label key={d.id} className="flex items-center gap-2 mb-2">
-                  <input
-                    type="radio"
-                    name="removeDivision"
-                    value={d.id}
-                    checked={selectedDivisionToRemove === d.id}
-                    onChange={() => setSelectedDivisionToRemove(d.id)}
-                    className="accent-red-500"
-                  />
-                  <span className="text-gray-200">{d.name}</span>
-                </label>
-              ))}
-            </div>
-
-            <div className="flex justify-between mt-5">
-              <button
-                onClick={() => {
-                  setShowSelectDivisionModal(false);
-                  setSelectedDivisionToRemove(null);
-                }}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowSelectDivisionModal(false);
-                  setShowConfirmRemoveDivisionModal(true);
-                }}
-                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Deletion Modal */}
-      {showConfirmRemoveDivisionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-96 border border-gray-700">
-            <h2 className="text-lg font-bold text-red-400 mb-4 text-center">Confirm Deletion</h2>
-            <p className="text-gray-300 mb-4 text-center">Are you sure you want to permanently delete the selected division and all its players and matches? This action cannot be undone.</p>
-
-            <div className="flex justify-between mt-5">
-              <button
-                onClick={() => {
-                  setShowConfirmRemoveDivisionModal(false);
-                  setShowSelectDivisionModal(true);
-                }}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowConfirmRemoveDivisionModal(false);
-                  handleConfirmRemoveDivision();
-                }}
-                className="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded text-sm"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Confirm Removal Modal - using refactored component */}
+      <ConfirmRemoveDivisionModal
+        isOpen={showConfirmRemoveDivisionModal}
+        onClose={() => {
+          setShowConfirmRemoveDivisionModal(false);
+          setShowSelectDivisionModal(true);
+        }}
+        onConfirm={() => {
+          setShowConfirmRemoveDivisionModal(false);
+          handleConfirmRemoveDivision();
+        }}
+      />
 
       {/* Add Player Modal */}
       {/* Add Player Modal - using refactored component */}
