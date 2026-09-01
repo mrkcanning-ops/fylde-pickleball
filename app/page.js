@@ -17,6 +17,7 @@ import {
   usePlayersLogic, 
   useMatchesLogic, 
   useSeasonLogic,
+  useToast,
 } from "@/lib/hooks";
 
 // === NEW IMPORTS: Modal Components ===
@@ -28,6 +29,8 @@ import {
   ConfirmRemoveDivisionModal,
   MinQualifyModal,
 } from "@/components/modals";
+
+import { ToastContainer } from "@/components";
 
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
@@ -69,6 +72,10 @@ export default function HomePage() {
   // === Seasons-related state via custom hook ===
   const seasonLogic = useSeasonLogic();
   // Provides: currentSeason, previousMatches, seasonSummariesList, modals, etc.
+
+  // === Toast notifications ===
+  const toast = useToast();
+  // Provides: toasts array, success/error/info/warning methods, removeToast
 
   // ===== BACKWARD COMPATIBILITY: Create aliases from hooks to old variable names =====
   // This allows us to keep all existing handler functions unchanged during refactoring
@@ -480,10 +487,10 @@ export default function HomePage() {
       // clear leaderboard and notify
       setLeaderboard([]);
       removeLS("leaderboard");
-      alert("Season ended and summary saved ✅");
+      toast.success("Season ended and summary saved");
     } catch (err) {
       console.error('End season error:', err);
-      alert('Failed to end season. See console for details.');
+      toast.error("Failed to end season. See console for details.");
     }
   };
 
@@ -1153,6 +1160,7 @@ const fetchPreviousMatches = async () => {
       setPlayers((prev) => [...prev, newPlayer]);
       try { saveData(`players_${viewMode}`, [...players, newPlayer]); } catch (e) {}
       setShowAddPlayerModal(false);
+      toast.success(`Player '${newPlayerName}' added successfully`);
       return;
     }
 
@@ -1164,8 +1172,10 @@ const fetchPreviousMatches = async () => {
     if (!error) {
       setPlayers((prev) => [...prev, data[0]]);
       setShowAddPlayerModal(false);
+      toast.success(`Player '${newPlayerName}' added successfully`);
     } else {
-      alert("Error adding player: " + (error?.message || "Unknown error"));
+      const errorMsg = error?.message || "Unknown error";
+      toast.error(`Failed to add player: ${errorMsg}`);
     }
   };
 
@@ -2812,10 +2822,10 @@ const handleConfirmRemoveDivision = () => {
 
       setShowSelectDivisionModal(false);
       setSelectedDivisionToRemove(null);
-      alert("Division removed ✅");
+      toast.success("Division removed successfully");
     } catch (err) {
       console.error("Unexpected error removing division:", err);
-      alert("Error removing division. See console.");
+      toast.error("Error removing division. See console.");
     }
   })();
 };
@@ -2829,11 +2839,11 @@ const confirmRemovePlayer = async () => {
     if (!error) {
       setPlayers((prev) => prev.filter((p) => p.id !== selectedPlayerToRemove.id));
       setAllDivisionPlayers((prev) => prev.filter((p) => p.id !== selectedPlayerToRemove.id));
-      alert(`${selectedPlayerToRemove.name} has been removed ✅`);
+      toast.success(`${selectedPlayerToRemove.name} has been removed`);
       setShowRemovePlayerModal(false);
       setSelectedPlayerToRemove(null);
     } else {
-      alert("Error removing player");
+      toast.error("Error removing player");
     }
   }
 };
@@ -2854,6 +2864,8 @@ const addDivision = async (name) => {
       await fetchAllDivisionPlayers(newId);
       setShowAddDivisionModal(false);
       setNewDivisionName("");
+      toast.success(`Division '${trimmed}' added successfully`);
+      toast.success(`Division '${trimmed}' added successfully`);
       return;
     }
 
@@ -2867,7 +2879,8 @@ const addDivision = async (name) => {
 
     if (error) {
       console.error("Failed to create division on server:", error);
-      alert(`Failed to create division: ${error.message || JSON.stringify(error)}`);
+      const errorMsg = error.message || JSON.stringify(error);
+      toast.error(`Failed to create division: ${errorMsg}`);
       return;
     }
 
@@ -3057,10 +3070,11 @@ const addMatch = async () => {
     if (error) {
       console.error("Error adding match:", error);
       setAddMatchError("Failed to save match. Check console.");
+      toast.error("Failed to save match");
       return;
     }
 
-    alert("Match added successfully!");
+    toast.success("Match added successfully!");
 
     // Reset form
     setAddMatchData({
@@ -5914,6 +5928,9 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         </div>
       )}
+
+      {/* Toast Notifications Container */}
+      <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
 
       </>)}
 
