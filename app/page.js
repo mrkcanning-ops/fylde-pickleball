@@ -24,10 +24,6 @@ import {
 
 // === NEW IMPORTS: Modal Components ===
 import { 
-  AddPlayerModal, 
-  RemovePlayerModal, 
-  AddDivisionModal,
-  RemoveDivisionModal,
   ConfirmRemoveDivisionModal,
   MinQualifyModal,
   BulkAddPlayersModal,
@@ -1345,10 +1341,10 @@ const fetchPreviousMatches = async () => {
           </div>
           <div className="flex items-center gap-3 mt-3 justify-center">
             <button
-              onClick={() => confirmAddDivision()}
+              onClick={() => bulkOps.setShowBulkAddDivisionsModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded text-sm border border-blue-700 hover:bg-blue-700"
             >
-              ➕ Add Division
+              ➕ Add
             </button>
           </div>
         </div>
@@ -1386,8 +1382,8 @@ const fetchPreviousMatches = async () => {
 
         <div className="flex flex-wrap items-center gap-3 mt-3 justify-center">
           <button
-            onClick={() => confirmAddDivision()}
-            className="bg-gray-800 text-white px-4 py-2 rounded text-sm border border-gray-600 hover:bg-gray-700"
+            onClick={() => bulkOps.setShowBulkAddDivisionsModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded text-sm border border-blue-700 hover:bg-blue-700"
           >
             ➕ Add
           </button>
@@ -1398,22 +1394,10 @@ const fetchPreviousMatches = async () => {
             🔄 Sync
           </button>
           <button
-            onClick={() => confirmRemoveDivision()}
+            onClick={() => bulkOps.setShowBulkRemoveDivisionsModal(true)}
             className="bg-red-600 text-white px-4 py-2 rounded text-sm border border-red-700 hover:bg-red-700"
           >
-            🗑 Remove
-          </button>
-          <button
-            onClick={() => bulkOps.setShowBulkAddDivisionsModal(true)}
-            className="bg-green-600 text-white px-4 py-2 rounded text-sm border border-green-700 hover:bg-green-700"
-          >
-            ➕ Bulk Add
-          </button>
-          <button
-            onClick={() => bulkOps.setShowBulkRemoveDivisionsModal(true)}
-            className="bg-orange-600 text-white px-4 py-2 rounded text-sm border border-orange-700 hover:bg-orange-700"
-          >
-            🗑 Bulk Remove
+            🗑️ Remove
           </button>
         </div>
       </div>
@@ -3599,29 +3583,17 @@ const activePlayerCount = players.filter((p) => p.active).length;
             )}
             <div className="flex flex-wrap justify-end gap-2">
               <button
-                onClick={handleAddPlayer}
+                onClick={() => bulkOps.setShowBulkAddPlayersModal(true)}
                 disabled={viewMode === "5-player-champ" && activePlayerCount >= 5}
                 className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                👤 Add Player
-              </button>
-              <button
-                onClick={handleRemovePlayer}
-                className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded"
-              >
-                🗑️ Remove Player
-              </button>
-              <button
-                onClick={() => bulkOps.setShowBulkAddPlayersModal(true)}
-                className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded"
-              >
-                ➕ Bulk Add
+                ➕ Add
               </button>
               <button
                 onClick={() => bulkOps.setShowBulkRemovePlayersModal(true)}
-                className="bg-orange-600 hover:bg-orange-500 text-white px-6 py-2 rounded"
+                className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded"
               >
-                🗑️ Bulk Remove
+                🗑️ Remove
               </button>
             </div>
           </div>
@@ -5987,37 +5959,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
         </div>
       )}
 
-      {/* Add Division Modal */}
 
-      {/* Add Division Modal - using refactored component */}
-      <AddDivisionModal
-        isOpen={showAddDivisionModal}
-        onClose={() => {
-          setShowAddDivisionModal(false);
-          setNewDivisionName("");
-        }}
-        onSubmit={(name) => addDivision(name)}
-        divisionName={newDivisionName}
-        onNameChange={setNewDivisionName}
-      />
-
-
-      {/* Select Division To Remove Modal */}
-      {/* Remove Division Modal - using refactored component */}
-      <RemoveDivisionModal
-        isOpen={showSelectDivisionModal}
-        onClose={() => {
-          setShowSelectDivisionModal(false);
-          setSelectedDivisionToRemove(null);
-        }}
-        divisions={divisions}
-        selectedId={selectedDivisionToRemove}
-        onSelect={setSelectedDivisionToRemove}
-        onConfirm={() => {
-          setShowSelectDivisionModal(false);
-          setShowConfirmRemoveDivisionModal(true);
-        }}
-      />
 
       {/* Confirm Removal Modal - using refactored component */}
       <ConfirmRemoveDivisionModal
@@ -6031,32 +5973,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
           handleConfirmRemoveDivision();
         }}
       />
-
-      {/* Add Player Modal */}
-      {/* Add Player Modal - using refactored component */}
-      <AddPlayerModal
-        isOpen={showAddPlayerModal}
-        onClose={() => setShowAddPlayerModal(false)}
-        onSubmit={handleConfirmAddPlayer}
-        playerName={newPlayerName}
-        onNameChange={setNewPlayerName}
-        playerGender={newPlayerGender}
-        onGenderChange={setNewPlayerGender}
-      />
-
-      {/* Remove Player Confirmation Modal */}
-      {/* Remove Player Modal - using refactored component */}
-      <RemovePlayerModal
-        isOpen={showRemovePlayerModal}
-        onClose={() => {
-          setShowRemovePlayerModal(false);
-          setSelectedPlayerToRemove(null);
-        }}
-        selectedPlayer={selectedPlayerToRemove}
-        onConfirm={confirmRemovePlayer}
-      />
-
-
 
       {/* Add Match Modal */}
       {showAddMatchModal && (
