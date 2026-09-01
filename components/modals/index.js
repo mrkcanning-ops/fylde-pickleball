@@ -1,0 +1,6 @@
+// Modal components for the app
+// These are reusable, presentational components that receive handlers as props
+
+export { AddPlayerModal } from './AddPlayerModal';
+export { RemovePlayerModal } from './RemovePlayerModal';
+export { AddDivisionModal } from './AddDivisionModal';
