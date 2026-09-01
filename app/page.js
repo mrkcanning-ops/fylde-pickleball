@@ -19,6 +19,7 @@ import {
   useSeasonLogic,
   useToast,
   usePlayerStats,
+  useBulkOperations,
 } from "@/lib/hooks";
 
 // === NEW IMPORTS: Modal Components ===
@@ -29,6 +30,10 @@ import {
   RemoveDivisionModal,
   ConfirmRemoveDivisionModal,
   MinQualifyModal,
+  BulkAddPlayersModal,
+  BulkRemovePlayersModal,
+  BulkAddDivisionsModal,
+  BulkRemoveDivisionsModal,
 } from "@/components/modals";
 
 import { ToastContainer, StatisticsTab } from "@/components";
@@ -82,6 +87,10 @@ export default function HomePage() {
   // === Player Statistics ===
   const playerStats = usePlayerStats(selectedPlayerId, playersLogic.players, seasonLogic.previousMatches);
   // Provides: wins, losses, draws, winRate, headToHead, performance, etc.
+
+  // === Bulk Operations ===
+  const bulkOps = useBulkOperations();
+  // Provides: modals and state for bulk add/remove of players and divisions
 
   // ===== BACKWARD COMPATIBILITY: Create aliases from hooks to old variable names =====
   // This allows us to keep all existing handler functions unchanged during refactoring
@@ -1375,7 +1384,7 @@ const fetchPreviousMatches = async () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-3 mt-3 justify-center">
+        <div className="flex flex-wrap items-center gap-3 mt-3 justify-center">
           <button
             onClick={() => confirmAddDivision()}
             className="bg-gray-800 text-white px-4 py-2 rounded text-sm border border-gray-600 hover:bg-gray-700"
@@ -1393,6 +1402,18 @@ const fetchPreviousMatches = async () => {
             className="bg-red-600 text-white px-4 py-2 rounded text-sm border border-red-700 hover:bg-red-700"
           >
             🗑 Remove
+          </button>
+          <button
+            onClick={() => bulkOps.setShowBulkAddDivisionsModal(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded text-sm border border-green-700 hover:bg-green-700"
+          >
+            ➕ Bulk Add
+          </button>
+          <button
+            onClick={() => bulkOps.setShowBulkRemoveDivisionsModal(true)}
+            className="bg-orange-600 text-white px-4 py-2 rounded text-sm border border-orange-700 hover:bg-orange-700"
+          >
+            🗑 Bulk Remove
           </button>
         </div>
       </div>
@@ -2854,6 +2875,237 @@ const confirmRemovePlayer = async () => {
   }
 };
 
+// ===== BULK OPERATIONS HANDLERS =====
+
+const handleBulkAddPlayers = async () => {
+  if (!bulkOps.parsedBulkPlayers || bulkOps.parsedBulkPlayers.length === 0) {
+    toast.error("No players to add");
+    return;
+  }
+
+  let addedCount = 0;
+  let failedCount = 0;
+
+  for (const player of bulkOps.parsedBulkPlayers) {
+    try {
+      const playerId =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+
+      if (userType === 'guest') {
+        const newPlayer = {
+          id: playerId,
+          name: player.name,
+          wins: 0,
+          draws: 0,
+          losses: 0,
+          points: 0,
+          active: true,
+          division,
+          gender: player.gender,
+        };
+        setPlayers((prev) => [...prev, newPlayer]);
+        try {
+          saveData(`players_${viewMode}`, [...playersLogic.players, newPlayer]);
+        } catch (e) {}
+        addedCount++;
+      } else {
+        const { data, error } = await db("players")
+          .insert([
+            {
+              id: playerId,
+              name: player.name,
+              wins: 0,
+              draws: 0,
+              losses: 0,
+              points: 0,
+              active: true,
+              division,
+              owner_id: user?.id,
+              gender: player.gender,
+            },
+          ])
+          .select();
+
+        if (!error && data && data.length > 0) {
+          setPlayers((prev) => [...prev, data[0]]);
+          addedCount++;
+        } else {
+          failedCount++;
+        }
+      }
+    } catch (e) {
+      console.error("Error adding player:", e);
+      failedCount++;
+    }
+  }
+
+  bulkOps.clearBulkAddPlayers();
+
+  if (failedCount === 0) {
+    toast.success(`Added ${addedCount} players successfully`);
+  } else {
+    toast.warning(`Added ${addedCount} players, ${failedCount} failed`);
+  }
+};
+
+const handleBulkRemovePlayers = async () => {
+  if (!bulkOps.playersToRemove || bulkOps.playersToRemove.length === 0) {
+    toast.error("No players selected");
+    return;
+  }
+
+  let removedCount = 0;
+  let failedCount = 0;
+
+  for (const player of bulkOps.playersToRemove) {
+    try {
+      const { error } = await db("players")
+        .delete()
+        .eq("id", player.id || player);
+
+      if (!error) {
+        setPlayers((prev) => prev.filter((p) => String(p.id) !== String(player.id || player)));
+        setAllDivisionPlayers((prev) =>
+          prev.filter((p) => String(p.id) !== String(player.id || player))
+        );
+        removedCount++;
+      } else {
+        failedCount++;
+      }
+    } catch (e) {
+      console.error("Error removing player:", e);
+      failedCount++;
+    }
+  }
+
+  bulkOps.clearBulkRemovePlayers();
+
+  if (failedCount === 0) {
+    toast.success(`Removed ${removedCount} players successfully`);
+  } else {
+    toast.warning(`Removed ${removedCount} players, ${failedCount} failed`);
+  }
+};
+
+const handleBulkAddDivisions = async () => {
+  if (!bulkOps.parsedBulkDivisions || bulkOps.parsedBulkDivisions.length === 0) {
+    toast.error("No divisions to add");
+    return;
+  }
+
+  let addedCount = 0;
+  let failedCount = 0;
+
+  for (const div of bulkOps.parsedBulkDivisions) {
+    try {
+      if (userType === 'guest') {
+        const maxId = divisions.length ? Math.max(...divisions.map((d) => d.id)) : 0;
+        const newId = maxId + 1;
+        const newDiv = { id: newId, name: div.name };
+        setDivisions((prev) => [...prev, newDiv]);
+        try {
+          saveData(`divisions_${viewMode}`, [...divisions, newDiv]);
+        } catch (e) {}
+        addedCount++;
+      } else {
+        const { data, error } = await db("divisions")
+          .insert([
+            {
+              name: div.name,
+              owner_id: user?.id,
+            },
+          ])
+          .select();
+
+        if (!error && data && data.length > 0) {
+          setDivisions((prev) => [...prev, { id: data[0].id, name: data[0].name }]);
+          addedCount++;
+        } else {
+          failedCount++;
+        }
+      }
+    } catch (e) {
+      console.error("Error adding division:", e);
+      failedCount++;
+    }
+  }
+
+  bulkOps.clearBulkAddDivisions();
+
+  if (failedCount === 0) {
+    toast.success(`Added ${addedCount} divisions successfully`);
+  } else {
+    toast.warning(`Added ${addedCount} divisions, ${failedCount} failed`);
+  }
+};
+
+const handleBulkRemoveDivisions = async () => {
+  if (!bulkOps.divisionsToRemove || bulkOps.divisionsToRemove.length === 0) {
+    toast.error("No divisions selected");
+    return;
+  }
+
+  let removedCount = 0;
+  let failedCount = 0;
+
+  for (const div of bulkOps.divisionsToRemove) {
+    try {
+      const idToRemove = div.id || div;
+
+      // Check if this is the last division
+      if (divisions.length <= 1) {
+        failedCount++;
+        continue;
+      }
+
+      try {
+        const vm = getViewMode();
+        if (vm === 'league') {
+          const { data, error } = await supabase.rpc("delete_division_and_children", {
+            old_id: idToRemove,
+          });
+          if (error) throw error;
+        } else {
+          try {
+            await db("previous_matches").delete().eq("division", idToRemove);
+          } catch (e) {}
+          try {
+            await db("players").delete().eq("division", idToRemove);
+          } catch (e) {}
+          try {
+            await db("pending_fixtures").delete().eq("division", idToRemove);
+          } catch (e) {}
+          try {
+            await db("running_seasons").delete().eq("division", idToRemove);
+          } catch (e) {}
+          try {
+            await db("divisions").delete().eq("id", idToRemove);
+          } catch (e) {}
+        }
+      } catch (e) {
+        console.error("Failed to delete division server-side:", e);
+        throw e;
+      }
+
+      setDivisions((prev) => prev.filter((d) => String(d.id) !== String(idToRemove)));
+      removedCount++;
+    } catch (e) {
+      console.error("Error removing division:", e);
+      failedCount++;
+    }
+  }
+
+  bulkOps.clearBulkRemoveDivisions();
+
+  if (failedCount === 0) {
+    toast.success(`Removed ${removedCount} divisions successfully`);
+  } else {
+    toast.warning(`Removed ${removedCount} divisions, ${failedCount} failed`);
+  }
+};
+
 const addDivision = async (name) => {
   const trimmed = (name || "").trim();
   if (!trimmed) return;
@@ -3345,7 +3597,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 <p className="text-xs text-gray-300 mt-2">💡 Select partners from the Partner column to practice with designated teammates.</p>
               </div>
             )}
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <button
                 onClick={handleAddPlayer}
                 disabled={viewMode === "5-player-champ" && activePlayerCount >= 5}
@@ -3358,6 +3610,18 @@ const activePlayerCount = players.filter((p) => p.active).length;
                 className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded"
               >
                 🗑️ Remove Player
+              </button>
+              <button
+                onClick={() => bulkOps.setShowBulkAddPlayersModal(true)}
+                className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded"
+              >
+                ➕ Bulk Add
+              </button>
+              <button
+                onClick={() => bulkOps.setShowBulkRemovePlayersModal(true)}
+                className="bg-orange-600 hover:bg-orange-500 text-white px-6 py-2 rounded"
+              >
+                🗑️ Bulk Remove
               </button>
             </div>
           </div>
@@ -5945,6 +6209,45 @@ const activePlayerCount = players.filter((p) => p.active).length;
           </div>
         </div>
       )}
+
+      {/* Bulk Operations Modals */}
+      <BulkAddPlayersModal
+        isOpen={bulkOps.showBulkAddPlayersModal}
+        onClose={bulkOps.clearBulkAddPlayers}
+        csvText={bulkOps.bulkPlayerCSVText}
+        onCSVChange={bulkOps.setBulkPlayerCSVText}
+        parsedPlayers={bulkOps.parsedBulkPlayers}
+        onParse={bulkOps.parsePlayerCSV}
+        onConfirm={handleBulkAddPlayers}
+      />
+
+      <BulkRemovePlayersModal
+        isOpen={bulkOps.showBulkRemovePlayersModal}
+        onClose={bulkOps.clearBulkRemovePlayers}
+        availablePlayers={playersLogic.players}
+        selectedPlayers={bulkOps.playersToRemove}
+        onTogglePlayer={bulkOps.togglePlayerForRemoval}
+        onConfirm={handleBulkRemovePlayers}
+      />
+
+      <BulkAddDivisionsModal
+        isOpen={bulkOps.showBulkAddDivisionsModal}
+        onClose={bulkOps.clearBulkAddDivisions}
+        csvText={bulkOps.bulkDivisionText}
+        onCSVChange={bulkOps.setBulkDivisionText}
+        parsedDivisions={bulkOps.parsedBulkDivisions}
+        onParse={bulkOps.parseDivisionCSV}
+        onConfirm={handleBulkAddDivisions}
+      />
+
+      <BulkRemoveDivisionsModal
+        isOpen={bulkOps.showBulkRemoveDivisionsModal}
+        onClose={bulkOps.clearBulkRemoveDivisions}
+        availableDivisions={standingsLogic.divisions}
+        selectedDivisions={bulkOps.divisionsToRemove}
+        onToggleDivision={bulkOps.toggleDivisionForRemoval}
+        onConfirm={handleBulkRemoveDivisions}
+      />
 
       {/* Toast Notifications Container */}
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
