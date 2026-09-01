@@ -7,6 +7,9 @@ export { Tabs } from './Tabs';
 export { Toast } from './Toast';
 export { ToastContainer } from './ToastContainer';
 
+// Export tab components
+export { StatisticsTab } from './tabs';
+
 // Export all modal components
 export {
   AddPlayerModal,

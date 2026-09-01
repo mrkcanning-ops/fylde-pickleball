@@ -18,6 +18,7 @@ import {
   useMatchesLogic, 
   useSeasonLogic,
   useToast,
+  usePlayerStats,
 } from "@/lib/hooks";
 
 // === NEW IMPORTS: Modal Components ===
@@ -30,7 +31,7 @@ import {
   MinQualifyModal,
 } from "@/components/modals";
 
-import { ToastContainer } from "@/components";
+import { ToastContainer, StatisticsTab } from "@/components";
 
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
@@ -49,6 +50,7 @@ export default function HomePage() {
   const [standingsView, setStandingsView] = useState("Leaderboard");
   const [genderFilterMode, setGenderFilterMode] = useState('random');
   const [showEnterScore, setShowEnterScore] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState(null);
   
   // Main view mode state
   const [viewMode, setViewMode] = useState('league');
@@ -76,6 +78,10 @@ export default function HomePage() {
   // === Toast notifications ===
   const toast = useToast();
   // Provides: toasts array, success/error/info/warning methods, removeToast
+
+  // === Player Statistics ===
+  const playerStats = usePlayerStats(selectedPlayerId, playersLogic.players, seasonLogic.previousMatches);
+  // Provides: wins, losses, draws, winRate, headToHead, performance, etc.
 
   // ===== BACKWARD COMPATIBILITY: Create aliases from hooks to old variable names =====
   // This allows us to keep all existing handler functions unchanged during refactoring
@@ -1413,7 +1419,7 @@ const fetchPreviousMatches = async () => {
     },
   ];
 
-  const tabs = ["Standings", "Matches", "Players", "Previous Matches", "Seasons"];
+  const tabs = ["Standings", "Matches", "Players", "Statistics", "Previous Matches", "Seasons"];
 
   // Group matches by saved date group and assign sequential Week numbers
   const groupDateGroupsSequentialWeeks = () => {
@@ -3287,7 +3293,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
       {/* Tabs */}
       <section className="bg-gray-900 rounded-t-lg shadow px-4 py-4 mb-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {tabs.map((tab) => (
             <button
               key={tab}
@@ -3301,8 +3307,9 @@ const activePlayerCount = players.filter((p) => p.active).length;
               {tab === "Standings" && "🏆"}
               {tab === "Matches" && "⚔"}
               {tab === "Players" && "👥"}
+              {tab === "Statistics" && "📊"}
               {tab === "Previous Matches" && "🕒"}
-              {tab === "Previous Seasons" && "📜"}
+              {tab === "Seasons" && "📜"}
               <span>{tab}</span>
             </button>
           ))}
@@ -4707,6 +4714,16 @@ const activePlayerCount = players.filter((p) => p.active).length;
     )}
   </div>
 )}
+
+        {activeTab === "Statistics" && (
+          <StatisticsTab
+            players={playersLogic.players}
+            playerStats={playerStats}
+            selectedPlayerId={selectedPlayerId}
+            onSelectPlayer={setSelectedPlayerId}
+            viewMode={viewMode}
+          />
+        )}
 
         {activeTab === "Previous Matches" && (
           <div className="bg-gray-700 rounded shadow p-4">
