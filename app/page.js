@@ -3365,7 +3365,7 @@ const hasGeneratedFixtures =
 const activePlayerCount = players.filter((p) => p.active).length;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans pb-24">
+    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans pb-28">
       {!hydrated && (
         <div className="p-6 text-center text-gray-300">Loading…</div>
       )}
@@ -6136,22 +6136,22 @@ const activePlayerCount = players.filter((p) => p.active).length;
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
 
       {/* Fixed Bottom User Info Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 p-4 flex items-center justify-between z-40 shadow-lg">
-        <div className="text-gray-300 text-sm">
+      <div className="fixed bottom-4 left-4 right-4 bg-gradient-to-r from-gray-800 to-gray-750 border border-gray-700 rounded-lg px-6 py-4 flex items-center justify-between z-40 shadow-2xl backdrop-blur-sm">
+        <div className="text-gray-200 text-sm font-medium">
           {userType === 'guest' ? (
-            <span>👤 Guest Session - Data not saved</span>
+            <span className="text-gray-400">👤 Guest Session - Data not saved</span>
           ) : (
             <span>👤 {user?.username}</span>
           )}
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           {userType === 'guest' && (
             <button
               onClick={() => {
                 logout();
                 router.push('/welcome');
               }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors"
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105"
             >
               Create Account
             </button>
@@ -6161,7 +6161,7 @@ const activePlayerCount = players.filter((p) => p.active).length;
               logout();
               router.push('/welcome');
             }}
-            className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
+            className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105"
           >
             Logout
           </button>
