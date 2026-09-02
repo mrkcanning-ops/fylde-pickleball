@@ -3365,7 +3365,7 @@ const hasGeneratedFixtures =
 const activePlayerCount = players.filter((p) => p.active).length;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans">
+    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans pb-24">
       {!hydrated && (
         <div className="p-6 text-center text-gray-300">Loading…</div>
       )}
@@ -3485,39 +3485,6 @@ const activePlayerCount = players.filter((p) => p.active).length;
   
 
       <HeaderStats stats={stats} />
-
-      {/* User Info Header */}
-      <div className="mb-6 p-4 bg-gray-800 rounded-lg flex items-center justify-between">
-        <div className="text-gray-300">
-          {userType === 'guest' ? (
-            <span>👤 Guest Session - Data not saved</span>
-          ) : (
-            <span>👤 {user?.username}</span>
-          )}
-        </div>
-        <div className="flex gap-3">
-          {userType === 'guest' && (
-            <button
-              onClick={() => {
-                logout();
-                router.push('/welcome');
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors"
-            >
-              Create Account
-            </button>
-          )}
-          <button
-            onClick={() => {
-              logout();
-              router.push('/welcome');
-            }}
-            className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
 
       {process.env.NODE_ENV === "development" && hydrated && (
         <div className="fixed bottom-4 right-4 z-50 p-2 text-xs bg-black bg-opacity-60 text-gray-200 rounded">
@@ -6167,6 +6134,39 @@ const activePlayerCount = players.filter((p) => p.active).length;
 
       {/* Toast Notifications Container */}
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
+
+      {/* Fixed Bottom User Info Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 p-4 flex items-center justify-between z-40 shadow-lg">
+        <div className="text-gray-300 text-sm">
+          {userType === 'guest' ? (
+            <span>👤 Guest Session - Data not saved</span>
+          ) : (
+            <span>👤 {user?.username}</span>
+          )}
+        </div>
+        <div className="flex gap-3">
+          {userType === 'guest' && (
+            <button
+              onClick={() => {
+                logout();
+                router.push('/welcome');
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors"
+            >
+              Create Account
+            </button>
+          )}
+          <button
+            onClick={() => {
+              logout();
+              router.push('/welcome');
+            }}
+            className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
 
       </>)}
 
