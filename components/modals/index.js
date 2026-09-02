@@ -11,3 +11,4 @@ export { BulkAddPlayersModal } from './BulkAddPlayersModal';
 export { BulkRemovePlayersModal } from './BulkRemovePlayersModal';
 export { BulkAddDivisionsModal } from './BulkAddDivisionsModal';
 export { BulkRemoveDivisionsModal } from './BulkRemoveDivisionsModal';
+export { default as SubstitutePlayerModal } from './SubstitutePlayerModal';
