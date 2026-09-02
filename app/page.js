@@ -3364,59 +3364,135 @@ const hasGeneratedFixtures =
   court4Matches.length > 0;
 const activePlayerCount = players.filter((p) => p.active).length;
 
+// Helper function to cycle to next mode
+const cycleModeForward = async () => {
+  let next;
+  if (viewMode === "league") {
+    next = "doubles";
+  } else if (viewMode === "doubles") {
+    next = "5-player-champ";
+  } else if (viewMode === "5-player-champ") {
+    next = "round-robin";
+  } else if (viewMode === "round-robin") {
+    next = "partner-practice";
+  } else {
+    next = "league";
+  }
+  try { setLSRaw("view_mode", next); } catch (e) {}
+  setViewMode(next);
+  console.debug("Mode cycle forward: switched viewMode ->", next);
+  
+  // Guests don't load cached divisions - they stay blank
+  if (userType !== 'guest') {
+    try {
+      const cachedDivs = storage ? storage.loadData(`divisions_${next}`, null) : getLSJson(`divisions_${next}`, null);
+      if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
+        console.debug("Mode cycle: applying cached divisions for", next, cachedDivs);
+        setDivisions(cachedDivs);
+        const sel = cachedDivs.find((d) => d.id === division) ? division : cachedDivs[0].id;
+        setDivision(sel);
+      }
+    } catch (e) {
+      console.debug("Mode cycle: no cached divisions or error", e);
+    }
+  }
+  try {
+    await syncDivisions(next);
+    console.debug("Mode cycle: syncDivisions completed for", next);
+  } catch (e) {
+    console.warn('Failed to sync divisions after mode change', e);
+  }
+};
+
+// Helper function to cycle to previous mode
+const cycleModeBackward = async () => {
+  let prev;
+  if (viewMode === "league") {
+    prev = "partner-practice";
+  } else if (viewMode === "partner-practice") {
+    prev = "round-robin";
+  } else if (viewMode === "round-robin") {
+    prev = "5-player-champ";
+  } else if (viewMode === "5-player-champ") {
+    prev = "doubles";
+  } else {
+    prev = "league";
+  }
+  try { setLSRaw("view_mode", prev); } catch (e) {}
+  setViewMode(prev);
+  console.debug("Mode cycle backward: switched viewMode ->", prev);
+  
+  // Guests don't load cached divisions - they stay blank
+  if (userType !== 'guest') {
+    try {
+      const cachedDivs = storage ? storage.loadData(`divisions_${prev}`, null) : getLSJson(`divisions_${prev}`, null);
+      if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
+        console.debug("Mode cycle: applying cached divisions for", prev, cachedDivs);
+        setDivisions(cachedDivs);
+        const sel = cachedDivs.find((d) => d.id === division) ? division : cachedDivs[0].id;
+        setDivision(sel);
+      }
+    } catch (e) {
+      console.debug("Mode cycle: no cached divisions or error", e);
+    }
+  }
+  try {
+    await syncDivisions(prev);
+    console.debug("Mode cycle: syncDivisions completed for", prev);
+  } catch (e) {
+    console.warn('Failed to sync divisions after mode change', e);
+  }
+};
+
+// Touch tracking for swipe gestures
+const [touchStart, setTouchStart] = useState(null);
+const swipeThreshold = 50; // minimum pixels to register a swipe
+
+const handleTouchStart = (e) => {
+  setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+};
+
+const handleTouchEnd = (e) => {
+  if (!touchStart) return;
+  
+  const touchEnd = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+  const deltaX = touchEnd.x - touchStart.x;
+  const deltaY = touchEnd.y - touchStart.y;
+  
+  // Only process if vertical movement is minimal (not scrolling)
+  if (Math.abs(deltaY) > Math.abs(deltaX)) {
+    setTouchStart(null);
+    return;
+  }
+  
+  // Swipe right (more than 50px to the right) = previous mode
+  if (deltaX > swipeThreshold) {
+    console.debug("Swipe right detected");
+    cycleModeBackward();
+  }
+  // Swipe left (more than 50px to the left) = next mode
+  else if (deltaX < -swipeThreshold) {
+    console.debug("Swipe left detected");
+    cycleModeForward();
+  }
+  
+  setTouchStart(null);
+};
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans pb-28">
+    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans pb-28" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {!hydrated && (
         <div className="p-6 text-center text-gray-300">Loading…</div>
       )}
       {hydrated && (
         <>
       
-      {/* Header (click title to cycle through modes) */}
+      {/* Header (click title to cycle through modes, swipe left/right to change modes) */}
       <header className="mb-8 sm:mb-10 relative">
         <button
-          onClick={async () => {
-            let next;
-            if (viewMode === "league") {
-              next = "doubles";
-            } else if (viewMode === "doubles") {
-              next = "5-player-champ";
-            } else if (viewMode === "5-player-champ") {
-              next = "round-robin";
-            } else if (viewMode === "round-robin") {
-              next = "partner-practice";
-            } else {
-              next = "league";
-            }
-            try { setLSRaw("view_mode", next); } catch (e) {}
-            setViewMode(next);
-            console.debug("Header toggle: switched viewMode ->", next);
-            
-            // Guests don't load cached divisions - they stay blank
-            if (userType !== 'guest') {
-              try {
-                // For club members, try to load from their storage
-                const cachedDivs = storage ? storage.loadData(`divisions_${next}`, null) : getLSJson(`divisions_${next}`, null);
-                if (Array.isArray(cachedDivs) && cachedDivs.length > 0) {
-                  console.debug("Header toggle: applying cached divisions for", next, cachedDivs);
-                  setDivisions(cachedDivs);
-                  const sel = cachedDivs.find((d) => d.id === division) ? division : cachedDivs[0].id;
-                  setDivision(sel);
-                }
-              } catch (e) {
-                console.debug("Header toggle: no cached divisions or error", e);
-              }
-            }
-            try {
-              // After switching the app state to the new mode, sync divisions from the corresponding table
-              await syncDivisions(next);
-              console.debug("Header toggle: syncDivisions completed for", next);
-            } catch (e) {
-              console.warn('Failed to sync divisions after mode change', e);
-            }
-          }}
-          className="flex items-center text-left"
-          aria-label="Cycle through game modes"
+          onClick={cycleModeForward}
+          className="flex items-center text-left cursor-pointer"
+          aria-label="Cycle through game modes (or swipe left/right)"
         >
           <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
             <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
