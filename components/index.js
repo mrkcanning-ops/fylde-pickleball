@@ -6,6 +6,7 @@ export { Leaderboard } from './Leaderboard';
 export { Tabs } from './Tabs';
 export { Toast } from './Toast';
 export { ToastContainer } from './ToastContainer';
+export { default as BracketVisualization } from './BracketVisualization';
 
 // Export tab components
 export { StatisticsTab } from './tabs';

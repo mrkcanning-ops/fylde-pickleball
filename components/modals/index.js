@@ -12,3 +12,5 @@ export { BulkRemovePlayersModal } from './BulkRemovePlayersModal';
 export { BulkAddDivisionsModal } from './BulkAddDivisionsModal';
 export { BulkRemoveDivisionsModal } from './BulkRemoveDivisionsModal';
 export { default as SubstitutePlayerModal } from './SubstitutePlayerModal';
+export { default as TournamentSetupModal } from './TournamentSetupModal';
+export { default as TournamentMatchResultModal } from './TournamentMatchResultModal';

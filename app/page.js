@@ -21,6 +21,7 @@ import {
   usePlayerStats,
   useBulkOperations,
   useSubstitutionLogic,
+  useTournamentLogic,
 } from "@/lib/hooks";
 
 // === NEW IMPORTS: Modal Components ===
@@ -32,9 +33,11 @@ import {
   BulkAddDivisionsModal,
   BulkRemoveDivisionsModal,
   SubstitutePlayerModal,
+  TournamentSetupModal,
+  TournamentMatchResultModal,
 } from "@/components/modals";
 
-import { ToastContainer, StatisticsTab } from "@/components";
+import { ToastContainer, StatisticsTab, BracketVisualization } from "@/components";
 
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
@@ -94,6 +97,10 @@ export default function HomePage() {
   // === Substitution Logic ===
   const substitutions = useSubstitutionLogic();
   // Provides: modal state, substitution handlers, history tracking
+
+  // === Tournament Logic ===
+  const tournament = useTournamentLogic();
+  // Provides: bracket state, tournament initialization, match result recording
 
   // ===== BACKWARD COMPATIBILITY: Create aliases from hooks to old variable names =====
   // This allows us to keep all existing handler functions unchanged during refactoring
@@ -3382,6 +3389,8 @@ const cycleModeForward = async () => {
     next = "round-robin";
   } else if (viewMode === "round-robin") {
     next = "partner-practice";
+  } else if (viewMode === "partner-practice") {
+    next = "tournament";
   } else {
     next = "league";
   }
@@ -3415,6 +3424,8 @@ const cycleModeForward = async () => {
 const cycleModeBackward = async () => {
   let prev;
   if (viewMode === "league") {
+    prev = "tournament";
+  } else if (viewMode === "tournament") {
     prev = "partner-practice";
   } else if (viewMode === "partner-practice") {
     prev = "round-robin";
@@ -3504,9 +3515,9 @@ const handleTouchEnd = (e) => {
           >
             <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
               <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
-                {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : viewMode === "5-player-champ" ? "👑" : viewMode === "round-robin" ? "🔁" : "🤝"}
+                {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : viewMode === "5-player-champ" ? "👑" : viewMode === "round-robin" ? "🔁" : viewMode === "tournament" ? "🏆" : "🤝"}
               </span>
-              {viewMode === "league" ? "Pickleball League" : viewMode === "doubles" ? "Doubles - Points Difference" : viewMode === "5-player-champ" ? "5 Player Champ" : viewMode === "round-robin" ? "Round Robin" : "Partner Practice"}
+              {viewMode === "league" ? "Pickleball League" : viewMode === "doubles" ? "Doubles - Points Difference" : viewMode === "5-player-champ" ? "5 Player Champ" : viewMode === "round-robin" ? "Round Robin" : viewMode === "tournament" ? "Tournament Bracket" : "Partner Practice"}
               <span className="ml-3 text-gray-400 text-2xl sm:text-4xl">›</span>
             </h1>
           </button>
@@ -3520,9 +3531,9 @@ const handleTouchEnd = (e) => {
           </button>
         </div>
         <p className="text-gray-400 mt-2 text-xs sm:text-sm tracking-wide">
-          {viewMode === "league" ? "Weekly Matches • Live Updates • Prize for Winner!🏆" : viewMode === "doubles" ? "Casual doubles format • Points-difference scoring" : viewMode === "5-player-champ" ? "Championship format • 5-player rotation" : viewMode === "round-robin" ? "Fair partnerships • All players with all players" : "Practice with your partner • Designated partnerships"}
+          {viewMode === "league" ? "Weekly Matches • Live Updates • Prize for Winner!🏆" : viewMode === "doubles" ? "Casual doubles format • Points-difference scoring" : viewMode === "5-player-champ" ? "Championship format • 5-player rotation" : viewMode === "round-robin" ? "Fair partnerships • All players with all players" : viewMode === "tournament" ? "Single/Double elimination bracket • Seeded players" : "Practice with your partner • Designated partnerships"}
         </p>
-        <div className={`absolute -bottom-3 left-0 w-20 sm:w-24 h-1 rounded-full ${viewMode === "league" ? "bg-yellow-400" : viewMode === "doubles" ? "bg-green-400" : viewMode === "5-player-champ" ? "bg-purple-400" : viewMode === "round-robin" ? "bg-blue-400" : "bg-pink-400"}`} />
+        <div className={`absolute -bottom-3 left-0 w-20 sm:w-24 h-1 rounded-full ${viewMode === "league" ? "bg-yellow-400" : viewMode === "doubles" ? "bg-green-400" : viewMode === "5-player-champ" ? "bg-purple-400" : viewMode === "round-robin" ? "bg-blue-400" : viewMode === "tournament" ? "bg-red-400" : "bg-pink-400"}`} />
       </header>
 
       {/* Game Mode Info Modal */}
@@ -3532,9 +3543,9 @@ const handleTouchEnd = (e) => {
             <div className="bg-gradient-to-r from-gray-800 to-gray-750 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-white flex items-center gap-3">
                 <span className="text-3xl">
-                  {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : viewMode === "5-player-champ" ? "👑" : viewMode === "round-robin" ? "🔁" : "🤝"}
+                  {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : viewMode === "5-player-champ" ? "👑" : viewMode === "round-robin" ? "🔁" : viewMode === "tournament" ? "🏆" : "🤝"}
                 </span>
-                {viewMode === "league" ? "Pickleball League" : viewMode === "doubles" ? "Doubles" : viewMode === "5-player-champ" ? "5 Player Champ" : viewMode === "round-robin" ? "Round Robin" : "Partner Practice"}
+                {viewMode === "league" ? "Pickleball League" : viewMode === "doubles" ? "Doubles" : viewMode === "5-player-champ" ? "5 Player Champ" : viewMode === "round-robin" ? "Round Robin" : viewMode === "tournament" ? "Tournament Bracket" : "Partner Practice"}
               </h2>
               <button
                 onClick={() => setShowGameModeInfo(false)}
@@ -3601,6 +3612,18 @@ const handleTouchEnd = (e) => {
                     <p><strong>🏋️ Focus:</strong> Practice playing as a coordinated team with your regular partner.</p>
                     <p><strong>📈 Strategy:</strong> Develop team communication, positioning, and synchronized playing style.</p>
                     <p><strong>🏅 Best For:</strong> Training partners, building team chemistry, preparation for mixed/doubles tournaments.</p>
+                  </div>
+                </>
+              )}
+              {viewMode === "tournament" && (
+                <>
+                  <h3 className="text-lg font-semibold text-white mb-3">How It Works</h3>
+                  <div className="space-y-3 text-sm leading-relaxed">
+                    <p><strong>🎯 Formats:</strong> Single or Double Elimination brackets. Choose your tournament style.</p>
+                    <p><strong>🌱 Seeding:</strong> Players automatically seeded by points & wins. Better players start higher in bracket.</p>
+                    <p><strong>⚔️ Matches:</strong> Winner of each match advances to next round. Losers exit (single) or play losers bracket (double).</p>
+                    <p><strong>👑 Champion:</strong> Last player standing wins the tournament!</p>
+                    <p><strong>🏅 Best For:</strong> Determining overall champion, playoff-style competitions, special tournament events.</p>
                   </div>
                 </>
               )}
@@ -5012,6 +5035,80 @@ const handleTouchEnd = (e) => {
           </div>
         )}
 
+        {/* Tournament Section */}
+        {activeTab === "Matches" && viewMode === "tournament" && (
+          <div className="mt-8 bg-gray-800 border border-gray-700 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                🏆 Tournament Bracket
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => tournament.setShowTournamentSetupModal(true)}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  ➕ New Tournament
+                </button>
+                {tournament.currentBracket && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Reset tournament bracket? This cannot be undone.")) {
+                        tournament.resetTournament();
+                      }
+                    }}
+                    className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    🔄 Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Bracket Display */}
+            {tournament.currentBracket ? (
+              <>
+                <BracketVisualization
+                  bracket={tournament.currentBracket}
+                  onSelectMatch={(match) => {
+                    tournament.setSelectedMatch(match);
+                    tournament.setShowMatchResultModal(true);
+                  }}
+                />
+
+                {/* Advance Round Button */}
+                {tournament.currentBracket.rounds.length > 0 && (
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      onClick={() => {
+                        const pending = tournament.getPendingMatches?.();
+                        if (pending && pending.length > 0) {
+                          alert(`Please complete all matches in this round (${pending.length} remaining)`);
+                          return;
+                        }
+                        tournament.advanceToNextRound?.();
+                        alert("Tournament advanced to next round!");
+                      }}
+                      className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-lg font-bold transition-colors flex items-center gap-2"
+                    >
+                      ⏭️ Advance to Next Round
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="bg-gray-900 rounded-lg p-8 text-center">
+                <p className="text-gray-400 mb-4">No active tournament</p>
+                <button
+                  onClick={() => tournament.setShowTournamentSetupModal(true)}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-bold transition-colors"
+                >
+                  🏆 Start Tournament
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Players Tab */}
 {activeTab === "Players" && (
   <div className="bg-white text-gray-700 rounded-2xl shadow-lg overflow-hidden">
@@ -6403,6 +6500,30 @@ const handleTouchEnd = (e) => {
             round
           );
           toast.success(`✓ ${playerOut?.name} substituted for ${playerIn?.name}`);
+        }}
+      />
+
+      {/* Tournament Modals */}
+      <TournamentSetupModal
+        isOpen={tournament.showTournamentSetupModal}
+        onClose={() => tournament.setShowTournamentSetupModal(false)}
+        availablePlayers={allDivisionPlayers}
+        onStartTournament={(selectedPlayers, format) => {
+          tournament.initializeTournament(selectedPlayers, format);
+          toast.success(`✓ ${format === 'double-elimination' ? 'Double' : 'Single'} Elimination tournament started with ${selectedPlayers.length} players`);
+        }}
+      />
+
+      <TournamentMatchResultModal
+        isOpen={tournament.showMatchResultModal}
+        onClose={() => {
+          tournament.setShowMatchResultModal(false);
+          tournament.setSelectedMatch(null);
+        }}
+        match={tournament.selectedMatch}
+        onRecordResult={(matchId, winner) => {
+          tournament.recordMatchResult(matchId, winner);
+          toast.success(`✓ ${winner?.name} advances to the next round!`);
         }}
       />
 
