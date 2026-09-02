@@ -6317,7 +6317,7 @@ const handleTouchEnd = (e) => {
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
 
       {/* Fixed Bottom User Info Bar */}
-      <div className="fixed bottom-4 left-4 right-4 bg-gradient-to-r from-gray-800 to-gray-750 border border-gray-700 rounded-lg px-6 py-4 flex items-center justify-between z-40 shadow-2xl backdrop-blur-sm">
+      <div className="fixed bottom-4 left-4 right-4 bg-gray-800 border border-gray-700 rounded-lg px-6 py-4 flex items-center justify-between z-40 shadow-2xl">
         <div className="text-gray-200 text-sm font-medium">
           {userType === 'guest' ? (
             <span className="text-gray-400">👤 Guest Session - Data not saved</span>
