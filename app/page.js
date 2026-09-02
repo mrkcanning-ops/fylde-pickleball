@@ -52,6 +52,7 @@ export default function HomePage() {
   const [genderFilterMode, setGenderFilterMode] = useState('random');
   const [showEnterScore, setShowEnterScore] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
+  const [showGameModeInfo, setShowGameModeInfo] = useState(false);
   
   // Main view mode state
   const [viewMode, setViewMode] = useState('league');
@@ -3489,24 +3490,128 @@ const handleTouchEnd = (e) => {
       
       {/* Header (click title to cycle through modes, swipe left/right to change modes) */}
       <header className="mb-8 sm:mb-10 relative">
-        <button
-          onClick={cycleModeForward}
-          className="flex items-center text-left cursor-pointer"
-          aria-label="Cycle through game modes (or swipe left/right)"
-        >
-          <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-            <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
-              {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : viewMode === "5-player-champ" ? "👑" : viewMode === "round-robin" ? "🔁" : "🤝"}
-            </span>
-            {viewMode === "league" ? "Fylde Pickleball League" : viewMode === "doubles" ? "Doubles - Points Difference" : viewMode === "5-player-champ" ? "5 Player Champ" : viewMode === "round-robin" ? "Round Robin" : "Partner Practice"}
-            <span className="ml-3 text-gray-400 text-2xl sm:text-4xl">›</span>
-          </h1>
-        </button>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={cycleModeForward}
+            className="flex items-center text-left cursor-pointer flex-1"
+            aria-label="Cycle through game modes (or swipe left/right)"
+          >
+            <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+              <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
+                {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : viewMode === "5-player-champ" ? "👑" : viewMode === "round-robin" ? "🔁" : "🤝"}
+              </span>
+              {viewMode === "league" ? "Pickleball League" : viewMode === "doubles" ? "Doubles - Points Difference" : viewMode === "5-player-champ" ? "5 Player Champ" : viewMode === "round-robin" ? "Round Robin" : "Partner Practice"}
+              <span className="ml-3 text-gray-400 text-2xl sm:text-4xl">›</span>
+            </h1>
+          </button>
+          <button
+            onClick={() => setShowGameModeInfo(true)}
+            className="ml-3 p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors flex-shrink-0"
+            aria-label="Learn about this game mode"
+            title="About this game mode"
+          >
+            <span className="text-xl">ℹ️</span>
+          </button>
+        </div>
         <p className="text-gray-400 mt-2 text-xs sm:text-sm tracking-wide">
           {viewMode === "league" ? "Weekly Matches • Live Updates • Prize for Winner!🏆" : viewMode === "doubles" ? "Casual doubles format • Points-difference scoring" : viewMode === "5-player-champ" ? "Championship format • 5-player rotation" : viewMode === "round-robin" ? "Fair partnerships • All players with all players" : "Practice with your partner • Designated partnerships"}
         </p>
         <div className={`absolute -bottom-3 left-0 w-20 sm:w-24 h-1 rounded-full ${viewMode === "league" ? "bg-yellow-400" : viewMode === "doubles" ? "bg-green-400" : viewMode === "5-player-champ" ? "bg-purple-400" : viewMode === "round-robin" ? "bg-blue-400" : "bg-pink-400"}`} />
       </header>
+
+      {/* Game Mode Info Modal */}
+      {showGameModeInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowGameModeInfo(false)}>
+          <div className="bg-gray-800 rounded-lg max-w-2xl w-full my-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-gray-800 to-gray-750 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                <span className="text-3xl">
+                  {viewMode === "league" ? "🔥" : viewMode === "doubles" ? "🎯" : viewMode === "5-player-champ" ? "👑" : viewMode === "round-robin" ? "🔁" : "🤝"}
+                </span>
+                {viewMode === "league" ? "Pickleball League" : viewMode === "doubles" ? "Doubles" : viewMode === "5-player-champ" ? "5 Player Champ" : viewMode === "round-robin" ? "Round Robin" : "Partner Practice"}
+              </h2>
+              <button
+                onClick={() => setShowGameModeInfo(false)}
+                className="text-gray-400 hover:text-white text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            <div className="px-6 py-6 space-y-4 text-gray-300">
+              {viewMode === "league" && (
+                <>
+                  <h3 className="text-lg font-semibold text-white mb-3">How It Works</h3>
+                  <div className="space-y-3 text-sm leading-relaxed">
+                    <p><strong>📋 Format:</strong> Weekly league-style matches with team-based rotations and bye weeks.</p>
+                    <p><strong>👥 Players:</strong> Works with 6+ players per court.</p>
+                    <p><strong>🎯 Scoring:</strong> Points accumulate week-to-week. Prize awarded for highest overall score.</p>
+                    <p><strong>🔄 Rotation:</strong> Players rotate through different court positions to ensure fair partnerships and competitive balance.</p>
+                    <p><strong>🏆 Best For:</strong> Organized leagues tracking consistent weekly performance and building rivalries.</p>
+                  </div>
+                </>
+              )}
+              {viewMode === "doubles" && (
+                <>
+                  <h3 className="text-lg font-semibold text-white mb-3">How It Works</h3>
+                  <div className="space-y-3 text-sm leading-relaxed">
+                    <p><strong>👥 Format:</strong> Casual doubles matches on 2 courts. Players pair up randomly each round.</p>
+                    <p><strong>📊 Scoring:</strong> Points difference scoring system—team with most points wins (not games).</p>
+                    <p><strong>🔀 Pairings:</strong> Randomly shuffled each round to keep matches fresh and meet new players.</p>
+                    <p><strong>⏱️ Pace:</strong> Flexible match lengths. Games continue until desired session time.</p>
+                    <p><strong>🏅 Best For:</strong> Casual social play, trying different partners, lower-pressure competition.</p>
+                  </div>
+                </>
+              )}
+              {viewMode === "5-player-champ" && (
+                <>
+                  <h3 className="text-lg font-semibold text-white mb-3">How It Works</h3>
+                  <div className="space-y-3 text-sm leading-relaxed">
+                    <p><strong>👥 Requirement:</strong> Exactly 5 players compete in a championship format.</p>
+                    <p><strong>🎮 Games:</strong> Generates a 15-game schedule where each player plays with different partners.</p>
+                    <p><strong>⚖️ Fairness:</strong> Algorithm ensures balanced rotations—everyone partners with everyone multiple times.</p>
+                    <p><strong>🏆 Winner:</strong> Player with the most wins across all 15 games.</p>
+                    <p><strong>🏅 Best For:</strong> Championship tournaments, determining the best player in a small group.</p>
+                  </div>
+                </>
+              )}
+              {viewMode === "round-robin" && (
+                <>
+                  <h3 className="text-lg font-semibold text-white mb-3">How It Works</h3>
+                  <div className="space-y-3 text-sm leading-relaxed">
+                    <p><strong>👥 Format:</strong> Every player participates with every other player. Most comprehensive fairness.</p>
+                    <p><strong>🎯 Structure:</strong> Matches across multiple courts (2-8). Rotating quartets each round.</p>
+                    <p><strong>🔄 Partnerships:</strong> Algorithm avoids consecutive rests and same-player pairings in single round.</p>
+                    <p><strong>⚖️ Scoring:</strong> Points-based. Track individual performance across diverse partnerships.</p>
+                    <p><strong>🏅 Best For:</strong> Large groups wanting ultimate fairness, diverse partner exposure, league points.</p>
+                  </div>
+                </>
+              )}
+              {viewMode === "partner-practice" && (
+                <>
+                  <h3 className="text-lg font-semibold text-white mb-3">How It Works</h3>
+                  <div className="space-y-3 text-sm leading-relaxed">
+                    <p><strong>👫 Partnerships:</strong> Players are pre-designated with specific partners. Stays with same partner each game.</p>
+                    <p><strong>🎲 Modes:</strong> Random pairings, Gender-based doubles, or Gender-mixed pairings.</p>
+                    <p><strong>🏋️ Focus:</strong> Practice playing as a coordinated team with your regular partner.</p>
+                    <p><strong>📈 Strategy:</strong> Develop team communication, positioning, and synchronized playing style.</p>
+                    <p><strong>🏅 Best For:</strong> Training partners, building team chemistry, preparation for mixed/doubles tournaments.</p>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="bg-gray-900 px-6 py-4 border-t border-gray-700 flex justify-end">
+              <button
+                onClick={() => setShowGameModeInfo(false)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Game Mode Info Modal is rendered above, before server error */}
+
       {serverError && (
         <div className="mb-6 p-3 rounded bg-red-600 text-white flex items-start justify-between">
           <div className="mr-4 text-sm">{serverError}</div>
