@@ -347,11 +347,13 @@ export default function HomePage() {
   const FIVE_CHAMP_SUFFIX = "_5champ";
   const ROUND_ROBIN_SUFFIX = "_roundrobin";
   const PARTNER_PRACTICE_SUFFIX = "_partner_practice";
+  const TOURNAMENT_SUFFIX = "_tournament";
   const getTableSuffix = (mode) => {
     if (mode === "doubles") return DOUBLES_SUFFIX;
     if (mode === "5-player-champ") return FIVE_CHAMP_SUFFIX;
     if (mode === "round-robin") return ROUND_ROBIN_SUFFIX;
     if (mode === "partner-practice") return PARTNER_PRACTICE_SUFFIX;
+    if (mode === "tournament") return TOURNAMENT_SUFFIX;
     return "";
   };
   const db = (table) => supabase.from(`${table}${getTableSuffix(viewMode)}`);
