@@ -5044,7 +5044,7 @@ const handleTouchEnd = (e) => {
               </h3>
               <div className="flex gap-2">
                 <button
-                  onClick={() => tournament.setShowTournamentSetupModal(true)}
+                  onClick={() => tournament.setShowTournamentModal(true)}
                   className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
                 >
                   ➕ New Tournament
@@ -5099,7 +5099,7 @@ const handleTouchEnd = (e) => {
               <div className="bg-gray-900 rounded-lg p-8 text-center">
                 <p className="text-gray-400 mb-4">No active tournament</p>
                 <button
-                  onClick={() => tournament.setShowTournamentSetupModal(true)}
+                  onClick={() => tournament.setShowTournamentModal(true)}
                   className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-bold transition-colors"
                 >
                   🏆 Start Tournament
@@ -6505,8 +6505,8 @@ const handleTouchEnd = (e) => {
 
       {/* Tournament Modals */}
       <TournamentSetupModal
-        isOpen={tournament.showTournamentSetupModal}
-        onClose={() => tournament.setShowTournamentSetupModal(false)}
+        isOpen={tournament.showTournamentModal}
+        onClose={() => tournament.setShowTournamentModal(false)}
         availablePlayers={allDivisionPlayers}
         onStartTournament={(selectedPlayers, format) => {
           tournament.initializeTournament(selectedPlayers, format);
