@@ -58,6 +58,7 @@ export default function HomePage() {
   const [showEnterScore, setShowEnterScore] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
   const [showGameModeInfo, setShowGameModeInfo] = useState(false);
+  const [showSubstitutionOptions, setShowSubstitutionOptions] = useState(false);
   
   // Main view mode state
   const [viewMode, setViewMode] = useState('league');
@@ -4975,65 +4976,81 @@ const handleTouchEnd = (e) => {
         {/* Substitutions Section */}
         {activeTab === "Matches" && (
           <div className="mt-8 bg-gray-800 border border-gray-700 rounded-lg p-6">
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              🔄 Player Substitutions
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                🔄 Player Substitutions
+              </h3>
+              <button
+                onClick={() => setShowSubstitutionOptions(!showSubstitutionOptions)}
+                className={`px-4 py-2 rounded-lg font-semibold transition ${
+                  showSubstitutionOptions
+                    ? 'bg-green-600 hover:bg-green-500 text-white'
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                }`}
+              >
+                {showSubstitutionOptions ? '✓ Substitute Player' : '+ Substitute Player'}
+              </button>
+            </div>
             
-            {/* Quick Substitute Buttons */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-6">
-              {[1, 2, 3, 4, 5, 6].map((courtNum) => {
-                const courtKey = `court${courtNum}Matches`;
-                const currentRound = courtNum === 1 ? court1Round : courtNum === 2 ? court2Round : courtNum === 3 ? court3Round : courtNum === 4 ? court4Round : courtNum === 5 ? court5Round : court6Round;
-                const matches = matchesLogic[courtKey];
-                const hasMatch = matches && matches[currentRound];
-                
-                return (
-                  <button
-                    key={courtNum}
-                    onClick={() => {
-                      if (hasMatch) {
-                        substitutions.openSubstituteModal(`match_court${courtNum}`, courtNum, currentRound + 1);
-                      }
-                    }}
-                    disabled={!hasMatch}
-                    className={`px-4 py-2 rounded-lg font-medium transition ${
-                      hasMatch
-                        ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    }`}
-                    title={hasMatch ? `Substitute on Court ${courtNum}` : `No active match on Court ${courtNum}`}
-                  >
-                    Court {courtNum}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Substitution History */}
-            <div className="bg-gray-900 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-300 mb-3">Substitution History</h4>
-              {substitutions.substitutionHistory?.length === 0 ? (
-                <p className="text-gray-500 text-sm italic">No substitutions recorded yet</p>
-              ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {(substitutions.substitutionHistory || []).map((sub) => (
-                    <div key={sub.id} className="bg-gray-800 rounded p-3 text-sm border border-gray-700">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-yellow-400 font-semibold">Court {sub.court} - Round {sub.round}</span>
-                        <span className="text-gray-500 text-xs">
-                          {new Date(sub.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-red-400">🔴 Out: {sub.playerOut?.name}</span>
-                        <span className="text-gray-600">→</span>
-                        <span className="text-green-400">🟢 In: {sub.playerIn?.name}</span>
-                      </div>
-                    </div>
-                  ))}
+            {/* Quick Substitute Buttons - Only show when toggled */}
+            {showSubstitutionOptions && (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-6">
+                  {[1, 2, 3, 4, 5, 6].map((courtNum) => {
+                    const courtKey = `court${courtNum}Matches`;
+                    const currentRound = courtNum === 1 ? court1Round : courtNum === 2 ? court2Round : courtNum === 3 ? court3Round : courtNum === 4 ? court4Round : courtNum === 5 ? court5Round : court6Round;
+                    const matches = matchesLogic[courtKey];
+                    const hasMatch = matches && matches[currentRound];
+                    
+                    return (
+                      <button
+                        key={courtNum}
+                        onClick={() => {
+                          if (hasMatch) {
+                            substitutions.openSubstituteModal(`match_court${courtNum}`, courtNum, currentRound + 1);
+                          }
+                        }}
+                        disabled={!hasMatch}
+                        className={`px-4 py-2 rounded-lg font-medium transition ${
+                          hasMatch
+                            ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                            : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        }`}
+                        title={hasMatch ? `Substitute on Court ${courtNum}` : `No active match on Court ${courtNum}`}
+                      >
+                        Court {courtNum}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
+
+                {/* Substitution History */}
+                <div className="bg-gray-900 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-300 mb-3">Substitution History</h4>
+                  {substitutions.substitutionHistory?.length === 0 ? (
+                    <p className="text-gray-500 text-sm italic">No substitutions recorded yet</p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {(substitutions.substitutionHistory || []).map((sub) => (
+                        <div key={sub.id} className="bg-gray-800 rounded p-3 text-sm border border-gray-700">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-yellow-400 font-semibold">Court {sub.court} - Round {sub.round}</span>
+                            <span className="text-gray-500 text-xs">
+                              {new Date(sub.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-red-400">🔴 Out: {sub.playerOut?.name}</span>
+                            <span className="text-gray-600">→</span>
+                            <span className="text-green-400">🟢 In: {sub.playerIn?.name}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
