@@ -18,6 +18,7 @@ export default function TournamentMatchResultModal({
   const [matchScore, setMatchScore] = useState({ team1: '', team2: '' });
   const [notes, setNotes] = useState('');
 
+  if (!isOpen) return null;
   if (!match) return null;
 
   const handleConfirm = () => {
@@ -34,8 +35,6 @@ export default function TournamentMatchResultModal({
     setNotes('');
     onClose();
   };
-
-  if (!isOpen) return null;
 
   const team1 = match.team1?.[0];
   const team2 = match.team2?.[0];
