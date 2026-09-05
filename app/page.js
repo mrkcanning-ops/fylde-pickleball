@@ -67,6 +67,12 @@ export default function HomePage() {
   const [showNqModalFor, setShowNqModalFor] = useState(null);
   const [openDates, setOpenDates] = useState([]);
 
+  // Quick hydration marker: allow client UI to render after mount
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   // === Standings-related state via custom hook ===
   const standingsLogic = useStandingsLogic(viewMode, MIN_QUALIFY_GAMES);
   // Provides: division, divisions, leaderboard, minQualifyGames, modals, handlers, etc.
