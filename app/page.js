@@ -3807,7 +3807,7 @@ const handleTouchEnd = (e) => {
 
         {/* Previous Seasons tab removed */}
 
-        {activeTab === "Matches" && (
+        {activeTab === "Matches" && viewMode !== "tournament" && (
           <div className="mt-4 flex flex-row items-center justify-between gap-4 flex-wrap">
             {viewMode !== "5-player-champ" && (
               <div className="flex items-center gap-2">
@@ -3880,7 +3880,7 @@ const handleTouchEnd = (e) => {
           </div>
         )}
 
-        {activeTab === "Matches" ? (
+        {activeTab === "Matches" && viewMode !== "tournament" ? (
           <>
         {/* Match Display - Partner Practice vs Others */}
         {viewMode === "partner-practice" ? (
@@ -6532,7 +6532,7 @@ const handleTouchEnd = (e) => {
       <TournamentSetupModal
         isOpen={tournament.showTournamentModal}
         onClose={() => tournament.setShowTournamentModal(false)}
-        availablePlayers={allDivisionPlayers}
+        availablePlayers={players}
         onStartTournament={(selectedPlayers, format) => {
           tournament.initializeTournament(selectedPlayers, format);
           toast.success(`✓ ${format === 'double-elimination' ? 'Double' : 'Single'} Elimination tournament started with ${selectedPlayers.length} players`);
