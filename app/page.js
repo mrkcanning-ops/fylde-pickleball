@@ -326,12 +326,12 @@ export default function HomePage() {
     setHydrated(true);
   }, []);
 
-  // Load divisions and players on mount for club members
+  // Load divisions and players on mount and when mode changes (for club members)
   useEffect(() => {
     if (userType === 'club-member' && !isLoading) {
       syncDivisions();
     }
-  }, [userType, isLoading]);
+  }, [userType, isLoading, viewMode]);
 
   // Sync allDivisionPlayers to players display state when allDivisionPlayers changes
   useEffect(() => {
