@@ -22,7 +22,7 @@ export default function BracketVisualization({
   return (
     <div className="bg-gray-800 rounded-lg p-6 overflow-x-auto">
       <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        🏆 {bracket.format === 'double-elimination' ? 'Double' : 'Single'} Elimination ({bracket.gameType === 'doubles' ? 'Doubles' : 'Singles'})
+        🏆 {bracket.format === 'group-knockout' ? 'Group Stage + Knockout' : bracket.format === 'double-elimination' ? 'Double' : 'Single'} {bracket.format !== 'group-knockout' && 'Elimination'} ({bracket.gameType === 'doubles' ? 'Doubles' : 'Singles'})
       </h3>
 
       {/* Bracket Stats */}

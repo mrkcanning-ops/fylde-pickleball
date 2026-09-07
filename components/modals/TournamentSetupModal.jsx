@@ -109,7 +109,7 @@ export default function TournamentSetupModal({
             <label className="block text-sm font-semibold text-gray-300 mb-3">
               Bracket Format
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => setSelectedFormat('single-elimination')}
                 className={`p-4 rounded-lg border-2 transition ${
@@ -118,8 +118,8 @@ export default function TournamentSetupModal({
                     : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
                 }`}
               >
-                <div className="font-bold mb-1">🎯 Single Elimination</div>
-                <div className="text-xs opacity-80">Losers are out</div>
+                <div className="font-bold mb-1">🎯 Single Elim</div>
+                <div className="text-xs opacity-80">Losers out</div>
               </button>
               <button
                 onClick={() => setSelectedFormat('double-elimination')}
@@ -129,8 +129,19 @@ export default function TournamentSetupModal({
                     : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
                 }`}
               >
-                <div className="font-bold mb-1">🔄 Double Elimination</div>
-                <div className="text-xs opacity-80">Second chance bracket</div>
+                <div className="font-bold mb-1">🔄 Double Elim</div>
+                <div className="text-xs opacity-80">2nd chance</div>
+              </button>
+              <button
+                onClick={() => setSelectedFormat('group-knockout')}
+                className={`p-4 rounded-lg border-2 transition ${
+                  selectedFormat === 'group-knockout'
+                    ? 'border-blue-500 bg-blue-900 bg-opacity-30 text-white'
+                    : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
+                }`}
+              >
+                <div className="font-bold mb-1">🏘️ Groups+KO</div>
+                <div className="text-xs opacity-80">Round robin→elim</div>
               </button>
             </div>
           </div>
@@ -187,10 +198,21 @@ export default function TournamentSetupModal({
           <div className="bg-blue-900 bg-opacity-20 border border-blue-600 rounded p-3 text-sm text-gray-300">
             <div className="font-semibold text-blue-400 mb-2">ℹ️ Tournament Info</div>
             <ul className="space-y-1 text-xs">
-              <li>• {selectedGameType === 'doubles' ? 'Teams will be auto-paired from selected players' : 'Players will be seeded by current points & wins'}</li>
-              <li>• Minimum {selectedGameType === 'doubles' ? '4' : '2'} players required to start</li>
-              <li>• Byes are automatically assigned for odd matchups</li>
-              <li>• Winners advance automatically</li>
+              {selectedFormat === 'group-knockout' ? (
+                <>
+                  <li>• Players divided into groups (round-robin play)</li>
+                  <li>• Top 2 from each group advance to knockout stage</li>
+                  <li>• Knockout stage is single elimination</li>
+                  <li>• Minimum 6 players required (2 groups of 3)</li>
+                </>
+              ) : (
+                <>
+                  <li>• {selectedGameType === 'doubles' ? 'Teams will be auto-paired from selected players' : 'Players will be seeded by current points & wins'}</li>
+                  <li>• Minimum {selectedGameType === 'doubles' ? '4' : '2'} players required to start</li>
+                  <li>• Byes are automatically assigned for odd matchups</li>
+                  <li>• Winners advance automatically</li>
+                </>
+              )}
             </ul>
           </div>
         </div>
