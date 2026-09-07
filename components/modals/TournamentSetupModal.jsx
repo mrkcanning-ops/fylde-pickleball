@@ -14,6 +14,7 @@ export default function TournamentSetupModal({
   onStartTournament,
 }) {
   const [selectedFormat, setSelectedFormat] = useState('single-elimination');
+  const [selectedGameType, setSelectedGameType] = useState('singles');
   const [selectedPlayers, setSelectedPlayers] = useState(new Set());
 
   const handleTogglePlayer = (playerId) => {
@@ -35,13 +36,14 @@ export default function TournamentSetupModal({
   };
 
   const handleStartTournament = () => {
-    if (selectedPlayers.size < 2) {
-      alert('Select at least 2 players to start tournament');
+    const minPlayers = selectedGameType === 'doubles' ? 4 : 2;
+    if (selectedPlayers.size < minPlayers) {
+      alert(`Select at least ${minPlayers} players to start ${selectedGameType} tournament`);
       return;
     }
 
     const players = availablePlayers.filter((p) => selectedPlayers.has(p.id));
-    onStartTournament?.(players, selectedFormat);
+    onStartTournament?.(players, selectedFormat, selectedGameType);
     onClose();
   };
 
@@ -71,6 +73,37 @@ export default function TournamentSetupModal({
 
         {/* Body */}
         <div className="px-6 py-6 space-y-6">
+          {/* Game Type Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-300 mb-3">
+              Game Type
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setSelectedGameType('singles')}
+                className={`p-4 rounded-lg border-2 transition ${
+                  selectedGameType === 'singles'
+                    ? 'border-green-500 bg-green-900 bg-opacity-30 text-white'
+                    : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
+                }`}
+              >
+                <div className="font-bold mb-1">👤 Singles</div>
+                <div className="text-xs opacity-80">1v1 matches</div>
+              </button>
+              <button
+                onClick={() => setSelectedGameType('doubles')}
+                className={`p-4 rounded-lg border-2 transition ${
+                  selectedGameType === 'doubles'
+                    ? 'border-green-500 bg-green-900 bg-opacity-30 text-white'
+                    : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
+                }`}
+              >
+                <div className="font-bold mb-1">👥 Doubles</div>
+                <div className="text-xs opacity-80">2v2 matches</div>
+              </button>
+            </div>
+          </div>
+
           {/* Format Selection */}
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-3">
@@ -106,7 +139,7 @@ export default function TournamentSetupModal({
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className="block text-sm font-semibold text-gray-300">
-                Select Players ({selectedPlayers.size} chosen)
+                Select Players ({selectedPlayers.size} chosen{selectedGameType === 'doubles' && `, ${Math.floor(selectedPlayers.size / 2)} teams`})
               </label>
               <button
                 onClick={handleSelectAll}
@@ -154,9 +187,9 @@ export default function TournamentSetupModal({
           <div className="bg-blue-900 bg-opacity-20 border border-blue-600 rounded p-3 text-sm text-gray-300">
             <div className="font-semibold text-blue-400 mb-2">ℹ️ Tournament Info</div>
             <ul className="space-y-1 text-xs">
-              <li>• Players will be seeded by current points & wins</li>
-              <li>• Minimum 2 players required to start</li>
-              <li>• Byes are automatically assigned for odd player counts</li>
+              <li>• {selectedGameType === 'doubles' ? 'Teams will be auto-paired from selected players' : 'Players will be seeded by current points & wins'}</li>
+              <li>• Minimum {selectedGameType === 'doubles' ? '4' : '2'} players required to start</li>
+              <li>• Byes are automatically assigned for odd matchups</li>
               <li>• Winners advance automatically</li>
             </ul>
           </div>

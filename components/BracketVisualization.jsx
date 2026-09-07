@@ -22,7 +22,7 @@ export default function BracketVisualization({
   return (
     <div className="bg-gray-800 rounded-lg p-6 overflow-x-auto">
       <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        🏆 {bracket.format === 'double-elimination' ? 'Double' : 'Single'} Elimination Bracket
+        🏆 {bracket.format === 'double-elimination' ? 'Double' : 'Single'} Elimination ({bracket.gameType === 'doubles' ? 'Doubles' : 'Singles'})
       </h3>
 
       {/* Bracket Stats */}
@@ -74,15 +74,28 @@ export default function BracketVisualization({
 
                   {/* Team 1 */}
                   <div className={`flex items-center justify-between p-2 rounded mb-1 ${
-                    match.winner?.id === match.team1?.[0]?.id
+                    bracket.gameType === 'doubles'
+                      ? match.winner && match.winner.some?.(p => match.team1?.some(t => t?.id === p?.id))
+                        ? 'bg-green-900 bg-opacity-50'
+                        : 'bg-gray-600'
+                      : match.winner?.id === match.team1?.[0]?.id
                       ? 'bg-green-900 bg-opacity-50'
                       : 'bg-gray-600'
                   }`}>
                     <span className="text-sm text-white font-medium">
-                      {match.team1?.[0]?.name || 'TBD'}
+                      {bracket.gameType === 'doubles'
+                        ? (match.team1?.map(p => p?.name).join(' & ') || 'TBD')
+                        : (match.team1?.[0]?.name || 'TBD')
+                      }
                     </span>
-                    {match.played && match.winner?.id === match.team1?.[0]?.id && (
-                      <span className="text-yellow-400 font-bold">🏆</span>
+                    {match.played && (
+                      bracket.gameType === 'doubles'
+                        ? match.winner && match.winner.every(p => match.team1?.some(t => t?.id === p?.id)) && (
+                          <span className="text-yellow-400 font-bold">🏆</span>
+                        )
+                        : match.winner?.id === match.team1?.[0]?.id && (
+                          <span className="text-yellow-400 font-bold">🏆</span>
+                        )
                     )}
                   </div>
 
@@ -93,15 +106,28 @@ export default function BracketVisualization({
 
                       {/* Team 2 */}
                       <div className={`flex items-center justify-between p-2 rounded ${
-                        match.winner?.id === match.team2?.[0]?.id
+                        bracket.gameType === 'doubles'
+                          ? match.winner && match.winner.some?.(p => match.team2?.some(t => t?.id === p?.id))
+                            ? 'bg-green-900 bg-opacity-50'
+                            : 'bg-gray-600'
+                          : match.winner?.id === match.team2?.[0]?.id
                           ? 'bg-green-900 bg-opacity-50'
                           : 'bg-gray-600'
                       }`}>
                         <span className="text-sm text-white font-medium">
-                          {match.team2?.[0]?.name || 'TBD'}
+                          {bracket.gameType === 'doubles'
+                            ? (match.team2?.map(p => p?.name).join(' & ') || 'TBD')
+                            : (match.team2?.[0]?.name || 'TBD')
+                          }
                         </span>
-                        {match.played && match.winner?.id === match.team2?.[0]?.id && (
-                          <span className="text-yellow-400 font-bold">🏆</span>
+                        {match.played && (
+                          bracket.gameType === 'doubles'
+                            ? match.winner && match.winner.every(p => match.team2?.some(t => t?.id === p?.id)) && (
+                              <span className="text-yellow-400 font-bold">🏆</span>
+                            )
+                            : match.winner?.id === match.team2?.[0]?.id && (
+                              <span className="text-yellow-400 font-bold">🏆</span>
+                            )
                         )}
                       </div>
                     </>
