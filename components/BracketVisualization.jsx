@@ -74,12 +74,14 @@ export default function BracketVisualization({
 
                   {/* Team 1 */}
                   <div className={`flex items-center justify-between p-2 rounded mb-1 ${
-                    bracket.gameType === 'doubles'
-                      ? match.winner && match.winner.some?.(p => match.team1?.some(t => t?.id === p?.id))
+                    match.played && match.winner
+                      ? bracket.gameType === 'doubles'
+                        ? Array.isArray(match.winner) && match.winner.some?.(p => match.team1?.some(t => t?.id === p?.id))
+                          ? 'bg-green-900 bg-opacity-50'
+                          : 'bg-gray-600'
+                        : match.winner?.id === match.team1?.[0]?.id
                         ? 'bg-green-900 bg-opacity-50'
                         : 'bg-gray-600'
-                      : match.winner?.id === match.team1?.[0]?.id
-                      ? 'bg-green-900 bg-opacity-50'
                       : 'bg-gray-600'
                   }`}>
                     <span className="text-sm text-white font-medium">
@@ -88,9 +90,9 @@ export default function BracketVisualization({
                         : (match.team1?.[0]?.name || 'TBD')
                       }
                     </span>
-                    {match.played && (
+                    {match.played && match.winner && (
                       bracket.gameType === 'doubles'
-                        ? match.winner && match.winner.every(p => match.team1?.some(t => t?.id === p?.id)) && (
+                        ? Array.isArray(match.winner) && match.winner.every(p => match.team1?.some(t => t?.id === p?.id)) && (
                           <span className="text-yellow-400 font-bold">🏆</span>
                         )
                         : match.winner?.id === match.team1?.[0]?.id && (
@@ -106,12 +108,14 @@ export default function BracketVisualization({
 
                       {/* Team 2 */}
                       <div className={`flex items-center justify-between p-2 rounded ${
-                        bracket.gameType === 'doubles'
-                          ? match.winner && match.winner.some?.(p => match.team2?.some(t => t?.id === p?.id))
+                        match.played && match.winner
+                          ? bracket.gameType === 'doubles'
+                            ? Array.isArray(match.winner) && match.winner.some?.(p => match.team2?.some(t => t?.id === p?.id))
+                              ? 'bg-green-900 bg-opacity-50'
+                              : 'bg-gray-600'
+                            : match.winner?.id === match.team2?.[0]?.id
                             ? 'bg-green-900 bg-opacity-50'
                             : 'bg-gray-600'
-                          : match.winner?.id === match.team2?.[0]?.id
-                          ? 'bg-green-900 bg-opacity-50'
                           : 'bg-gray-600'
                       }`}>
                         <span className="text-sm text-white font-medium">
@@ -120,9 +124,9 @@ export default function BracketVisualization({
                             : (match.team2?.[0]?.name || 'TBD')
                           }
                         </span>
-                        {match.played && (
+                        {match.played && match.winner && (
                           bracket.gameType === 'doubles'
-                            ? match.winner && match.winner.every(p => match.team2?.some(t => t?.id === p?.id)) && (
+                            ? Array.isArray(match.winner) && match.winner.every(p => match.team2?.some(t => t?.id === p?.id)) && (
                               <span className="text-yellow-400 font-bold">🏆</span>
                             )
                             : match.winner?.id === match.team2?.[0]?.id && (
