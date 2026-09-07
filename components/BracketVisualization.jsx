@@ -40,8 +40,122 @@ export default function BracketVisualization({
           <div className="text-2xl font-bold text-white">{bracket.totalRounds}</div>
         </div>
         <div className="bg-gray-700 rounded p-3">
-          <div className="text-xs text-gray-400">Byes</div>
-          <div className="text-2xl font-bold text-white">{bracket.byeCount}</div>
+          <div className="text-xs text-gray-400">Courts</div>
+          <div className="text-2xl font-bold text-white">{bracket.courtsCount || 1}</div>
+        </div>
+      </div>
+
+      {/* Group Assignments Display (for group-knockout) */}
+      {bracket.format === 'group-knockout' && bracket.stage === 'group' && bracket.numGroups && (
+        <div className="mb-6 bg-gray-700 bg-opacity-50 rounded-lg p-4 border border-blue-500">
+          <h4 className="font-semibold text-blue-400 mb-4 flex items-center gap-2">
+            👥 Group Assignments
+          </h4>
+          <div className={`grid gap-4 ${bracket.numGroups === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {bracket.rounds.map((round, idx) => (
+              round.bracketType === 'group' && (
+                <div key={idx} className="bg-gray-800 rounded p-3 border border-gray-600">
+                  <div className="font-bold text-green-400 mb-2 text-sm">
+                    {round.stageName}
+                  </div>
+                  <div className="space-y-1">
+                    {round.players?.map((player) => (
+                      <div key={player.id} className="text-xs text-gray-300 flex items-center gap-2">
+                        <span className="text-yellow-400">•</span>
+                        {player.name}
+                        {player.gender && (
+                          <span className="text-gray-500">
+                            {player.gender === 'male' ? '♂' : '♀'}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Court-Organized Match Display */}
+      <div className="mb-6">
+        <h4 className="font-semibold text-cyan-400 mb-3 flex items-center gap-2">
+          🏟️ Court Schedule
+        </h4>
+        <div className={`grid gap-4 ${bracket.courtsCount > 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {Array.from({ length: bracket.courtsCount }, (_, courtIdx) => {
+            const courtNum = courtIdx + 1;
+            const matchesForCourt = [];
+
+            // Collect all matches for this court from all rounds
+            bracket.rounds.forEach((round) => {
+              (round.matchups || []).forEach((match) => {
+                if (match.court === courtNum) {
+                  matchesForCourt.push({ ...match, roundName: round.stageName });
+                }
+              });
+            });
+
+            // Also check knockout rounds
+            if (bracket.knockoutRounds) {
+              bracket.knockoutRounds.forEach((round) => {
+                (round.matchups || []).forEach((match) => {
+                  if (match.court === courtNum) {
+                    matchesForCourt.push({ ...match, roundName: round.stageName });
+                  }
+                });
+              });
+            }
+
+            return (
+              <div
+                key={courtNum}
+                className="bg-gray-700 bg-opacity-50 rounded-lg p-4 border border-purple-500"
+              >
+                <div className="font-bold text-purple-400 mb-3 text-sm">
+                  Court {courtNum}
+                </div>
+                {matchesForCourt.length === 0 ? (
+                  <div className="text-xs text-gray-500 italic">No matches scheduled</div>
+                ) : (
+                  <div className="space-y-2">
+                    {matchesForCourt.map((match) => (
+                      <div
+                        key={match.id}
+                        onClick={() => onSelectMatch?.(match)}
+                        className={`bg-gray-800 rounded p-2 cursor-pointer transition border-l-2 ${
+                          match.played
+                            ? 'border-green-500 hover:bg-gray-750'
+                            : 'border-gray-600 hover:bg-gray-750'
+                        }`}
+                      >
+                        <div className="text-xs text-gray-400 mb-1">{match.roundName}</div>
+                        <div className="text-xs font-semibold text-white">
+                          {bracket.gameType === 'doubles'
+                            ? (match.team1?.map(p => p?.name).join(' & ') || 'TBD')
+                            : (match.team1?.[0]?.name || 'TBD')
+                          }
+                        </div>
+                        <div className="text-xs text-center text-gray-500 my-0.5">vs</div>
+                        <div className="text-xs font-semibold text-white">
+                          {bracket.gameType === 'doubles'
+                            ? (match.team2?.map(p => p?.name).join(' & ') || 'TBD')
+                            : (match.team2?.[0]?.name || 'TBD')
+                          }
+                        </div>
+                        {match.played && match.winner && (
+                          <div className="text-xs text-green-400 mt-1 font-bold">
+                            ✓ Completed
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

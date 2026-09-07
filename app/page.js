@@ -6533,9 +6533,9 @@ const handleTouchEnd = (e) => {
         isOpen={tournament.showTournamentModal}
         onClose={() => tournament.setShowTournamentModal(false)}
         availablePlayers={players}
-        onStartTournament={(selectedPlayers, format, gameType) => {
-          tournament.initializeTournament(selectedPlayers, format, gameType);
-          toast.success(`✓ ${format === 'double-elimination' ? 'Double' : 'Single'} Elimination ${gameType} tournament started with ${selectedPlayers.length} players`);
+        onStartTournament={(selectedPlayers, format, gameType, courtsCount) => {
+          tournament.initializeTournament(selectedPlayers, format, gameType, courtsCount);
+          toast.success(`✓ ${format === 'double-elimination' ? 'Double' : format === 'group-knockout' ? 'Group+Knockout' : 'Single'} Elimination ${gameType} tournament started with ${selectedPlayers.length} players on ${courtsCount} court${courtsCount > 1 ? 's' : ''}`);
         }}
       />
 

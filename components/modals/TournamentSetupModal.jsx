@@ -16,6 +16,7 @@ export default function TournamentSetupModal({
   const [selectedFormat, setSelectedFormat] = useState('single-elimination');
   const [selectedGameType, setSelectedGameType] = useState('singles');
   const [selectedPlayers, setSelectedPlayers] = useState(new Set());
+  const [courtsCount, setCourtsCount] = useState(2);
 
   const handleTogglePlayer = (playerId) => {
     const updated = new Set(selectedPlayers);
@@ -43,7 +44,7 @@ export default function TournamentSetupModal({
     }
 
     const players = availablePlayers.filter((p) => selectedPlayers.has(p.id));
-    onStartTournament?.(players, selectedFormat, selectedGameType);
+    onStartTournament?.(players, selectedFormat, selectedGameType, courtsCount);
     onClose();
   };
 
@@ -72,7 +73,7 @@ export default function TournamentSetupModal({
         </div>
 
         {/* Body */}
-        <div className="px-6 py-6 space-y-6">
+        <div className="px-6 py-6 space-y-6 max-h-[70vh] overflow-y-auto">
           {/* Game Type Selection */}
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-3">
@@ -101,6 +102,28 @@ export default function TournamentSetupModal({
                 <div className="font-bold mb-1">👥 Doubles</div>
                 <div className="text-xs opacity-80">2v2 matches</div>
               </button>
+            </div>
+          </div>
+
+          {/* Courts Available */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-300 mb-3">
+              Number of Courts Available
+            </label>
+            <div className="grid grid-cols-6 gap-2">
+              {[1, 2, 3, 4, 5, 6].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => setCourtsCount(num)}
+                  className={`p-3 rounded-lg border-2 transition font-bold ${
+                    courtsCount === num
+                      ? 'border-purple-500 bg-purple-900 bg-opacity-40 text-white'
+                      : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
+                  }`}
+                >
+                  🏟️ {num}
+                </button>
+              ))}
             </div>
           </div>
 
