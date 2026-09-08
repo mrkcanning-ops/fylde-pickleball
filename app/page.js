@@ -37,7 +37,7 @@ import {
   TournamentMatchResultModal,
 } from "@/components/modals";
 
-import { ToastContainer, StatisticsTab, BracketVisualization } from "@/components";
+import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisualization } from "@/components";
 
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
@@ -5111,7 +5111,7 @@ const handleTouchEnd = (e) => {
             {/* Bracket Display */}
             {tournament.currentBracket ? (
               <>
-                <BracketVisualization
+                <SafeBracketVisualization
                   bracket={tournament.currentBracket}
                   onSelectMatch={(match) => {
                     tournament.setSelectedMatch(match);

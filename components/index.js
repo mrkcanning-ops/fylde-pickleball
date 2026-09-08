@@ -7,6 +7,7 @@ export { Tabs } from './Tabs';
 export { Toast } from './Toast';
 export { ToastContainer } from './ToastContainer';
 export { default as BracketVisualization } from './BracketVisualization';
+export { default as SafeBracketVisualization } from './SafeBracketVisualization';
 
 // Export tab components
 export { StatisticsTab } from './tabs';
