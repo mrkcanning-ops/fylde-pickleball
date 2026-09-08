@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { HybridStorage } from "@/lib/HybridStorage";
@@ -72,6 +72,9 @@ export default function HomePage() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Ref for mode header - used to restrict swipe gestures to header area only
+  const headerRef = useRef(null);
 
   // === Standings-related state via custom hook ===
   const standingsLogic = useStandingsLogic(viewMode, MIN_QUALIFY_GAMES);
@@ -3471,12 +3474,28 @@ const cycleModeBackward = async () => {
   }
 };
 
-// Touch tracking for swipe gestures
+// Touch tracking for swipe gestures (header area only)
 const [touchStart, setTouchStart] = useState(null);
 const swipeThreshold = 50; // minimum pixels to register a swipe
 
 const handleTouchStart = (e) => {
-  setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+  // Only track touch if it started in the mode header area
+  if (!headerRef.current) return;
+  
+  const headerRect = headerRef.current.getBoundingClientRect();
+  const touchX = e.touches[0].clientX;
+  const touchY = e.touches[0].clientY;
+  
+  // Check if touch is within the header bounds
+  const isInHeader = 
+    touchX >= headerRect.left && 
+    touchX <= headerRect.right && 
+    touchY >= headerRect.top && 
+    touchY <= headerRect.bottom;
+  
+  if (isInHeader) {
+    setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+  }
 };
 
 const handleTouchEnd = (e) => {
@@ -3514,13 +3533,13 @@ const handleTouchEnd = (e) => {
       {hydrated && (
         <>
       
-      {/* Header (click title to cycle through modes, swipe left/right to change modes) */}
-      <header className="mb-8 sm:mb-10 relative">
+      {/* Header (click title to cycle through modes, swipe left/right in header to change modes) */}
+      <header ref={headerRef} className="mb-8 sm:mb-10 relative">
         <div className="flex items-center justify-between">
           <button
             onClick={cycleModeForward}
             className="flex items-center text-left cursor-pointer flex-1"
-            aria-label="Cycle through game modes (or swipe left/right)"
+            aria-label="Click to cycle through game modes (or swipe left/right in header area)"
           >
             <h1 className="flex items-center text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
               <span className="mr-3 text-yellow-400 text-3xl sm:text-4xl drop-shadow-md">
