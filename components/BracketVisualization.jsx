@@ -24,6 +24,38 @@ export default function BracketVisualization({
     );
   }
 
+  // Validate bracket structure before rendering
+  if (!bracket.format || !bracket.gameType) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-400">
+        <p className="mb-2">Tournament bracket is invalid or corrupted</p>
+        <p className="text-xs text-gray-500">Missing format or game type data</p>
+      </div>
+    );
+  }
+
+  // Validate rounds have valid structure
+  const validRounds = bracket.rounds?.filter(r => 
+    r && Array.isArray(r.matchups) && r.matchups.length > 0 &&
+    r.matchups.every(m => m && m.team1 && Array.isArray(m.team1))
+  ) || [];
+
+  const validKnockoutRounds = bracket.knockoutRounds?.filter(r =>
+    r && Array.isArray(r.matchups) && r.matchups.length > 0 &&
+    r.matchups.every(m => m && m.team1 && Array.isArray(m.team1))
+  ) || [];
+
+  const hasValidData = validRounds.length > 0 || validKnockoutRounds.length > 0;
+
+  if (!hasValidData) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-400">
+        <p className="mb-2">Tournament bracket has no valid matches</p>
+        <p className="text-xs text-gray-500">All match data is corrupted or empty</p>
+      </div>
+    );
+  }
+
   /**
    * Get next unplayed match for each court
    * Returns one match per court (the first unplayed match)
@@ -32,11 +64,15 @@ export default function BracketVisualization({
     const courtMatches = {};
 
     // Initialize courts
-    for (let i = 1; i <= (bracket.courtsCount || 1); i++) {
+    for (let i = 1; i <= (bracket?.courtsCount || 1); i++) {
       courtMatches[i] = null;
     }
 
-    // Get all rounds (group + knockout)
+    // Get all rounds (group + knockout) - with defensive checks
+    if (!bracket?.rounds && !bracket?.knockoutRounds) {
+      return courtMatches; // No rounds to process
+    }
+
     let allRounds = [...(bracket.rounds || [])];
     if (bracket.knockoutRounds) {
       allRounds = [...allRounds, ...bracket.knockoutRounds];
@@ -44,7 +80,12 @@ export default function BracketVisualization({
 
     // Find first unplayed match for each court
     allRounds.forEach((round) => {
+      if (!round || !Array.isArray(round.matchups)) return;
+      
       (round.matchups || []).forEach((match) => {
+        // Defensive: skip invalid matches
+        if (!match || typeof match !== 'object') return;
+        
         const courtNum = match.court || 1;
         // Only assign if this court doesn't have a match yet and this one isn't played
         if (!courtMatches[courtNum] && !match.played && match.team2) {
