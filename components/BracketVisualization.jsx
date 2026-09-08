@@ -13,10 +13,12 @@ export default function BracketVisualization({
   onSelectMatch = null,
   onRecordResult = null,
 }) {
+  console.log('[BracketVisualization] Rendering bracket:', bracket?.format, bracket?.gameType, 'rounds:', bracket?.rounds?.length);
   const [showCourtSchedule, setShowCourtSchedule] = useState(true);
   const [showRoundsDetail, setShowRoundsDetail] = useState(false);
 
   if (!bracket) {
+    console.log('[BracketVisualization] No bracket');
     return (
       <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-400">
         No active tournament bracket

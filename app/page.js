@@ -45,6 +45,9 @@ import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisuali
 // NEXT_PUBLIC_MIN_QUALIFY_GAMES (build-time). Defaults to 10.
 const MIN_QUALIFY_GAMES = parseInt(process.env.NEXT_PUBLIC_MIN_QUALIFY_GAMES ?? "10", 10) || 10;
 
+// DEBUG FLAG: Set to true to temporarily disable tournament bracket rendering
+const DEBUG_DISABLE_BRACKET = false; // ← TOGGLE THIS TO FALSE TO RE-ENABLE BRACKET
+
 export default function HomePage() {
   const router = useRouter();
   const { user, userType, isLoading, logout } = useAuth();
@@ -5109,7 +5112,7 @@ const handleTouchEnd = (e) => {
             </div>
 
             {/* Bracket Display */}
-            {tournament.currentBracket ? (
+            {!DEBUG_DISABLE_BRACKET && tournament.currentBracket ? (
               <>
                 <SafeBracketVisualization
                   bracket={tournament.currentBracket}
@@ -5142,6 +5145,11 @@ const handleTouchEnd = (e) => {
             ) : (
               <div className="bg-gray-900 rounded-lg p-8 text-center">
                 <p className="text-gray-400 mb-4">No active tournament</p>
+                {DEBUG_DISABLE_BRACKET && (
+                  <div className="bg-yellow-900 bg-opacity-50 border border-yellow-500 rounded p-3 mb-4 text-yellow-300 text-sm">
+                    ⚠️ DEBUG MODE: Bracket rendering is DISABLED. Set DEBUG_DISABLE_BRACKET = false to re-enable.
+                  </div>
+                )}
                 <button
                   onClick={() => tournament.setShowTournamentModal(true)}
                   className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-bold transition-colors"
