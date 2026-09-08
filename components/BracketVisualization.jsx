@@ -114,7 +114,7 @@ export default function BracketVisualization({
         </div>
         <div className="bg-gray-700 rounded p-3">
           <div className="text-xs text-gray-400">Current Round</div>
-          <div className="text-2xl font-bold text-white">{bracket.rounds.length}</div>
+          <div className="text-2xl font-bold text-white">{bracket.rounds?.length || 0}</div>
         </div>
         <div className="bg-gray-700 rounded p-3">
           <div className="text-xs text-gray-400">Total Rounds</div>
@@ -127,13 +127,13 @@ export default function BracketVisualization({
       </div>
 
       {/* Group Assignments Display (for group-knockout) */}
-      {bracket.format === 'group-knockout' && bracket.stage === 'group' && bracket.numGroups && (
+      {bracket.format === 'group-knockout' && bracket.stage === 'group' && bracket.numGroups && bracket.rounds && (
         <div className="mb-6 bg-gray-700 bg-opacity-50 rounded-lg p-4 border border-blue-500">
           <h4 className="font-semibold text-blue-400 mb-4 flex items-center gap-2">
             👥 Group Assignments
           </h4>
           <div className={`grid gap-4 ${bracket.numGroups === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-            {bracket.rounds.map((round, idx) => (
+            {bracket.rounds?.map((round, idx) => (
               round.bracketType === 'group' && (
                 <div key={idx} className="bg-gray-800 rounded p-3 border border-gray-600">
                   <div className="font-bold text-green-400 mb-2 text-sm">
@@ -221,7 +221,7 @@ export default function BracketVisualization({
       </div>
 
       {/* Show message when all current matches complete */}
-      {!anyPendingMatches && bracket.rounds.length > 0 && (
+      {!anyPendingMatches && bracket.rounds?.length > 0 && (
         <div className="bg-green-900 bg-opacity-30 border border-green-500 rounded-lg p-4 mb-6">
           <div className="text-green-400 font-bold mb-2">✓ All current matches complete!</div>
           <div className="text-sm text-green-300">Click "Advance Round" to show the next set of matches.</div>
@@ -241,7 +241,7 @@ export default function BracketVisualization({
 
         {showRoundsDetail && (
           <div className="mt-4 space-y-6">
-            {bracket.rounds.map((round, roundIdx) => (
+            {bracket.rounds?.map((round, roundIdx) => (
               <div key={roundIdx} className="border-l-2 border-blue-500 pl-4">
                 <h4 className="font-semibold text-yellow-400 mb-3 text-sm">
                   {round.stageName}

@@ -5120,7 +5120,7 @@ const handleTouchEnd = (e) => {
                 />
 
                 {/* Advance Round Button */}
-                {tournament.currentBracket.rounds.length > 0 && (
+                {tournament.currentBracket?.rounds?.length > 0 && (
                   <div className="mt-6 flex justify-center">
                     <button
                       onClick={() => {
