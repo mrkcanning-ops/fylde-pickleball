@@ -95,6 +95,10 @@ export default function TournamentSetupModal({
   const [selectedGameType, setSelectedGameType] = useState('singles');
   const [selectedPlayers, setSelectedPlayers] = useState(new Set());
   const [courtsCount, setCourtsCount] = useState(2);
+  
+  // Doubles pairing options
+  const [doublesPartnerMode, setDoublesPartnerMode] = useState('random'); // 'random' or 'known'
+  const [playerPartners, setPlayerPartners] = useState({}); // Map of playerId -> partnerId
 
   // Validate player count whenever format, gameType, or selectedPlayers changes
   const validationResult = useMemo(
@@ -126,7 +130,32 @@ export default function TournamentSetupModal({
     }
 
     const players = availablePlayers.filter((p) => selectedPlayers.has(p.id));
-    onStartTournament?.(players, selectedFormat, selectedGameType, courtsCount);
+    
+    // For doubles with known partners, validate all players have partners
+    if (selectedGameType === 'doubles' && doublesPartnerMode === 'known') {
+      const unpaired = players.filter(p => !playerPartners[p.id]);
+      if (unpaired.length > 0) {
+        alert(`Please assign partners for all players. Missing: ${unpaired.map(p => p.name).join(', ')}`);
+        return;
+      }
+    }
+    
+    const tournamentConfig = {
+      players,
+      format: selectedFormat,
+      gameType: selectedGameType,
+      courtsCount,
+    };
+    
+    // Add doubles pairing info if applicable
+    if (selectedGameType === 'doubles') {
+      tournamentConfig.doublesPartnerMode = doublesPartnerMode;
+      if (doublesPartnerMode === 'known') {
+        tournamentConfig.playerPartners = playerPartners;
+      }
+    }
+    
+    onStartTournament?.(tournamentConfig);
     onClose();
   };
 
@@ -251,6 +280,47 @@ export default function TournamentSetupModal({
             </div>
           </div>
 
+          {/* Doubles Partner Selection (for doubles tournaments) */}
+          {selectedGameType === 'doubles' && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-3">
+                Partner Pairing Mode
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => {
+                    setDoublesPartnerMode('random');
+                    setPlayerPartners({}); // Clear known partners
+                  }}
+                  className={`p-4 rounded-lg border-2 transition ${
+                    doublesPartnerMode === 'random'
+                      ? 'border-purple-500 bg-purple-900 bg-opacity-30 text-white'
+                      : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="font-bold mb-1">🎲 Random Pairing</div>
+                  <div className="text-xs opacity-80">System assigns partners</div>
+                </button>
+                <button
+                  onClick={() => setDoublesPartnerMode('known')}
+                  className={`p-4 rounded-lg border-2 transition ${
+                    doublesPartnerMode === 'known'
+                      ? 'border-purple-500 bg-purple-900 bg-opacity-30 text-white'
+                      : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="font-bold mb-1">🤝 Known Partners</div>
+                  <div className="text-xs opacity-80">You assign partners</div>
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                {doublesPartnerMode === 'random'
+                  ? '✓ Partners will be randomly assigned and maintained throughout the tournament'
+                  : '✓ You will assign each player a specific partner before the tournament starts'}
+              </p>
+            </div>
+          )}
+
           {/* Player Selection */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -300,6 +370,57 @@ export default function TournamentSetupModal({
               )}
             </div>
           </div>
+
+          {/* Partner Assignment (for known partners mode) */}
+          {selectedGameType === 'doubles' && doublesPartnerMode === 'known' && selectedPlayers.size > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-3">
+                Assign Partners
+              </label>
+              <div className="bg-gray-900 rounded-lg p-4 max-h-48 overflow-y-auto space-y-2">
+                {Array.from(selectedPlayers)
+                  .map(playerId => availablePlayers.find(p => p.id === playerId))
+                  .filter(Boolean)
+                  .map((player) => (
+                    <div key={player.id} className="flex items-center gap-3 bg-gray-800 p-2 rounded">
+                      <span className="text-gray-300 font-semibold min-w-24">{player.name}</span>
+                      <span className="text-gray-500">→</span>
+                      <select
+                        value={playerPartners[player.id] || ''}
+                        onChange={(e) => {
+                          const newPartners = { ...playerPartners };
+                          if (e.target.value) {
+                            newPartners[player.id] = e.target.value;
+                            // Also set reverse mapping
+                            newPartners[e.target.value] = player.id;
+                          } else {
+                            // Remove partner
+                            const oldPartner = newPartners[player.id];
+                            delete newPartners[player.id];
+                            if (oldPartner) delete newPartners[oldPartner];
+                          }
+                          setPlayerPartners(newPartners);
+                        }}
+                        className="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-gray-300 text-sm focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">Select partner...</option>
+                        {Array.from(selectedPlayers)
+                          .map(playerId => availablePlayers.find(p => p.id === playerId))
+                          .filter(p => p && p.id !== player.id && playerPartners[player.id] !== p.id)
+                          .map((partner) => (
+                            <option key={partner.id} value={partner.id}>
+                              {partner.name}
+                            </option>
+                          ))}
+                      </select>
+                      {playerPartners[player.id] && (
+                        <span className="text-green-400 text-sm">✓</span>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
           {/* Validation Error Alert */}
           {!validationResult.valid && (

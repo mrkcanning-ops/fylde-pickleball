@@ -6552,12 +6552,22 @@ const handleTouchEnd = (e) => {
         isOpen={tournament.showTournamentModal}
         onClose={() => tournament.setShowTournamentModal(false)}
         availablePlayers={players}
-        onStartTournament={(selectedPlayers, format, gameType, courtsCount) => {
-          tournament.initializeTournament(selectedPlayers, format, gameType, courtsCount);
+        onStartTournament={(config) => {
+          // Extract configuration from object
+          const tournamentPlayers = config.players;
+          const format = config.format;
+          const gameType = config.gameType;
+          const courtsCount = config.courtsCount;
+          const doublesConfig = {
+            doublesPartnerMode: config.doublesPartnerMode,
+            playerPartners: config.playerPartners,
+          };
+          
+          tournament.initializeTournament(tournamentPlayers, format, gameType, courtsCount, doublesConfig);
           tournament.setShowTournamentModal(false);
           setViewMode('tournament');
           setActiveTab('Matches');
-          toast.success(`✓ ${format === 'double-elimination' ? 'Double' : format === 'group-knockout' ? 'Group+Knockout' : 'Single'} Elimination ${gameType} tournament started with ${selectedPlayers.length} players on ${courtsCount} court${courtsCount > 1 ? 's' : ''}`);
+          toast.success(`✓ ${format === 'double-elimination' ? 'Double' : format === 'group-knockout' ? 'Group+Knockout' : 'Single'} Elimination ${gameType} tournament started with ${tournamentPlayers.length} players on ${courtsCount} court${courtsCount > 1 ? 's' : ''}`);
         }}
       />
 
