@@ -6535,6 +6535,9 @@ const handleTouchEnd = (e) => {
         availablePlayers={players}
         onStartTournament={(selectedPlayers, format, gameType, courtsCount) => {
           tournament.initializeTournament(selectedPlayers, format, gameType, courtsCount);
+          tournament.setShowTournamentModal(false);
+          setViewMode('tournament');
+          setActiveTab('Matches');
           toast.success(`✓ ${format === 'double-elimination' ? 'Double' : format === 'group-knockout' ? 'Group+Knockout' : 'Single'} Elimination ${gameType} tournament started with ${selectedPlayers.length} players on ${courtsCount} court${courtsCount > 1 ? 's' : ''}`);
         }}
       />
