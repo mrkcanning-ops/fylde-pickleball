@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * TournamentMatchResultModal
@@ -17,6 +17,27 @@ export default function TournamentMatchResultModal({
   const [selectedWinner, setSelectedWinner] = useState(null);
   const [matchScore, setMatchScore] = useState({ team1: '', team2: '' });
   const [notes, setNotes] = useState('');
+
+  // Auto-detect winner based on score
+  useEffect(() => {
+    const team1 = match.team1?.[0];
+    const team2 = match.team2?.[0];
+    
+    // Only proceed if both scores are entered
+    const score1 = matchScore.team1 !== '' ? parseInt(matchScore.team1, 10) : null;
+    const score2 = matchScore.team2 !== '' ? parseInt(matchScore.team2, 10) : null;
+    
+    if (score1 !== null && score2 !== null) {
+      if (score1 > score2) {
+        // Team 1 has higher score
+        setSelectedWinner(team1);
+      } else if (score2 > score1) {
+        // Team 2 has higher score
+        setSelectedWinner(team2);
+      }
+      // If equal, leave current selection (don't auto-select)
+    }
+  }, [matchScore, match.team1, match.team2]);
 
   if (!isOpen) return null;
   if (!match) return null;
@@ -114,7 +135,7 @@ export default function TournamentMatchResultModal({
           {/* Winner Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Select Winner
+              Select Winner {matchScore.team1 !== '' && matchScore.team2 !== '' && parseInt(matchScore.team1, 10) !== parseInt(matchScore.team2, 10) && <span className="text-green-400 text-xs">(Auto-detected from score)</span>}
             </label>
             <div className="space-y-2">
               <button
