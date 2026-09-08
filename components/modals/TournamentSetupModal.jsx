@@ -1,6 +1,84 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+
+/**
+ * Validate player count for tournament format
+ */
+function validateTournamentPlayerCount(playerCount, format, gameType) {
+  if (playerCount < 2) {
+    return {
+      valid: false,
+      error: `Need at least 2 players`,
+      minPlayers: 2,
+    };
+  }
+
+  if (format === 'group-knockout') {
+    // Group knockout validation
+    if (gameType === 'doubles') {
+      // Doubles: 18 minimum (3 groups of 3 pairs), must be even
+      if (playerCount < 18) {
+        return {
+          valid: false,
+          error: `Doubles group stage needs minimum 18 players (3 groups of 3 pairs). You have ${playerCount}.`,
+          minPlayers: 18,
+        };
+      }
+      if (playerCount % 2 !== 0) {
+        return {
+          valid: false,
+          error: `Doubles group stage requires an even number of players. You have ${playerCount} (try ${playerCount + 1} or ${playerCount - 1}).`,
+          minPlayers: 18,
+        };
+      }
+    } else {
+      // Singles: 12 minimum (4 players per group in 3 groups), must be even
+      if (playerCount < 12) {
+        return {
+          valid: false,
+          error: `Singles group stage needs minimum 12 players (4 per group in 3 groups). You have ${playerCount}.`,
+          minPlayers: 12,
+        };
+      }
+      if (playerCount % 2 !== 0) {
+        return {
+          valid: false,
+          error: `Singles group stage requires an even number of players. You have ${playerCount} (try ${playerCount + 1} or ${playerCount - 1}).`,
+          minPlayers: 12,
+        };
+      }
+    }
+  } else {
+    // Single/Double elimination validation
+    if (gameType === 'doubles') {
+      // Doubles: divisible by 4
+      if (playerCount % 4 !== 0) {
+        const nearest4 = Math.round(playerCount / 4) * 4;
+        return {
+          valid: false,
+          error: `Doubles bracket needs player count divisible by 4. You have ${playerCount} (try ${nearest4}).`,
+          minPlayers: 4,
+        };
+      }
+    } else {
+      // Singles: divisible by 4 or 5
+      const divisibleBy4 = playerCount % 4 === 0;
+      const divisibleBy5 = playerCount % 5 === 0;
+      if (!divisibleBy4 && !divisibleBy5) {
+        const nearest4 = Math.round(playerCount / 4) * 4;
+        const nearest5 = Math.round(playerCount / 5) * 5;
+        return {
+          valid: false,
+          error: `Singles bracket needs players divisible by 4 or 5. You have ${playerCount} (try ${nearest4} or ${nearest5}).`,
+          minPlayers: 4,
+        };
+      }
+    }
+  }
+
+  return { valid: true, error: null, minPlayers: null };
+}
 
 /**
  * TournamentSetupModal
@@ -17,6 +95,12 @@ export default function TournamentSetupModal({
   const [selectedGameType, setSelectedGameType] = useState('singles');
   const [selectedPlayers, setSelectedPlayers] = useState(new Set());
   const [courtsCount, setCourtsCount] = useState(2);
+
+  // Validate player count whenever format, gameType, or selectedPlayers changes
+  const validationResult = useMemo(
+    () => validateTournamentPlayerCount(selectedPlayers.size, selectedFormat, selectedGameType),
+    [selectedPlayers.size, selectedFormat, selectedGameType]
+  );
 
   const handleTogglePlayer = (playerId) => {
     const updated = new Set(selectedPlayers);
@@ -37,10 +121,8 @@ export default function TournamentSetupModal({
   };
 
   const handleStartTournament = () => {
-    const minPlayers = selectedGameType === 'doubles' ? 4 : 2;
-    if (selectedPlayers.size < minPlayers) {
-      alert(`Select at least ${minPlayers} players to start ${selectedGameType} tournament`);
-      return;
+    if (!validationResult.valid) {
+      return; // Button should be disabled, but just in case
     }
 
     const players = availablePlayers.filter((p) => selectedPlayers.has(p.id));
@@ -172,8 +254,10 @@ export default function TournamentSetupModal({
           {/* Player Selection */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="block text-sm font-semibold text-gray-300">
+              <label className={`block text-sm font-semibold ${validationResult.valid ? 'text-gray-300' : 'text-red-400'}`}>
                 Select Players ({selectedPlayers.size} chosen{selectedGameType === 'doubles' && `, ${Math.floor(selectedPlayers.size / 2)} teams`})
+                {!validationResult.valid && <span className="text-red-400 ml-2">✗</span>}
+                {validationResult.valid && selectedPlayers.size > 0 && <span className="text-green-400 ml-2">✓</span>}
               </label>
               <button
                 onClick={handleSelectAll}
@@ -217,23 +301,53 @@ export default function TournamentSetupModal({
             </div>
           </div>
 
+          {/* Validation Error Alert */}
+          {!validationResult.valid && (
+            <div className="bg-red-900 bg-opacity-30 border border-red-500 rounded p-4 text-sm">
+              <div className="font-semibold text-red-400 mb-2">⚠️ Cannot Start Tournament</div>
+              <div className="text-red-300">{validationResult.error}</div>
+            </div>
+          )}
+
           {/* Info */}
           <div className="bg-blue-900 bg-opacity-20 border border-blue-600 rounded p-3 text-sm text-gray-300">
-            <div className="font-semibold text-blue-400 mb-2">ℹ️ Tournament Info</div>
+            <div className="font-semibold text-blue-400 mb-2">ℹ️ Tournament Requirements</div>
             <ul className="space-y-1 text-xs">
               {selectedFormat === 'group-knockout' ? (
                 <>
-                  <li>• Players divided into groups (round-robin play)</li>
-                  <li>• Top 2 from each group advance to knockout stage</li>
-                  <li>• Knockout stage is single elimination</li>
-                  <li>• Minimum 6 players required (2 groups of 3)</li>
+                  {selectedGameType === 'doubles' ? (
+                    <>
+                      <li>• <span className="font-bold">Minimum 18 players</span> (3 groups of 3 pairs)</li>
+                      <li>• <span className="font-bold">Must be EVEN</span> number of players</li>
+                      <li>• Round-robin play within groups</li>
+                      <li>• Top 2 from each group advance to knockout stage</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>• <span className="font-bold">Minimum 12 players</span> (4 per group in 3 groups)</li>
+                      <li>• <span className="font-bold">Must be EVEN</span> number of players</li>
+                      <li>• Round-robin play within groups</li>
+                      <li>• Top 2 from each group advance to knockout stage</li>
+                    </>
+                  )}
                 </>
               ) : (
                 <>
-                  <li>• {selectedGameType === 'doubles' ? 'Teams will be auto-paired from selected players' : 'Players will be seeded by current points & wins'}</li>
-                  <li>• Minimum {selectedGameType === 'doubles' ? '4' : '2'} players required to start</li>
-                  <li>• Byes are automatically assigned for odd matchups</li>
-                  <li>• Winners advance automatically</li>
+                  {selectedGameType === 'doubles' ? (
+                    <>
+                      <li>• <span className="font-bold">Players must be divisible by 4</span></li>
+                      <li>• Teams auto-paired from selected players</li>
+                      <li>• Byes automatically assigned for odd matchups</li>
+                      <li>• Winners advance automatically</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>• <span className="font-bold">Players must be divisible by 4 or 5</span></li>
+                      <li>• Players seeded by current points & wins</li>
+                      <li>• Byes automatically assigned for odd matchups</li>
+                      <li>• Winners advance automatically</li>
+                    </>
+                  )}
                 </>
               )}
             </ul>
@@ -250,8 +364,9 @@ export default function TournamentSetupModal({
           </button>
           <button
             onClick={handleStartTournament}
-            disabled={selectedPlayers.size < 2}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-bold transition-colors flex items-center gap-2"
+            disabled={!validationResult.valid}
+            title={!validationResult.valid ? validationResult.error : 'Start tournament'}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50 text-white rounded-lg font-bold transition-colors flex items-center gap-2"
           >
             🏆 Start Tournament
           </button>
