@@ -17,6 +17,10 @@ export default function TournamentMatchResultModal({
   const [selectedWinner, setSelectedWinner] = useState(null);
   const [matchScore, setMatchScore] = useState({ team1: '', team2: '' });
   const [notes, setNotes] = useState('');
+  const [isDraw, setIsDraw] = useState(false);
+
+  // Check if this is a group stage match (draws allowed)
+  const isGroupStage = match?.stage?.includes('group');
 
   // Auto-detect winner based on score
   useEffect(() => {
@@ -31,27 +35,36 @@ export default function TournamentMatchResultModal({
       if (score1 > score2) {
         // Team 1 has higher score
         setSelectedWinner(team1);
+        setIsDraw(false);
       } else if (score2 > score1) {
         // Team 2 has higher score
         setSelectedWinner(team2);
+        setIsDraw(false);
+      } else if (isGroupStage) {
+        // Equal scores in group stage = draw
+        setSelectedWinner(null);
+        setIsDraw(true);
       }
-      // If equal, leave current selection (don't auto-select)
     }
-  }, [matchScore, match.team1, match.team2]);
+  }, [matchScore, match.team1, match.team2, isGroupStage]);
 
   if (!isOpen) return null;
   if (!match) return null;
 
   const handleConfirm = () => {
-    if (!selectedWinner) {
-      alert('Please select a winner');
+    if (!selectedWinner && !isDraw) {
+      alert('Please select a winner or record a draw');
       return;
     }
 
-    onRecordResult?.(match.id, selectedWinner);
+    // For draws, pass a special marker object
+    const result = isDraw ? { draw: true } : selectedWinner;
+    
+    onRecordResult?.(match.id, result);
     
     // Reset form
     setSelectedWinner(null);
+    setIsDraw(false);
     setMatchScore({ team1: '', team2: '' });
     setNotes('');
     onClose();
@@ -135,13 +148,17 @@ export default function TournamentMatchResultModal({
           {/* Winner Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Select Winner {matchScore.team1 !== '' && matchScore.team2 !== '' && parseInt(matchScore.team1, 10) !== parseInt(matchScore.team2, 10) && <span className="text-green-400 text-xs">(Auto-detected from score)</span>}
+              Select Result {matchScore.team1 !== '' && matchScore.team2 !== '' && parseInt(matchScore.team1, 10) !== parseInt(matchScore.team2, 10) && <span className="text-green-400 text-xs">(Auto-detected from score)</span>}
+              {matchScore.team1 !== '' && matchScore.team2 !== '' && parseInt(matchScore.team1, 10) === parseInt(matchScore.team2, 10) && isGroupStage && <span className="text-blue-400 text-xs">(Auto-detected as Draw)</span>}
             </label>
             <div className="space-y-2">
               <button
-                onClick={() => setSelectedWinner(team1)}
+                onClick={() => {
+                  setSelectedWinner(team1);
+                  setIsDraw(false);
+                }}
                 className={`w-full p-3 rounded-lg border-2 font-semibold transition ${
-                  selectedWinner?.id === team1?.id
+                  selectedWinner?.id === team1?.id && !isDraw
                     ? 'border-green-500 bg-green-900 bg-opacity-30 text-green-300'
                     : 'border-gray-600 bg-gray-700 text-white hover:border-gray-500'
                 }`}
@@ -149,15 +166,35 @@ export default function TournamentMatchResultModal({
                 🏆 {team1?.name || 'TBD'} Wins
               </button>
               <button
-                onClick={() => setSelectedWinner(team2)}
+                onClick={() => {
+                  setSelectedWinner(team2);
+                  setIsDraw(false);
+                }}
                 className={`w-full p-3 rounded-lg border-2 font-semibold transition ${
-                  selectedWinner?.id === team2?.id
+                  selectedWinner?.id === team2?.id && !isDraw
                     ? 'border-green-500 bg-green-900 bg-opacity-30 text-green-300'
                     : 'border-gray-600 bg-gray-700 text-white hover:border-gray-500'
                 }`}
               >
                 🏆 {team2?.name || 'TBD'} Wins
               </button>
+              
+              {/* Draw button for group stages */}
+              {isGroupStage && (
+                <button
+                  onClick={() => {
+                    setIsDraw(!isDraw);
+                    setSelectedWinner(null);
+                  }}
+                  className={`w-full p-3 rounded-lg border-2 font-semibold transition ${
+                    isDraw
+                      ? 'border-blue-500 bg-blue-900 bg-opacity-30 text-blue-300'
+                      : 'border-gray-600 bg-gray-700 text-white hover:border-gray-500'
+                  }`}
+                >
+                  ⚖️ Draw (Both teams get 1 point)
+                </button>
+              )}
             </div>
           </div>
 
@@ -176,7 +213,12 @@ export default function TournamentMatchResultModal({
           </div>
 
           {/* Confirmation */}
-          {selectedWinner && (
+          {isDraw && (
+            <div className="bg-blue-900 bg-opacity-30 border border-blue-600 rounded p-3 text-sm text-blue-300">
+              ✓ Match will be recorded as a Draw (1 point to each team)
+            </div>
+          )}
+          {selectedWinner && !isDraw && (
             <div className="bg-green-900 bg-opacity-30 border border-green-600 rounded p-3 text-sm text-green-300">
               ✓ {selectedWinner.name} will advance to the next round
             </div>
@@ -193,7 +235,7 @@ export default function TournamentMatchResultModal({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!selectedWinner}
+            disabled={!selectedWinner && !isDraw}
             className="px-6 py-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-bold transition-colors"
           >
             Record Result
