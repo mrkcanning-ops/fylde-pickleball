@@ -63,6 +63,10 @@ export default function HomePage() {
   const [showGameModeInfo, setShowGameModeInfo] = useState(false);
   const [showSubstitutionOptions, setShowSubstitutionOptions] = useState(false);
   
+  // Tracker modal state
+  const [showTrackerModal, setShowTrackerModal] = useState(false);
+  const [trackerViewMode, setTrackerViewMode] = useState('chart'); // 'chart' or 'table'
+  
   // Main view mode state
   const [viewMode, setViewMode] = useState('league');
   const [hydrated, setHydrated] = useState(false);
@@ -4849,6 +4853,15 @@ const handleTouchEnd = (e) => {
           <h2 className="text-xl font-bold text-gray-900">Tracker</h2>
           <p className="text-sm text-gray-500">A bump chart showing player ranking position each week.</p>
         </div>
+        <button
+          onClick={() => {
+            setShowTrackerModal(true);
+            setTrackerViewMode('chart');
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold transition self-start sm:self-auto"
+        >
+          📊 Expand
+        </button>
       </div>
 
       {bumpChartData.weeks.length === 0 ? (
@@ -6598,6 +6611,229 @@ const handleTouchEnd = (e) => {
           toast.success(`✓ ${winner?.name} advances to the next round!`);
         }}
       />
+
+      {/* Tracker Fullscreen Modal */}
+      {showTrackerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-6xl w-full shadow-2xl my-8">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-gray-100 to-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0">
+              <h2 className="text-2xl font-bold text-gray-900">📊 Tracker - Ranking History</h2>
+              <button
+                onClick={() => setShowTrackerModal(false)}
+                className="text-gray-600 hover:text-gray-900 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* View Toggle Buttons */}
+            <div className="flex gap-2 px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setTrackerViewMode('chart')}
+                className={`px-4 py-2 rounded-lg font-semibold transition ${
+                  trackerViewMode === 'chart'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                📈 Bump Chart
+              </button>
+              <button
+                onClick={() => setTrackerViewMode('table')}
+                className={`px-4 py-2 rounded-lg font-semibold transition ${
+                  trackerViewMode === 'table'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                📋 Table View
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="px-6 py-6 max-h-[75vh] overflow-y-auto">
+              {trackerViewMode === 'chart' ? (
+                // CHART VIEW
+                <div className="bg-gray-800 rounded-lg p-6 overflow-x-auto">
+                  {(() => {
+                    const maxRank = Math.max(
+                      ...bumpChartData.lines.flatMap(line => line.positions.map(p => p.rank)),
+                      5
+                    );
+                    const rowHeight = 35;
+                    const topPadding = 30;
+                    const bottomPadding = 30;
+                    const chartHeight = topPadding + maxRank * rowHeight + bottomPadding;
+                    const viewBoxWidth = Math.max(1200, bumpChartData.weeks.length * 120);
+
+                    return (
+                      <svg width="100%" height={Math.max(600, chartHeight)} className="min-w-full" viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}>
+                        {/* Background grid */}
+                        {bumpChartData.weeks.map((_, weekIdx) => (
+                          <line
+                            key={`grid-v-${weekIdx}`}
+                            x1={100 + weekIdx * 120}
+                            y1={topPadding}
+                            x2={100 + weekIdx * 120}
+                            y2={topPadding + maxRank * rowHeight}
+                            stroke="#374151"
+                            strokeWidth="0.5"
+                            strokeDasharray="2,2"
+                          />
+                        ))}
+                        {Array.from({ length: maxRank }).map((_, i) => (
+                          <line
+                            key={`grid-h-${i}`}
+                            x1="70"
+                            y1={topPadding + i * rowHeight}
+                            x2={viewBoxWidth - 30}
+                            y2={topPadding + i * rowHeight}
+                            stroke="#374151"
+                            strokeWidth="0.5"
+                            strokeDasharray="2,2"
+                          />
+                        ))}
+
+                        {/* Y-axis (rankings) */}
+                        {Array.from({ length: maxRank }).map((_, i) => (
+                          <text key={`y-label-${i}`} x="60" y={topPadding + 12 + i * rowHeight} fontSize="12" fontWeight="600" textAnchor="end" fill="#9CA3AF">
+                            {i + 1}
+                          </text>
+                        ))}
+
+                        {/* X-axis (weeks) */}
+                        {bumpChartData.weeks.map((week, weekIdx) => (
+                          <text key={`x-label-${weekIdx}`} x={100 + weekIdx * 120} y={topPadding + maxRank * rowHeight + 22} fontSize="11" textAnchor="middle" fill="#9CA3AF">
+                            {week}
+                          </text>
+                        ))}
+
+                        {/* Y-axis and X-axis lines */}
+                        <line x1="70" y1={topPadding} x2="70" y2={topPadding + maxRank * rowHeight} stroke="#6B7280" strokeWidth="2" />
+                        <line x1="70" y1={topPadding + maxRank * rowHeight} x2={viewBoxWidth - 30} y2={topPadding + maxRank * rowHeight} stroke="#6B7280" strokeWidth="2" />
+
+                        {/* Player lines and dots with position numbers */}
+                        {bumpChartData.lines.map((line, lineIdx) => {
+                          const points = line.positions
+                            .map((pos) => {
+                              const x = 100 + pos.weekIndex * 120;
+                              const y = topPadding + (pos.rank - 1) * rowHeight;
+                              return `${x},${y}`;
+                            })
+                            .join(' ');
+
+                          return (
+                            <g key={lineIdx}>
+                              <polyline
+                                points={points}
+                                fill="none"
+                                stroke={line.color}
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                opacity="0.85"
+                              />
+                              {line.positions.map((pos, posIdx) => {
+                                const cx = 100 + pos.weekIndex * 120;
+                                const cy = topPadding + (pos.rank - 1) * rowHeight;
+                                return (
+                                  <g key={`dot-${posIdx}`}>
+                                    <circle
+                                      cx={cx}
+                                      cy={cy}
+                                      r="5"
+                                      fill={line.color}
+                                      opacity="0.95"
+                                    />
+                                    <text
+                                      x={cx}
+                                      y={cy}
+                                      textAnchor="middle"
+                                      dominantBaseline="middle"
+                                      fontSize="9"
+                                      fontWeight="700"
+                                      fill="white"
+                                      pointerEvents="none"
+                                    >
+                                      {pos.rank}
+                                    </text>
+                                  </g>
+                                );
+                              })}
+                              {line.positions.length > 0 && (
+                                <text
+                                  x={100 + (line.positions[line.positions.length - 1].weekIndex + 1) * 120 + 15}
+                                  y={topPadding + (line.positions[line.positions.length - 1].rank - 1) * rowHeight + 5}
+                                  fontSize="13"
+                                  fontWeight="600"
+                                  fill={line.color}
+                                >
+                                  {line.name}
+                                </text>
+                              )}
+                            </g>
+                          );
+                        })}
+                      </svg>
+                    );
+                  })()}
+                </div>
+              ) : (
+                // TABLE VIEW
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100 border-b-2 border-gray-300">
+                        <th className="px-4 py-3 text-left font-bold text-gray-900 border-r border-gray-300">Player</th>
+                        {bumpChartData.weeks.map((week) => (
+                          <th key={week} className="px-4 py-3 text-center font-bold text-gray-900 border-r border-gray-200 min-w-12">
+                            {week}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bumpChartData.lines.map((line, idx) => (
+                        <tr key={line.id || idx} className={`border-b border-gray-200 hover:bg-blue-50 transition ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                          <td className="px-4 py-3 font-semibold text-gray-900 border-r border-gray-300">
+                            <span style={{ color: line.color }} className="inline-block mr-2">●</span>
+                            {line.name}
+                          </td>
+                          {bumpChartData.weeks.map((week, weekIdx) => {
+                            const position = line.positions.find(p => p.weekIndex === weekIdx);
+                            return (
+                              <td key={`${line.id}-${weekIdx}`} className="px-4 py-3 text-center font-semibold text-gray-700 border-r border-gray-200">
+                                {position ? (
+                                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full font-bold" style={{ backgroundColor: line.color, color: 'white' }}>
+                                    {position.rank}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">—</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setShowTrackerModal(false)}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-semibold transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast Notifications Container */}
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
