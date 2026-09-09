@@ -4,12 +4,12 @@ import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { HybridStorage } from "@/lib/HybridStorage";
-import { supabase } from "@/lib/supabase"; // RE-ENABLED: Step 1
-// import HeaderStats from "@/components/HeaderStats"; // DISABLED
-// import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient"; // DISABLED
+import { supabase } from "@/lib/supabase";
+import HeaderStats from "@/components/HeaderStats";
+import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient";
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode, setUserType } from "@/lib/ls";
-// import { generate5PlayerChampMatches, generateRoundRobinMatches, generatePartnerPracticeMatches } from "../lib/matchGenerator"; // DISABLED
-// import { generatePartnerPracticeRandom, generatePartnerPracticeGenderDoubles, generatePartnerPracticeGenderMixed } from "../lib/matchGeneratorPartnerPractice"; // DISABLED
+import { generate5PlayerChampMatches, generateRoundRobinMatches, generatePartnerPracticeMatches } from "../lib/matchGenerator";
+import { generatePartnerPracticeRandom, generatePartnerPracticeGenderDoubles, generatePartnerPracticeGenderMixed } from "../lib/matchGeneratorPartnerPractice";
 
 // === NEW IMPORTS: Custom Hooks === (RE-ENABLED: Step 2)
 import { 
@@ -24,8 +24,8 @@ import {
   useTournamentLogic,
 } from "@/lib/hooks";
 
-// === NEW IMPORTS: Modal Components === (DISABLED FOR DEBUG)
-/*import { 
+// === NEW IMPORTS: Modal Components === (RE-ENABLED: Step 3)
+import { 
   ConfirmRemoveDivisionModal,
   MinQualifyModal,
   BulkAddPlayersModal,
@@ -37,7 +37,7 @@ import {
   TournamentMatchResultModal,
 } from "@/components/modals";
 
-import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisualization } from "@/components";*/
+import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisualization } from "@/components";
 
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
