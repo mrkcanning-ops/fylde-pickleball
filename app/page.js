@@ -37,8 +37,7 @@ import {
   // TournamentMatchResultModal, // DISABLED: test 2
 } from "@/components/modals";
 
-// import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisualization } from "@/components"; // DISABLED: test 2
-import { ToastContainer, StatisticsTab } from "@/components";
+import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisualization } from "@/components";
 
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
