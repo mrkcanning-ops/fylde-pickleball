@@ -187,9 +187,9 @@ export default function BracketVisualization({
                     </div>
                   </div>
                   <div className="space-y-1 md:space-y-2">
-                    {bracket.gameType === 'doubles' && bracket.doublesPartnerMode === 'known' && round.matchups
+                    {bracket.gameType === 'doubles' && round.matchups
                       ? (() => {
-                          // For known partners, extract unique teams from matchups
+                          // For doubles, extract unique teams from matchups
                           const teams = [];
                           const seenTeamPairs = new Set();
                           
