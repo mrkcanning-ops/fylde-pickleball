@@ -5141,11 +5141,8 @@ const handleTouchEnd = (e) => {
                     tournament.setShowMatchResultModal(true);
                   }}
                   onAdvanceRound={(updatedBracket) => {
-                    // Update bracket with match results, then advance
-                    tournament.setCurrentBracket(updatedBracket);
-                    setTimeout(() => {
-                      tournament.advanceToNextRound?.();
-                    }, 0);
+                    // Pass updated bracket directly to advanceToNextRound
+                    tournament.advanceToNextRound?.(updatedBracket);
                   }}
                 />
               </>

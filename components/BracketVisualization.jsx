@@ -179,10 +179,16 @@ export default function BracketVisualization({
 
   // Handle advancing to next round - first mark current matches as played
   const handleAdvanceRound = () => {
+    console.log('[handleAdvanceRound] Called, allCurrentScoresEntered:', allCurrentScoresEntered());
+    
     if (!allCurrentScoresEntered()) {
-      console.warn('Cannot advance: not all scores entered');
+      console.warn('[handleAdvanceRound] Cannot advance: not all scores entered');
       return;
     }
+
+    console.log('[handleAdvanceRound] All scores entered, preparing bracket update');
+    console.log('[handleAdvanceRound] matchWinners:', matchWinners);
+    console.log('[handleAdvanceRound] currentRoundMatches:', currentRoundMatches);
 
     // Prepare bracket update with winners marked
     const updatedBracket = { ...bracket };
@@ -201,11 +207,14 @@ export default function BracketVisualization({
 
       // This is the current round - update its matches
       roundsUpdated = true;
+      console.log('[handleAdvanceRound] Updating round:', round.stageName);
+      
       return {
         ...round,
         matchups: round.matchups?.map(match => {
           const winner = matchWinners[match.id];
           if (winner) {
+            console.log('[handleAdvanceRound] Match', match.id, 'winner:', winner);
             // Determine which team won
             const winningTeam = winner === 'team1' ? match.team1 : winner === 'team2' ? match.team2 : null;
             return {
@@ -219,6 +228,9 @@ export default function BracketVisualization({
       };
     }) || [];
 
+    console.log('[handleAdvanceRound] Updated bracket:', updatedBracket);
+    console.log('[handleAdvanceRound] Calling onAdvanceRound callback');
+    
     // Pass the updated bracket with the callback
     onAdvanceRound?.(updatedBracket);
   };
