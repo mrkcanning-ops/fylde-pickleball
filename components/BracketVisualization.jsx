@@ -147,17 +147,57 @@ export default function BracketVisualization({
                     </div>
                   </div>
                   <div className="space-y-2">
-                    {round.players?.map((player) => (
-                      <div key={player.id} className="text-sm text-gray-200 flex items-center gap-3 hover:bg-gray-700 p-2 rounded transition-colors">
-                        <span className="text-green-400 font-bold text-lg">•</span>
-                        <span className="flex-1 font-medium">{player.name}</span>
-                        {player.gender && (
-                          <span className="text-xs text-gray-400 bg-gray-900 rounded px-2 py-1">
-                            {player.gender === 'male' ? '♂ Male' : '♀ Female'}
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                    {bracket.gameType === 'doubles' && bracket.doublesPartnerMode === 'known' && bracket.playerPartners
+                      ? (() => {
+                          // For known partners, show teams grouped by partnerships
+                          const displayedPlayerIds = new Set();
+                          const teams = [];
+                          
+                          round.players?.forEach((player) => {
+                            if (displayedPlayerIds.has(player.id)) return;
+                            
+                            const partnerId = bracket.playerPartners[player.id];
+                            if (partnerId) {
+                              // Find partner player object
+                              const partnerPlayer = round.players?.find(p => p.id === partnerId);
+                              if (partnerPlayer) {
+                                teams.push({ player1: player, player2: partnerPlayer });
+                                displayedPlayerIds.add(player.id);
+                                displayedPlayerIds.add(partnerId);
+                              } else {
+                                // Partner not in this group, show alone
+                                teams.push({ player1: player });
+                                displayedPlayerIds.add(player.id);
+                              }
+                            } else {
+                              // No partner assigned, show alone
+                              teams.push({ player1: player });
+                              displayedPlayerIds.add(player.id);
+                            }
+                          });
+                          
+                          return teams.map((team, idx) => (
+                            <div key={`team-${team.player1.id}`} className="text-sm text-gray-200 flex items-center gap-3 hover:bg-gray-700 p-2 rounded transition-colors">
+                              <span className="text-purple-400 font-bold text-lg">•</span>
+                              <span className="flex-1 font-medium">
+                                {team.player1.name}
+                                {team.player2 && ` & ${team.player2.name}`}
+                              </span>
+                            </div>
+                          ));
+                        })()
+                      : // For singles or random doubles, show individual players
+                        round.players?.map((player) => (
+                          <div key={player.id} className="text-sm text-gray-200 flex items-center gap-3 hover:bg-gray-700 p-2 rounded transition-colors">
+                            <span className="text-green-400 font-bold text-lg">•</span>
+                            <span className="flex-1 font-medium">{player.name}</span>
+                            {player.gender && (
+                              <span className="text-xs text-gray-400 bg-gray-900 rounded px-2 py-1">
+                                {player.gender === 'male' ? '♂ Male' : '♀ Female'}
+                              </span>
+                            )}
+                          </div>
+                        ))}
                   </div>
                 </div>
               )
