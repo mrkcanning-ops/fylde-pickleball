@@ -24,7 +24,7 @@ import {
   useTournamentLogic,
 } from "@/lib/hooks";
 
-// === NEW IMPORTS: Modal Components ===
+// === NEW IMPORTS: Modal Components === (PARTIALLY DISABLED FOR TEST 2)
 import { 
   ConfirmRemoveDivisionModal,
   MinQualifyModal,
@@ -33,11 +33,12 @@ import {
   BulkAddDivisionsModal,
   BulkRemoveDivisionsModal,
   SubstitutePlayerModal,
-  TournamentSetupModal,
-  TournamentMatchResultModal,
+  // TournamentSetupModal, // DISABLED: test 2
+  // TournamentMatchResultModal, // DISABLED: test 2
 } from "@/components/modals";
 
-import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisualization } from "@/components";
+// import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisualization } from "@/components"; // DISABLED: test 2
+import { ToastContainer, StatisticsTab } from "@/components";
 
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
@@ -5117,19 +5118,13 @@ const handleTouchEnd = (e) => {
               </div>
             </div>
 
-            {/* Bracket Display */}
-            {!DEBUG_DISABLE_BRACKET && tournament.currentBracket ? (
+            {/* Bracket Display - DISABLED FOR TEST */}
+            {false && !DEBUG_DISABLE_BRACKET && tournament.currentBracket ? (
               <>
-                <SafeBracketVisualization
-                  bracket={tournament.currentBracket}
-                  onSelectMatch={(match) => {
-                    tournament.setSelectedMatch(match);
-                    tournament.setShowMatchResultModal(true);
-                  }}
-                />
+                {/* SafeBracketVisualization removed */}
 
                 {/* Advance Round Button */}
-                {tournament.currentBracket?.rounds?.length > 0 && (
+                {false && tournament.currentBracket?.rounds?.length > 0 && (
                   <div className="mt-6 flex justify-center">
                     <button
                       onClick={() => {
@@ -6561,7 +6556,9 @@ const handleTouchEnd = (e) => {
         }}
       />
 
-      {/* Tournament Modals */}
+      {/* Tournament Modals - DISABLED FOR TEST 2 */}
+      {false && (
+        <>
       <TournamentSetupModal
         isOpen={tournament.showTournamentModal}
         onClose={() => tournament.setShowTournamentModal(false)}
@@ -6597,6 +6594,8 @@ const handleTouchEnd = (e) => {
           toast.success(`✓ ${winner?.name} advances to the next round!`);
         }}
       />
+        </>
+      )}
 
       {/* Toast Notifications Container */}
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
