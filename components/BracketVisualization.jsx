@@ -17,24 +17,11 @@ export default function BracketVisualization({
   const [showCourtSchedule, setShowCourtSchedule] = useState(true);
   const [showRoundsDetail, setShowRoundsDetail] = useState(false);
 
-  // Helper function to format team names for display, accounting for known partners
-  const formatTeamName = (team, isDoublesWithKnownPartners = false) => {
+  // Helper function to format team names for display
+  const formatTeamName = (team) => {
     if (!team || team.length === 0) return 'TBD';
     
-    if (isDoublesWithKnownPartners && bracket.playerPartners) {
-      // For known partners, show the first player paired with their partner
-      const player1 = team[0];
-      if (!player1) return 'TBD';
-      
-      const partner1Id = bracket.playerPartners[player1.id];
-      const partner1 = partner1Id ? team.find(p => p?.id === partner1Id) : null;
-      
-      return partner1 
-        ? `${player1.name} & ${partner1.name}` 
-        : player1.name || 'TBD';
-    }
-    
-    // Fallback to standard formatting
+    // For all teams (singles or doubles), just join player names
     return team.map(p => p?.name).filter(Boolean).join(' & ') || 'TBD';
   };
 
@@ -292,11 +279,11 @@ export default function BracketVisualization({
                     >
                       <div className="text-xs text-gray-400 mb-2 font-semibold">{match.roundName}</div>
                       <div className="text-sm font-semibold text-white mb-2">
-                        {formatTeamName(match.team1, bracket.gameType === 'doubles' && bracket.doublesPartnerMode === 'known')}
+                        {formatTeamName(match.team1)}
                       </div>
                       <div className="text-xs text-center text-gray-500 mb-2">VS</div>
                       <div className="text-sm font-semibold text-white mb-3">
-                        {formatTeamName(match.team2, bracket.gameType === 'doubles' && bracket.doublesPartnerMode === 'known')}
+                        {formatTeamName(match.team2)}
                       </div>
                       <div className="text-xs text-blue-400 font-semibold">
                         Click to enter score →
@@ -369,7 +356,7 @@ export default function BracketVisualization({
                       : 'bg-gray-600'
                   }`}>
                     <span className="text-sm text-white font-medium">
-                      {formatTeamName(match.team1, bracket.gameType === 'doubles' && bracket.doublesPartnerMode === 'known')}
+                      {formatTeamName(match.team1)}
                     </span>
                     {match.played && match.winner && (
                       bracket.gameType === 'doubles'
@@ -400,7 +387,7 @@ export default function BracketVisualization({
                           : 'bg-gray-600'
                       }`}>
                         <span className="text-sm text-white font-medium">
-                          {formatTeamName(match.team2, bracket.gameType === 'doubles' && bracket.doublesPartnerMode === 'known')}
+                          {formatTeamName(match.team2)}
                         </span>
                         {match.played && match.winner && (
                           bracket.gameType === 'doubles'
