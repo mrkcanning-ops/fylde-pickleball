@@ -103,8 +103,22 @@ export default function HomePage() {
   // === Substitution Logic ===
   const substitutions = useSubstitutionLogic();
 
-  // === Tournament Logic === RE-ENABLING: Testing hook first
-  const tournament = useTournamentLogic();
+  // === Tournament Logic === TESTING: Hook disabled
+  const tournament = {
+    currentBracket: null,
+    initializeTournament: () => {},
+    resetTournament: () => {},
+    recordMatchResult: () => {},
+    advanceToNextRound: () => {},
+    getPendingMatches: () => [],
+    getCompletedMatches: () => [],
+    setShowTournamentModal: () => {},
+    setSelectedMatch: () => {},
+    setShowMatchResultModal: () => {},
+    showTournamentModal: false,
+    selectedMatch: null,
+    showMatchResultModal: false,
+  };
   // Provides: bracket state, tournament initialization, match result recording
 
   // ===== BACKWARD COMPATIBILITY: Create aliases from hooks to old variable names =====
