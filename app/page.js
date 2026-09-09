@@ -103,8 +103,22 @@ export default function HomePage() {
   // === Substitution Logic ===
   const substitutions = useSubstitutionLogic();
 
-  // === Tournament Logic ===
-  const tournament = useTournamentLogic();
+  // === Tournament Logic === TEMPORARILY DISABLED TO ISOLATE team1 ERROR
+  const tournament = {
+    currentBracket: null,
+    initializeTournament: () => {},
+    resetTournament: () => {},
+    recordMatchResult: () => {},
+    advanceToNextRound: () => {},
+    getPendingMatches: () => [],
+    getCompletedMatches: () => [],
+    setShowTournamentModal: () => {},
+    setSelectedMatch: () => {},
+    setShowMatchResultModal: () => {},
+    showTournamentModal: false,
+    selectedMatch: null,
+    showMatchResultModal: false,
+  };
   // Provides: bracket state, tournament initialization, match result recording
 
   // ===== BACKWARD COMPATIBILITY: Create aliases from hooks to old variable names =====
