@@ -5199,8 +5199,31 @@ const handleTouchEnd = (e) => {
             <div className="flex-1">
               <div className="font-semibold flex items-center gap-2">
                 {p.name}
-                {p.gender === 'male' && <span className="text-blue-600 text-sm">♂</span>}
-                {p.gender === 'female' && <span className="text-pink-600 text-sm">♀</span>}
+              </div>
+              {/* Gender Toggle Buttons - Mobile */}
+              <div className="flex gap-1 mt-2">
+                <button
+                  onClick={() => updatePlayerGender(p.id, p.gender === 'male' ? null : 'male')}
+                  className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                    p.gender === 'male'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                  }`}
+                  title="Toggle male"
+                >
+                  ♂ Male
+                </button>
+                <button
+                  onClick={() => updatePlayerGender(p.id, p.gender === 'female' ? null : 'female')}
+                  className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                    p.gender === 'female'
+                      ? 'bg-pink-500 text-white'
+                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                  }`}
+                  title="Toggle female"
+                >
+                  ♀ Female
+                </button>
               </div>
               {viewMode === "partner-practice" && (
                 <div className="mt-2">
@@ -5270,10 +5293,35 @@ const handleTouchEnd = (e) => {
             className={`border-b hover:bg-gray-100 transition`}
           >
             <td className="p-2">{i + 1}</td>
-            <td className="p-2 font-semibold flex items-center gap-2">
-              {p.name}
-              {p.gender === 'male' && <span className="text-blue-600 text-lg">♂</span>}
-              {p.gender === 'female' && <span className="text-pink-600 text-lg">♀</span>}
+            <td className="p-2">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">{p.name}</span>
+                {/* Gender Toggle Buttons - Desktop */}
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => updatePlayerGender(p.id, p.gender === 'male' ? null : 'male')}
+                    className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                      p.gender === 'male'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                    }`}
+                    title="Toggle male"
+                  >
+                    ♂ M
+                  </button>
+                  <button
+                    onClick={() => updatePlayerGender(p.id, p.gender === 'female' ? null : 'female')}
+                    className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                      p.gender === 'female'
+                        ? 'bg-pink-500 text-white'
+                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                    }`}
+                    title="Toggle female"
+                  >
+                    ♀ F
+                  </button>
+                </div>
+              </div>
             </td>
             <td className="p-2 text-center">
               <label className="relative inline-flex items-center cursor-pointer">
@@ -6523,6 +6571,7 @@ const handleTouchEnd = (e) => {
         parsedPlayers={bulkOps.parsedBulkPlayers}
         onParse={bulkOps.parsePlayerCSV}
         onConfirm={handleBulkAddPlayers}
+        onUpdatePlayerGender={bulkOps.updateParsedPlayerGender}
       />
 
       <BulkRemovePlayersModal

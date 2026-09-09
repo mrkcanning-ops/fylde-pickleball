@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 /**
  * BulkAddPlayersModal Component
  * Allows adding multiple players at once via CSV format
@@ -13,6 +15,7 @@
  *   - onParse: function - callback to parse CSV
  *   - onConfirm: function - callback to add all players
  *   - isLoading: boolean
+ *   - onUpdatePlayerGender: function - callback to update gender for a player before adding
  */
 export function BulkAddPlayersModal({
   isOpen,
@@ -23,7 +26,10 @@ export function BulkAddPlayersModal({
   onParse,
   onConfirm,
   isLoading = false,
+  onUpdatePlayerGender = null,
 }) {
+  const [genderEdits, setGenderEdits] = useState({}); // Track gender changes before adding
+
   if (!isOpen) return null;
 
   const handleParse = () => {
@@ -36,6 +42,28 @@ export function BulkAddPlayersModal({
       return;
     }
     onConfirm();
+  };
+
+  const handleGenderToggle = (playerId) => {
+    const currentGender = genderEdits[playerId] || parsedPlayers.find(p => p.id === playerId)?.gender;
+    let newGender = null;
+    
+    if (currentGender === 'male') {
+      newGender = 'female';
+    } else if (currentGender === 'female') {
+      newGender = null;
+    } else {
+      newGender = 'male';
+    }
+    
+    setGenderEdits(prev => ({
+      ...prev,
+      [playerId]: newGender
+    }));
+    
+    if (onUpdatePlayerGender) {
+      onUpdatePlayerGender(playerId, newGender);
+    }
   };
 
   return (
@@ -65,19 +93,49 @@ export function BulkAddPlayersModal({
           {parsedPlayers.length > 0 && (
             <div>
               <label className="text-gray-300 text-sm block mb-2">
-                Preview ({parsedPlayers.length} players):
+                Preview ({parsedPlayers.length} players) - Click gender to toggle:
               </label>
-              <div className="bg-gray-800 rounded p-3 max-h-40 overflow-y-auto border border-gray-600">
-                {parsedPlayers.map((p) => (
-                  <div key={p.id} className="text-sm text-gray-200 py-1 flex gap-2">
-                    <span className="font-semibold">{p.name}</span>
-                    {p.gender && (
-                      <span className="text-gray-500">
-                        ({p.gender === 'male' ? '♂️' : '♀️'} {p.gender})
-                      </span>
-                    )}
-                  </div>
-                ))}
+              <div className="bg-gray-800 rounded p-3 max-h-40 overflow-y-auto border border-gray-600 space-y-2">
+                {parsedPlayers.map((p) => {
+                  const displayGender = genderEdits[p.id] !== undefined ? genderEdits[p.id] : p.gender;
+                  return (
+                    <div key={p.id} className="text-sm text-gray-200 py-1 flex gap-3 items-center justify-between hover:bg-gray-700 px-2 py-1 rounded transition">
+                      <span className="font-semibold">{p.name}</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleGenderToggle(p.id)}
+                          className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                            displayGender === 'male'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                          }`}
+                        >
+                          ♂ Male
+                        </button>
+                        <button
+                          onClick={() => handleGenderToggle(p.id)}
+                          className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                            displayGender === 'female'
+                              ? 'bg-pink-600 text-white'
+                              : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                          }`}
+                        >
+                          ♀ Female
+                        </button>
+                        <button
+                          onClick={() => handleGenderToggle(p.id)}
+                          className={`px-2 py-1 rounded text-xs font-semibold transition ${
+                            !displayGender
+                              ? 'bg-gray-600 text-white'
+                              : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                          }`}
+                        >
+                          ? Unknown
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
