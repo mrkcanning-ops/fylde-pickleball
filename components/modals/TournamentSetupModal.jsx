@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 /**
  * Validate player count for tournament format
@@ -95,11 +95,19 @@ export default function TournamentSetupModal({
   const [selectedGameType, setSelectedGameType] = useState('singles');
   const [selectedPlayers, setSelectedPlayers] = useState(new Set());
   const [courtsCount, setCourtsCount] = useState(2);
-  const [userOverrideCourts, setUserOverrideCourts] = useState(false); // Track if user manually selected courts
+  const [userOverrideCourts, setUserOverrideCourts] = useState(false);
   
   // Doubles pairing options
-  const [doublesPartnerMode, setDoublesPartnerMode] = useState('random'); // 'random' or 'known'
-  const [playerPartners, setPlayerPartners] = useState({}); // Map of playerId -> partnerId
+  const [doublesPartnerMode, setDoublesPartnerMode] = useState('random');
+  const [playerPartners, setPlayerPartners] = useState({});
+
+  // Auto-select active players when modal opens or availablePlayers changes
+  useEffect(() => {
+    if (isOpen && availablePlayers.length > 0) {
+      const activePlayers = availablePlayers.filter(p => p.active !== false);
+      setSelectedPlayers(new Set(activePlayers.map(p => p.id)));
+    }
+  }, [isOpen, availablePlayers]);
 
   // Validate player count whenever format, gameType, or selectedPlayers changes
   const validationResult = useMemo(
@@ -365,27 +373,24 @@ export default function TournamentSetupModal({
             </div>
           )}
 
-          {/* Player Selection */}
+          {/* Player Selection - Auto-selected from active players */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className={`block text-sm font-semibold ${validationResult.valid ? 'text-gray-300' : 'text-red-400'}`}>
-                Select Players ({selectedPlayers.size} chosen{selectedGameType === 'doubles' && `, ${Math.floor(selectedPlayers.size / 2)} teams`})
+                Using Active Players ({selectedPlayers.size} selected{selectedGameType === 'doubles' && `, ${Math.floor(selectedPlayers.size / 2)} teams`})
                 {!validationResult.valid && <span className="text-red-400 ml-2">✗</span>}
                 {validationResult.valid && selectedPlayers.size > 0 && <span className="text-green-400 ml-2">✓</span>}
               </label>
-              <button
-                onClick={handleSelectAll}
-                className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded"
-              >
-                {selectedPlayers.size === availablePlayers.length ? 'Deselect All' : 'Select All'}
-              </button>
+            </div>
+            <div className="mb-3 bg-blue-900 bg-opacity-20 border border-blue-600 rounded p-3 text-xs text-blue-300">
+              ✓ Automatically using all <strong>active players</strong> from the Players tab. Uncheck below to exclude specific players.
             </div>
 
             <div className="bg-gray-900 rounded-lg p-4 max-h-48 overflow-y-auto space-y-2">
-              {availablePlayers.length === 0 ? (
-                <p className="text-gray-500 text-sm italic">No available players</p>
+              {availablePlayers.filter(p => p.active !== false).length === 0 ? (
+                <p className="text-gray-500 text-sm italic">No active players. Please activate players in the Players tab.</p>
               ) : (
-                availablePlayers.map((player) => (
+                availablePlayers.filter(p => p.active !== false).map((player) => (
                   <label
                     key={player.id}
                     className="flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-gray-800 transition"
