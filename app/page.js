@@ -4,15 +4,15 @@ import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { HybridStorage } from "@/lib/HybridStorage";
-import HeaderStats from "@/components/HeaderStats";
-import { supabase } from "@/lib/supabase";
-import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient";
+// import HeaderStats from "@/components/HeaderStats"; // DISABLED
+// import { supabase } from "@/lib/supabase"; // DISABLED
+// import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient"; // DISABLED
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode, setUserType } from "@/lib/ls";
-import { generate5PlayerChampMatches, generateRoundRobinMatches, generatePartnerPracticeMatches } from "../lib/matchGenerator";
-import { generatePartnerPracticeRandom, generatePartnerPracticeGenderDoubles, generatePartnerPracticeGenderMixed } from "../lib/matchGeneratorPartnerPractice";
+// import { generate5PlayerChampMatches, generateRoundRobinMatches, generatePartnerPracticeMatches } from "../lib/matchGenerator"; // DISABLED
+// import { generatePartnerPracticeRandom, generatePartnerPracticeGenderDoubles, generatePartnerPracticeGenderMixed } from "../lib/matchGeneratorPartnerPractice"; // DISABLED
 
-// === NEW IMPORTS: Custom Hooks ===
-import { 
+// === NEW IMPORTS: Custom Hooks === (DISABLED FOR DEBUG)
+/*import { 
   useStandingsLogic, 
   usePlayersLogic, 
   useMatchesLogic, 
@@ -22,10 +22,10 @@ import {
   useBulkOperations,
   useSubstitutionLogic,
   useTournamentLogic,
-} from "@/lib/hooks";
+} from "@/lib/hooks";*/
 
-// === NEW IMPORTS: Modal Components ===
-import { 
+// === NEW IMPORTS: Modal Components === (DISABLED FOR DEBUG)
+/*import { 
   ConfirmRemoveDivisionModal,
   MinQualifyModal,
   BulkAddPlayersModal,
@@ -37,7 +37,7 @@ import {
   TournamentMatchResultModal,
 } from "@/components/modals";
 
-import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisualization } from "@/components";
+import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisualization } from "@/components";*/
 
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
