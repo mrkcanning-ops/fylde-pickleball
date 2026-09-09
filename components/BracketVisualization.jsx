@@ -130,23 +130,23 @@ export default function BracketVisualization({
 
       {/* Group Assignments Display (for group-knockout) */}
       {bracket.format === 'group-knockout' && bracket.stage === 'group' && bracket.numGroups && bracket.rounds && (
-        <div className="mb-6 bg-gray-700 bg-opacity-50 rounded-xl p-6 border-2 border-blue-500">
-          <h4 className="font-bold text-lg text-blue-400 mb-6 flex items-center gap-3">
+        <div className="mb-4 md:mb-6 bg-gray-700 bg-opacity-50 rounded-xl p-3 md:p-6 border-2 border-blue-500">
+          <h4 className="font-bold text-base md:text-lg text-blue-400 mb-4 md:mb-6 flex items-center gap-3">
             👥 Group Assignments
           </h4>
-          <div className={`grid gap-6 ${bracket.numGroups === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          <div className="grid gap-3 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {bracket.rounds?.map((round, idx) => (
               round.bracketType === 'group' && (
-                <div key={idx} className="bg-gray-800 bg-opacity-80 rounded-lg p-5 border-2 border-green-500 hover:border-green-400 hover:shadow-lg transition-all">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="font-bold text-lg text-green-400">
+                <div key={idx} className="bg-gray-800 bg-opacity-80 rounded-lg p-3 md:p-5 border-2 border-green-500 hover:border-green-400 hover:shadow-lg transition-all">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 md:mb-4 gap-2">
+                    <div className="font-bold text-base md:text-lg text-green-400">
                       {round.stageName}
                     </div>
-                    <div className="text-sm font-semibold text-gray-400 bg-gray-900 rounded-full px-3 py-1">
+                    <div className="text-xs md:text-sm font-semibold text-gray-400 bg-gray-900 rounded-full px-2 md:px-3 py-1">
                       {round.players?.length || 0} players
                     </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1 md:space-y-2">
                     {bracket.gameType === 'doubles' && bracket.doublesPartnerMode === 'known' && bracket.playerPartners
                       ? (() => {
                           // For known partners, show teams grouped by partnerships
@@ -177,9 +177,9 @@ export default function BracketVisualization({
                           });
                           
                           return teams.map((team, idx) => (
-                            <div key={`team-${team.player1.id}`} className="text-sm text-gray-200 flex items-center gap-3 hover:bg-gray-700 p-2 rounded transition-colors">
-                              <span className="text-purple-400 font-bold text-lg">•</span>
-                              <span className="flex-1 font-medium">
+                            <div key={`team-${team.player1.id}`} className="text-xs md:text-sm text-gray-200 flex items-start md:items-center gap-2 md:gap-3 hover:bg-gray-700 p-1 md:p-2 rounded transition-colors">
+                              <span className="text-purple-400 font-bold text-base md:text-lg flex-shrink-0">•</span>
+                              <span className="flex-1 font-medium break-words">
                                 {team.player1.name}
                                 {team.player2 && ` & ${team.player2.name}`}
                               </span>
@@ -188,12 +188,12 @@ export default function BracketVisualization({
                         })()
                       : // For singles or random doubles, show individual players
                         round.players?.map((player) => (
-                          <div key={player.id} className="text-sm text-gray-200 flex items-center gap-3 hover:bg-gray-700 p-2 rounded transition-colors">
-                            <span className="text-green-400 font-bold text-lg">•</span>
-                            <span className="flex-1 font-medium">{player.name}</span>
+                          <div key={player.id} className="text-xs md:text-sm text-gray-200 flex items-start md:items-center gap-2 md:gap-3 hover:bg-gray-700 p-1 md:p-2 rounded transition-colors">
+                            <span className="text-green-400 font-bold text-base md:text-lg flex-shrink-0">•</span>
+                            <span className="flex-1 font-medium break-words">{player.name}</span>
                             {player.gender && (
-                              <span className="text-xs text-gray-400 bg-gray-900 rounded px-2 py-1">
-                                {player.gender === 'male' ? '♂ Male' : '♀ Female'}
+                              <span className="text-xs text-gray-400 bg-gray-900 rounded px-1.5 md:px-2 py-0.5 md:py-1 flex-shrink-0">
+                                {player.gender === 'male' ? '♂ M' : '♀ F'}
                               </span>
                             )}
                           </div>
