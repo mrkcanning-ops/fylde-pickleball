@@ -110,9 +110,6 @@ export default function HomePage() {
   // === Tournament Logic ===
   const tournament = useTournamentLogic();
   // Provides: bracket state, tournament initialization, match result recording
-  
-  // Verify advanceToNextRound exists
-  console.log('[app/page] tournament.advanceToNextRound exists?', typeof tournament.advanceToNextRound);
 
   // ===== BACKWARD COMPATIBILITY: Create aliases from hooks to old variable names =====
   // This allows us to keep all existing handler functions unchanged during refactoring
@@ -5145,10 +5142,18 @@ const handleTouchEnd = (e) => {
                   }}
                   onAdvanceRound={(updatedBracket) => {
                     console.log('[app/page.onAdvanceRound] Callback triggered');
-                    console.log('[app/page.onAdvanceRound] advanceToNextRound type:', typeof tournament.advanceToNextRound);
-                    console.log('[app/page.onAdvanceRound] Calling with updatedBracket');
-                    // Pass updated bracket directly to advanceToNextRound
-                    tournament.advanceToNextRound?.(updatedBracket);
+                    try {
+                      console.log('[app/page.onAdvanceRound] advanceToNextRound type:', typeof tournament.advanceToNextRound);
+                      if (typeof tournament.advanceToNextRound === 'function') {
+                        console.log('[app/page.onAdvanceRound] Calling advanceToNextRound');
+                        const result = tournament.advanceToNextRound(updatedBracket);
+                        console.log('[app/page.onAdvanceRound] Result:', result);
+                      } else {
+                        console.error('[app/page.onAdvanceRound] advanceToNextRound is not a function!');
+                      }
+                    } catch (error) {
+                      console.error('[app/page.onAdvanceRound] Error calling advanceToNextRound:', error);
+                    }
                   }}
                 />
               </>
