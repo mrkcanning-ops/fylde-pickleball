@@ -4,8 +4,8 @@ import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { HybridStorage } from "@/lib/HybridStorage";
+import { supabase } from "@/lib/supabase"; // RE-ENABLED: Step 1
 // import HeaderStats from "@/components/HeaderStats"; // DISABLED
-// import { supabase } from "@/lib/supabase"; // DISABLED
 // import PreviousMatchesClient from "./previous-matches/PreviousMatchesClient"; // DISABLED
 import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode, setUserType } from "@/lib/ls";
 // import { generate5PlayerChampMatches, generateRoundRobinMatches, generatePartnerPracticeMatches } from "../lib/matchGenerator"; // DISABLED
