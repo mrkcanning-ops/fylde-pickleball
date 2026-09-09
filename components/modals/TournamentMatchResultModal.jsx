@@ -16,7 +16,6 @@ export default function TournamentMatchResultModal({
 }) {
   const [selectedWinner, setSelectedWinner] = useState(null);
   const [matchScore, setMatchScore] = useState({ team1: '', team2: '' });
-  const [notes, setNotes] = useState('');
   const [isDraw, setIsDraw] = useState(false);
 
   // Check if this is a group stage match (draws allowed)
@@ -198,20 +197,6 @@ export default function TournamentMatchResultModal({
                 </button>
               )}
             </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Notes (Optional)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g., Close match, injury, etc."
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 resize-none"
-              rows="2"
-            />
           </div>
 
           {/* Confirmation */}
