@@ -24,7 +24,7 @@ import {
   useTournamentLogic,
 } from "@/lib/hooks";
 
-// === NEW IMPORTS: Modal Components === (PARTIALLY DISABLED)
+// === NEW IMPORTS: Modal Components ===
 import { 
   ConfirmRemoveDivisionModal,
   MinQualifyModal,
@@ -33,12 +33,11 @@ import {
   BulkAddDivisionsModal,
   BulkRemoveDivisionsModal,
   SubstitutePlayerModal,
-  // TournamentSetupModal, // DISABLED: isolating team1 error
-  // TournamentMatchResultModal, // DISABLED: isolating team1 error
+  TournamentSetupModal,
+  TournamentMatchResultModal,
 } from "@/components/modals";
 
-// import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisualization } from "@/components"; // DISABLED: isolating team1 error
-import { ToastContainer, StatisticsTab } from "@/components";
+import { ToastContainer, StatisticsTab, BracketVisualization, SafeBracketVisualization } from "@/components";
 
 // PreviousSeasonsClient intentionally not imported — Previous Seasons tab shows a simple message
 
@@ -104,22 +103,8 @@ export default function HomePage() {
   // === Substitution Logic ===
   const substitutions = useSubstitutionLogic();
 
-  // === Tournament Logic === TEMPORARILY DISABLED TO ISOLATE team1 ERROR
-  const tournament = {
-    currentBracket: null,
-    initializeTournament: () => {},
-    resetTournament: () => {},
-    recordMatchResult: () => {},
-    advanceToNextRound: () => {},
-    getPendingMatches: () => [],
-    getCompletedMatches: () => [],
-    setShowTournamentModal: () => {},
-    setSelectedMatch: () => {},
-    setShowMatchResultModal: () => {},
-    showTournamentModal: false,
-    selectedMatch: null,
-    showMatchResultModal: false,
-  };
+  // === Tournament Logic === RE-ENABLING: Testing hook first
+  const tournament = useTournamentLogic();
   // Provides: bracket state, tournament initialization, match result recording
 
   // ===== BACKWARD COMPATIBILITY: Create aliases from hooks to old variable names =====
@@ -5118,10 +5103,16 @@ const handleTouchEnd = (e) => {
               </div>
             </div>
 
-            {/* Bracket Display - DISABLED FOR DEBUGGING */}
-            {false && !DEBUG_DISABLE_BRACKET && tournament.currentBracket ? (
+            {/* Bracket Display */}
+            {!DEBUG_DISABLE_BRACKET && tournament.currentBracket ? (
               <>
-                {/* SafeBracketVisualization removed - temporarily disabled */}
+                <SafeBracketVisualization
+                  bracket={tournament.currentBracket}
+                  onSelectMatch={(match) => {
+                    tournament.setSelectedMatch(match);
+                    tournament.setShowMatchResultModal(true);
+                  }}
+                />
 
                 {/* Advance Round Button */}
                 {tournament.currentBracket?.rounds?.length > 0 && (
@@ -6556,9 +6547,7 @@ const handleTouchEnd = (e) => {
         }}
       />
 
-      {/* Tournament Modals - DISABLED FOR DEBUGGING */}
-      {false && (
-        <>
+      {/* Tournament Modals */}
       <TournamentSetupModal
         isOpen={tournament.showTournamentModal}
         onClose={() => tournament.setShowTournamentModal(false)}
@@ -6594,8 +6583,6 @@ const handleTouchEnd = (e) => {
           toast.success(`✓ ${winner?.name} advances to the next round!`);
         }}
       />
-        </>
-      )}
 
       {/* Toast Notifications Container */}
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
