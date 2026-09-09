@@ -95,6 +95,7 @@ export default function TournamentSetupModal({
   const [selectedGameType, setSelectedGameType] = useState('singles');
   const [selectedPlayers, setSelectedPlayers] = useState(new Set());
   const [courtsCount, setCourtsCount] = useState(2);
+  const [userOverrideCourts, setUserOverrideCourts] = useState(false); // Track if user manually selected courts
   
   // Doubles pairing options
   const [doublesPartnerMode, setDoublesPartnerMode] = useState('random'); // 'random' or 'known'
@@ -106,6 +107,32 @@ export default function TournamentSetupModal({
     [selectedPlayers.size, selectedFormat, selectedGameType]
   );
 
+  // Calculate suggested courts based on player count
+  // Singles: ~1 court per 6-8 players | Doubles: ~1 court per 8-10 players
+  const suggestedCourts = useMemo(() => {
+    const playerCount = selectedPlayers.size;
+    if (playerCount === 0) return 2;
+    
+    let suggested;
+    if (selectedGameType === 'doubles') {
+      // Doubles: roughly 1 court per 8-10 players
+      suggested = Math.ceil(playerCount / 9);
+    } else {
+      // Singles: roughly 1 court per 6-8 players
+      suggested = Math.ceil(playerCount / 7);
+    }
+    
+    // Clamp between 1 and 6 courts
+    return Math.max(1, Math.min(6, suggested));
+  }, [selectedPlayers.size, selectedGameType]);
+
+  // Auto-select suggested courts if user hasn't manually overridden
+  useMemo(() => {
+    if (!userOverrideCourts && selectedPlayers.size > 0) {
+      setCourtsCount(suggestedCourts);
+    }
+  }, [suggestedCourts, selectedPlayers.size, userOverrideCourts]);
+
   const handleTogglePlayer = (playerId) => {
     const updated = new Set(selectedPlayers);
     if (updated.has(playerId)) {
@@ -114,6 +141,7 @@ export default function TournamentSetupModal({
       updated.add(playerId);
     }
     setSelectedPlayers(updated);
+    setUserOverrideCourts(false); // Reset override when players change so auto-suggestion works
   };
 
   const handleSelectAll = () => {
@@ -122,6 +150,7 @@ export default function TournamentSetupModal({
     } else {
       setSelectedPlayers(new Set(availablePlayers.map((p) => p.id)));
     }
+    setUserOverrideCourts(false); // Reset override when bulk selecting
   };
 
   const handleStartTournament = () => {
@@ -201,6 +230,7 @@ export default function TournamentSetupModal({
               >
                 <div className="font-bold mb-1">👤 Singles</div>
                 <div className="text-xs opacity-80">1v1 matches</div>
+                <div className="text-xs font-semibold text-green-400 mt-2">{availablePlayers.length} available</div>
               </button>
               <button
                 onClick={() => setSelectedGameType('doubles')}
@@ -212,25 +242,39 @@ export default function TournamentSetupModal({
               >
                 <div className="font-bold mb-1">👥 Doubles</div>
                 <div className="text-xs opacity-80">2v2 matches</div>
+                <div className="text-xs font-semibold text-green-400 mt-2">{availablePlayers.length} available</div>
               </button>
             </div>
           </div>
 
           {/* Courts Available */}
           <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-3">
-              Number of Courts Available
-            </label>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-semibold text-gray-300">
+                Number of Courts Available
+              </label>
+              {selectedPlayers.size > 0 && (
+                <span className="text-xs text-gray-400">
+                  Suggested: <span className="text-yellow-400 font-bold">{suggestedCourts}</span> court{suggestedCourts !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-6 gap-2">
               {[1, 2, 3, 4, 5, 6].map((num) => (
                 <button
                   key={num}
-                  onClick={() => setCourtsCount(num)}
+                  onClick={() => {
+                    setCourtsCount(num);
+                    setUserOverrideCourts(true); // Mark that user manually selected
+                  }}
                   className={`p-3 rounded-lg border-2 transition font-bold ${
                     courtsCount === num
                       ? 'border-purple-500 bg-purple-900 bg-opacity-40 text-white'
+                      : num === suggestedCourts && !userOverrideCourts && selectedPlayers.size > 0
+                      ? 'border-yellow-500 bg-yellow-900 bg-opacity-20 text-white'
                       : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
                   }`}
+                  title={num === suggestedCourts ? 'Suggested' : ''}
                 >
                   🏟️ {num}
                 </button>
@@ -274,8 +318,8 @@ export default function TournamentSetupModal({
                     : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
                 }`}
               >
-                <div className="font-bold mb-1">🏘️ Groups+KO</div>
-                <div className="text-xs opacity-80">Round robin→elim</div>
+                <div className="font-bold mb-1 line-clamp-1">🏘️ Groups+KO</div>
+                <div className="text-xs opacity-80 line-clamp-2">Round robin to elim</div>
               </button>
             </div>
           </div>
