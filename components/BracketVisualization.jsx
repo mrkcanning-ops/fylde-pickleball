@@ -168,41 +168,37 @@ export default function BracketVisualization({
                     </div>
                   </div>
                   <div className="space-y-1 md:space-y-2">
-                    {bracket.gameType === 'doubles' && bracket.doublesPartnerMode === 'known' && bracket.playerPartners
+                    {bracket.gameType === 'doubles' && bracket.doublesPartnerMode === 'known' && round.matchups
                       ? (() => {
-                          // For known partners, show teams grouped by partnerships
-                          const displayedPlayerIds = new Set();
+                          // For known partners, extract unique teams from matchups
                           const teams = [];
+                          const seenTeamPairs = new Set();
                           
-                          round.players?.forEach((player) => {
-                            if (displayedPlayerIds.has(player.id)) return;
-                            
-                            const partnerId = bracket.playerPartners[player.id];
-                            if (partnerId) {
-                              // Find partner player object
-                              const partnerPlayer = round.players?.find(p => p.id === partnerId);
-                              if (partnerPlayer) {
-                                teams.push({ player1: player, player2: partnerPlayer });
-                                displayedPlayerIds.add(player.id);
-                                displayedPlayerIds.add(partnerId);
-                              } else {
-                                // Partner not in this group, show alone
-                                teams.push({ player1: player });
-                                displayedPlayerIds.add(player.id);
+                          round.matchups?.forEach((match) => {
+                            // Extract team1
+                            if (match.team1 && match.team1.length > 0) {
+                              const team1Names = match.team1.map(p => p?.id).sort().join('|');
+                              if (!seenTeamPairs.has(team1Names)) {
+                                teams.push({ players: match.team1 });
+                                seenTeamPairs.add(team1Names);
                               }
-                            } else {
-                              // No partner assigned, show alone
-                              teams.push({ player1: player });
-                              displayedPlayerIds.add(player.id);
+                            }
+                            
+                            // Extract team2
+                            if (match.team2 && match.team2.length > 0) {
+                              const team2Names = match.team2.map(p => p?.id).sort().join('|');
+                              if (!seenTeamPairs.has(team2Names)) {
+                                teams.push({ players: match.team2 });
+                                seenTeamPairs.add(team2Names);
+                              }
                             }
                           });
                           
                           return teams.map((team, idx) => (
-                            <div key={`team-${team.player1.id}`} className="text-xs md:text-sm text-gray-200 flex items-start md:items-center gap-2 md:gap-3 hover:bg-gray-700 p-1 md:p-2 rounded transition-colors">
+                            <div key={`team-${idx}`} className="text-xs md:text-sm text-gray-200 flex items-start md:items-center gap-2 md:gap-3 hover:bg-gray-700 p-1 md:p-2 rounded transition-colors">
                               <span className="text-purple-400 font-bold text-base md:text-lg flex-shrink-0">•</span>
                               <span className="flex-1 font-medium break-words">
-                                {team.player1.name}
-                                {team.player2 && ` & ${team.player2.name}`}
+                                {team.players?.map(p => p?.name).join(' & ')}
                               </span>
                             </div>
                           ));
