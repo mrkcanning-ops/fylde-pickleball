@@ -16,6 +16,8 @@ export default function BracketVisualization({
   console.log('[BracketVisualization] Rendering bracket:', bracket?.format, bracket?.gameType, 'rounds:', bracket?.rounds?.length);
   const [showCourtSchedule, setShowCourtSchedule] = useState(true);
   const [showRoundsDetail, setShowRoundsDetail] = useState(false);
+  const [matchScores, setMatchScores] = useState({}); // Track scores: { matchId: { team1: score, team2: score } }
+  const [matchWinners, setMatchWinners] = useState({}); // Track detected winners: { matchId: winnerId or 'draw' }
 
   // Helper function to format team names for display
   const formatTeamName = (team) => {
@@ -23,6 +25,38 @@ export default function BracketVisualization({
     
     // For all teams (singles or doubles), just join player names
     return team.map(p => p?.name).filter(Boolean).join(' & ') || 'TBD';
+  };
+
+  // Helper to update match score and auto-detect winner
+  const updateMatchScore = (matchId, team, score) => {
+    const newScores = { ...matchScores };
+    if (!newScores[matchId]) {
+      newScores[matchId] = { team1: '', team2: '' };
+    }
+    newScores[matchId][team] = score;
+    setMatchScores(newScores);
+
+    // Auto-detect winner if both scores are entered
+    if (newScores[matchId].team1 !== '' && newScores[matchId].team2 !== '') {
+      const s1 = parseInt(newScores[matchId].team1, 10);
+      const s2 = parseInt(newScores[matchId].team2, 10);
+      
+      if (s1 > s2) {
+        setMatchWinners({ ...matchWinners, [matchId]: 'team1' });
+      } else if (s2 > s1) {
+        setMatchWinners({ ...matchWinners, [matchId]: 'team2' });
+      } else {
+        setMatchWinners({ ...matchWinners, [matchId]: 'draw' });
+      }
+    }
+  };
+
+  // Check if all current round matches have scores entered
+  const allCurrentScoresEntered = () => {
+    return Object.values(currentRoundMatches).every(match => {
+      if (!match) return true; // No match = complete
+      return matchScores[match.id] && matchScores[match.id].team1 !== '' && matchScores[match.id].team2 !== '';
+    });
   };
 
   if (!bracket) {
@@ -242,66 +276,113 @@ export default function BracketVisualization({
         </div>
       )}
 
-      {/* Current Round Matches - Collapsible Court Schedule */}
+      {/* Current Round Matches - Inline Score Entry */}
       <div className="mb-6">
-        <button
-          onClick={() => setShowCourtSchedule(!showCourtSchedule)}
-          className="w-full flex items-center justify-between bg-cyan-900 bg-opacity-30 border border-cyan-500 rounded-lg p-4 hover:bg-opacity-40 transition"
-        >
-          <h4 className="font-semibold text-cyan-400 flex items-center gap-2">
-            🏟️ Current Round - Court Schedule {showCourtSchedule ? '▼' : '▶'}
+        <div className="bg-cyan-900 bg-opacity-30 border border-cyan-500 rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-cyan-400 flex items-center gap-2 mb-4">
+            🏟️ Current Round - Enter Scores
           </h4>
-          <span className="text-sm text-cyan-300">
-            {Object.values(currentRoundMatches).filter(m => m !== null).length} matches
-          </span>
-        </button>
-
-        {showCourtSchedule && (
-          <div className={`mt-4 grid gap-4 ${bracket.courtsCount > 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          
+          <div className="grid gap-6 grid-cols-1">
             {Array.from({ length: bracket.courtsCount }, (_, courtIdx) => {
               const courtNum = courtIdx + 1;
               const match = currentRoundMatches[courtNum];
+              const matchScoreData = matchScores[match?.id];
+              const winner = matchWinners[match?.id];
 
               return (
                 <div
                   key={courtNum}
-                  className="bg-gray-700 bg-opacity-50 rounded-lg p-4 border border-purple-500"
+                  className="bg-gray-800 bg-opacity-80 rounded-lg p-6 border-2 border-purple-500 hover:border-purple-400 transition-all"
                 >
-                  <div className="font-bold text-purple-400 mb-3 text-sm">
-                    Court {courtNum}
+                  {/* Court Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="font-bold text-lg text-purple-400">Court {courtNum}</div>
+                    <div className="text-xs font-semibold text-gray-400 bg-gray-900 rounded-full px-3 py-1">
+                      {match?.roundName || 'No match'}
+                    </div>
                   </div>
+
                   {!match ? (
-                    <div className="text-xs text-gray-500 italic">No pending matches</div>
+                    <div className="text-center text-gray-400 py-6">
+                      <div className="text-sm italic">No pending matches</div>
+                    </div>
                   ) : (
-                    <div
-                      onClick={() => onSelectMatch?.(match)}
-                      className="bg-gray-800 rounded p-3 cursor-pointer transition border-l-2 border-cyan-400 hover:bg-gray-750"
-                    >
-                      <div className="text-xs text-gray-400 mb-2 font-semibold">{match.roundName}</div>
-                      <div className="text-sm font-semibold text-white mb-2">
-                        {formatTeamName(match.team1)}
+                    <div className="space-y-4">
+                      {/* Team 1 */}
+                      <div className={`bg-gray-700 rounded-lg p-4 ${winner === 'team1' ? 'border-2 border-green-500' : winner === 'draw' ? 'border-2 border-blue-500' : 'border border-gray-600'}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-white font-semibold">{formatTeamName(match.team1)}</span>
+                          {winner === 'team1' && <span className="text-yellow-400 font-bold text-lg">🏆</span>}
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          value={matchScoreData?.team1 || ''}
+                          onChange={(e) => updateMatchScore(match.id, 'team1', e.target.value)}
+                          placeholder="Score"
+                          className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white text-center text-lg font-bold focus:outline-none focus:border-blue-500"
+                        />
                       </div>
-                      <div className="text-xs text-center text-gray-500 mb-2">VS</div>
-                      <div className="text-sm font-semibold text-white mb-3">
-                        {formatTeamName(match.team2)}
+
+                      {/* VS */}
+                      <div className="text-center text-gray-500 font-bold">VS</div>
+
+                      {/* Team 2 */}
+                      <div className={`bg-gray-700 rounded-lg p-4 ${winner === 'team2' ? 'border-2 border-green-500' : winner === 'draw' ? 'border-2 border-blue-500' : 'border border-gray-600'}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-white font-semibold">{formatTeamName(match.team2)}</span>
+                          {winner === 'team2' && <span className="text-yellow-400 font-bold text-lg">🏆</span>}
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          value={matchScoreData?.team2 || ''}
+                          onChange={(e) => updateMatchScore(match.id, 'team2', e.target.value)}
+                          placeholder="Score"
+                          className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white text-center text-lg font-bold focus:outline-none focus:border-blue-500"
+                        />
                       </div>
-                      <div className="text-xs text-blue-400 font-semibold">
-                        Click to enter score →
-                      </div>
+
+                      {/* Result Indicator */}
+                      {winner && (
+                        <div className={`text-center p-2 rounded font-semibold text-sm ${
+                          winner === 'draw' 
+                            ? 'bg-blue-900 bg-opacity-30 text-blue-300 border border-blue-600' 
+                            : 'bg-green-900 bg-opacity-30 text-green-300 border border-green-600'
+                        }`}>
+                          {winner === 'draw' ? '⚖️ Draw' : '✓ Winner detected'}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               );
             })}
           </div>
-        )}
+
+          {/* Next Round Button */}
+          {anyPendingMatches && (
+            <button
+              onClick={() => onAdvanceRound?.()}
+              disabled={!allCurrentScoresEntered()}
+              className={`w-full mt-6 py-3 px-4 rounded-lg font-bold transition ${
+                allCurrentScoresEntered()
+                  ? 'bg-green-600 hover:bg-green-500 text-white cursor-pointer'
+                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {allCurrentScoresEntered() ? '→ Next Round' : 'Enter all scores to continue'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Show message when all current matches complete */}
       {!anyPendingMatches && bracket.rounds?.length > 0 && (
         <div className="bg-green-900 bg-opacity-30 border border-green-500 rounded-lg p-4 mb-6">
-          <div className="text-green-400 font-bold mb-2">✓ All current matches complete!</div>
-          <div className="text-sm text-green-300">Click "Advance Round" to show the next set of matches.</div>
+          <div className="text-green-400 font-bold mb-2">✓ Group stage complete!</div>
+          <div className="text-sm text-green-300">All matches have been recorded.</div>
         </div>
       )}
 
