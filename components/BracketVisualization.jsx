@@ -81,10 +81,11 @@ export default function BracketVisualization({
 
   /**
    * Get next unplayed match for each court
-   * Returns one match per court (the first unplayed match)
+   * Returns one match per court, ensuring no player appears on multiple courts
    */
   const getCurrentRoundMatches = () => {
     const courtMatches = {};
+    const usedPlayers = new Set(); // Track players already assigned to courts
 
     // Initialize courts
     for (let i = 1; i <= (bracket?.courtsCount || 1); i++) {
@@ -101,7 +102,7 @@ export default function BracketVisualization({
       allRounds = [...allRounds, ...bracket.knockoutRounds];
     }
 
-    // Find first unplayed match for each court
+    // Find first unplayed match for each court, ensuring no player conflicts
     allRounds.forEach((round) => {
       if (!round || !Array.isArray(round.matchups)) return;
       
@@ -110,10 +111,41 @@ export default function BracketVisualization({
         if (!match || typeof match !== 'object') return;
         
         const courtNum = match.court || 1;
-        // Only assign if this court doesn't have a match yet and this one isn't played
-        if (!courtMatches[courtNum] && !match.played && match.team2) {
-          courtMatches[courtNum] = { ...match, roundName: round.stageName };
+        
+        // Skip if this court already has a match
+        if (courtMatches[courtNum]) return;
+        
+        // Skip if match is already played
+        if (match.played) return;
+        
+        // Skip if match doesn't have both teams
+        if (!match.team2) return;
+        
+        // Check for player conflicts with already-assigned matches
+        const matchPlayerIds = new Set();
+        if (match.team1) {
+          match.team1.forEach(p => {
+            if (p && p.id) matchPlayerIds.add(p.id);
+          });
         }
+        if (match.team2) {
+          match.team2.forEach(p => {
+            if (p && p.id) matchPlayerIds.add(p.id);
+          });
+        }
+        
+        // Skip this match if any player is already assigned to another court
+        const hasConflict = Array.from(matchPlayerIds).some(playerId => 
+          usedPlayers.has(playerId)
+        );
+        
+        if (hasConflict) return;
+        
+        // No conflicts - assign this match to the court
+        courtMatches[courtNum] = { ...match, roundName: round.stageName };
+        
+        // Mark all players as used
+        matchPlayerIds.forEach(playerId => usedPlayers.add(playerId));
       });
     });
 
