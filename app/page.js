@@ -324,6 +324,13 @@ export default function HomePage() {
     setHydrated(true);
   }, []);
 
+  // Clear player list when viewMode changes to prevent showing stale players from previous mode
+  useEffect(() => {
+    setAllDivisionPlayers([]);
+    setPlayers([]);
+    console.debug("viewMode changed to:", viewMode, "- cleared player lists");
+  }, [viewMode]);
+
   // Load divisions and players on mount and when mode changes (for club members)
   useEffect(() => {
     if (userType === 'club-member' && !isLoading) {
@@ -1147,7 +1154,7 @@ const fetchPreviousMatches = async () => {
     fetchAllDivisionPlayers(newDivision);
   };
 
-  const fetchAllDivisionPlayers = async (divisionNum = division) => {
+  const fetchAllDivisionPlayers = async (divisionNum = division, vmOverride = null) => {
     // Guests don't load players
     if (userType === 'guest') {
       console.debug("fetchAllDivisionPlayers: guest user, returning empty");
@@ -1155,7 +1162,12 @@ const fetchPreviousMatches = async () => {
       return;
     }
 
-    let query = db("players")
+    // Use provided viewMode or fall back to current state
+    const vm = vmOverride || viewMode;
+    
+    // Construct correct table name for the mode
+    const tableSuffix = getTableSuffix(vm);
+    let query = supabase.from(`players${tableSuffix}`)
       .select("*")
       .eq("division", divisionNum);
     
@@ -1168,6 +1180,9 @@ const fetchPreviousMatches = async () => {
 
     if (!error) {
       setAllDivisionPlayers(data || []);
+      console.debug("fetchAllDivisionPlayers: loaded", data?.length || 0, "players for division", divisionNum, "mode", vm);
+    } else {
+      console.warn("fetchAllDivisionPlayers error:", error, "for mode", vm);
     }
   };
 
@@ -2774,7 +2789,7 @@ const syncDivisions = async (vmOverride) => {
     setMinQualifyByDivision((prev) => ({ ...(prev || {}), ...(byDiv || {}) }));
     const sel = mapped.find((d) => d.id === division) ? division : mapped[0].id;
     setDivision(sel);
-    await fetchAllDivisionPlayers(sel);
+    await fetchAllDivisionPlayers(sel, vm);
     console.debug("Divisions synced (silent)");
   } catch (e) {
     console.error("Unexpected error syncing divisions:", e);
