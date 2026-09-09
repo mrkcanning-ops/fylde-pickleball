@@ -5140,8 +5140,12 @@ const handleTouchEnd = (e) => {
                     tournament.setSelectedMatch(match);
                     tournament.setShowMatchResultModal(true);
                   }}
-                  onAdvanceRound={() => {
-                    tournament.advanceToNextRound?.();
+                  onAdvanceRound={(updatedBracket) => {
+                    // Update bracket with match results, then advance
+                    tournament.setCurrentBracket(updatedBracket);
+                    setTimeout(() => {
+                      tournament.advanceToNextRound?.();
+                    }, 0);
                   }}
                 />
               </>

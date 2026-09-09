@@ -177,6 +177,52 @@ export default function BracketVisualization({
   const currentRoundMatches = getCurrentRoundMatches();
   const anyPendingMatches = Object.values(currentRoundMatches).some(m => m !== null);
 
+  // Handle advancing to next round - first mark current matches as played
+  const handleAdvanceRound = () => {
+    if (!allCurrentScoresEntered()) {
+      console.warn('Cannot advance: not all scores entered');
+      return;
+    }
+
+    // Prepare bracket update with winners marked
+    const updatedBracket = { ...bracket };
+    let roundsUpdated = false;
+
+    // Find the current round and mark all matches as played with winners
+    updatedBracket.rounds = bracket.rounds?.map(round => {
+      // Check if any match in this round is in currentRoundMatches
+      const roundHasPendingMatches = Object.values(currentRoundMatches).some(m => 
+        m && round.matchups?.some(match => match.id === m.id)
+      );
+
+      if (!roundHasPendingMatches) {
+        return round;
+      }
+
+      // This is the current round - update its matches
+      roundsUpdated = true;
+      return {
+        ...round,
+        matchups: round.matchups?.map(match => {
+          const winner = matchWinners[match.id];
+          if (winner) {
+            // Determine which team won
+            const winningTeam = winner === 'team1' ? match.team1 : winner === 'team2' ? match.team2 : null;
+            return {
+              ...match,
+              played: true,
+              winner: winningTeam || (winner === 'draw' ? { draw: true } : null),
+            };
+          }
+          return match;
+        }) || [],
+      };
+    }) || [];
+
+    // Pass the updated bracket with the callback
+    onAdvanceRound?.(updatedBracket);
+  };
+
   return (
     <div className="bg-gray-800 rounded-lg p-6 overflow-x-auto space-y-6">
       <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -365,7 +411,7 @@ export default function BracketVisualization({
           {/* Next Round Button */}
           {anyPendingMatches && (
             <button
-              onClick={() => onAdvanceRound?.()}
+              onClick={handleAdvanceRound}
               disabled={!allCurrentScoresEntered()}
               className={`w-full mt-6 py-3 px-4 rounded-lg font-bold transition ${
                 allCurrentScoresEntered()
