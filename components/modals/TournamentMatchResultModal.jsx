@@ -24,6 +24,8 @@ export default function TournamentMatchResultModal({
 
   // Auto-detect winner based on score
   useEffect(() => {
+    if (!match) return; // Guard against null match
+    
     const team1 = match.team1?.[0];
     const team2 = match.team2?.[0];
     
@@ -46,7 +48,7 @@ export default function TournamentMatchResultModal({
         setIsDraw(true);
       }
     }
-  }, [matchScore, match.team1, match.team2, isGroupStage]);
+  }, [matchScore, match, isGroupStage]);
 
   if (!isOpen) return null;
   if (!match) return null;
