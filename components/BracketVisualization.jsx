@@ -130,25 +130,30 @@ export default function BracketVisualization({
 
       {/* Group Assignments Display (for group-knockout) */}
       {bracket.format === 'group-knockout' && bracket.stage === 'group' && bracket.numGroups && bracket.rounds && (
-        <div className="mb-6 bg-gray-700 bg-opacity-50 rounded-lg p-4 border border-blue-500">
-          <h4 className="font-semibold text-blue-400 mb-4 flex items-center gap-2">
+        <div className="mb-6 bg-gray-700 bg-opacity-50 rounded-xl p-6 border-2 border-blue-500">
+          <h4 className="font-bold text-lg text-blue-400 mb-6 flex items-center gap-3">
             👥 Group Assignments
           </h4>
-          <div className={`grid gap-4 ${bracket.numGroups === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          <div className={`grid gap-6 ${bracket.numGroups === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
             {bracket.rounds?.map((round, idx) => (
               round.bracketType === 'group' && (
-                <div key={idx} className="bg-gray-800 rounded p-3 border border-gray-600">
-                  <div className="font-bold text-green-400 mb-2 text-sm">
-                    {round.stageName}
+                <div key={idx} className="bg-gray-800 bg-opacity-80 rounded-lg p-5 border-2 border-green-500 hover:border-green-400 hover:shadow-lg transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="font-bold text-lg text-green-400">
+                      {round.stageName}
+                    </div>
+                    <div className="text-sm font-semibold text-gray-400 bg-gray-900 rounded-full px-3 py-1">
+                      {round.players?.length || 0} players
+                    </div>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     {round.players?.map((player) => (
-                      <div key={player.id} className="text-xs text-gray-300 flex items-center gap-2">
-                        <span className="text-yellow-400">•</span>
-                        {player.name}
+                      <div key={player.id} className="text-sm text-gray-200 flex items-center gap-3 hover:bg-gray-700 p-2 rounded transition-colors">
+                        <span className="text-green-400 font-bold text-lg">•</span>
+                        <span className="flex-1 font-medium">{player.name}</span>
                         {player.gender && (
-                          <span className="text-gray-500">
-                            {player.gender === 'male' ? '♂' : '♀'}
+                          <span className="text-xs text-gray-400 bg-gray-900 rounded px-2 py-1">
+                            {player.gender === 'male' ? '♂ Male' : '♀ Female'}
                           </span>
                         )}
                       </div>
