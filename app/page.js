@@ -5140,27 +5140,10 @@ const handleTouchEnd = (e) => {
                     tournament.setSelectedMatch(match);
                     tournament.setShowMatchResultModal(true);
                   }}
+                  onAdvanceRound={() => {
+                    tournament.advanceToNextRound?.();
+                  }}
                 />
-
-                {/* Advance Round Button */}
-                {tournament.currentBracket?.rounds?.length > 0 && (
-                  <div className="mt-6 flex justify-center">
-                    <button
-                      onClick={() => {
-                        const pending = tournament.getPendingMatches?.();
-                        if (pending && pending.length > 0) {
-                          alert(`Please complete all matches in this round (${pending.length} remaining)`);
-                          return;
-                        }
-                        tournament.advanceToNextRound?.();
-                        alert("Tournament advanced to next round!");
-                      }}
-                      className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-lg font-bold transition-colors flex items-center gap-2"
-                    >
-                      ⏭️ Advance to Next Round
-                    </button>
-                  </div>
-                )}
               </>
             ) : (
               <div className="bg-gray-900 rounded-lg p-8 text-center">

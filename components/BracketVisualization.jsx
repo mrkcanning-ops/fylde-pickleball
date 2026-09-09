@@ -12,6 +12,7 @@ export default function BracketVisualization({
   bracket = null,
   onSelectMatch = null,
   onRecordResult = null,
+  onAdvanceRound = null,
 }) {
   console.log('[BracketVisualization] Rendering bracket:', bracket?.format, bracket?.gameType, 'rounds:', bracket?.rounds?.length);
   const [showCourtSchedule, setShowCourtSchedule] = useState(true);
