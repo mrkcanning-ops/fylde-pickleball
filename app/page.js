@@ -11,8 +11,8 @@ import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode, setUse
 // import { generate5PlayerChampMatches, generateRoundRobinMatches, generatePartnerPracticeMatches } from "../lib/matchGenerator"; // DISABLED
 // import { generatePartnerPracticeRandom, generatePartnerPracticeGenderDoubles, generatePartnerPracticeGenderMixed } from "../lib/matchGeneratorPartnerPractice"; // DISABLED
 
-// === NEW IMPORTS: Custom Hooks === (DISABLED FOR DEBUG)
-/*import { 
+// === NEW IMPORTS: Custom Hooks === (RE-ENABLED: Step 2)
+import { 
   useStandingsLogic, 
   usePlayersLogic, 
   useMatchesLogic, 
@@ -22,7 +22,7 @@ import { getLSRaw, getLSJson, setLSRaw, setLSJson, removeLS, getViewMode, setUse
   useBulkOperations,
   useSubstitutionLogic,
   useTournamentLogic,
-} from "@/lib/hooks";*/
+} from "@/lib/hooks";
 
 // === NEW IMPORTS: Modal Components === (DISABLED FOR DEBUG)
 /*import { 
@@ -80,128 +80,31 @@ export default function HomePage() {
   const headerRef = useRef(null);
 
   // === Standings-related state via custom hook ===
-  // const standingsLogic = useStandingsLogic(viewMode, MIN_QUALIFY_GAMES);
-  const standingsLogic = {
-    division: null,
-    setDivision: () => {},
-    divisions: [],
-    setDivisions: () => {},
-    leaderboard: [],
-    setLeaderboard: () => {},
-    minQualifyByDivision: {},
-    setMinQualifyByDivision: () => {},
-    minQualifyGames: 10,
-    setMinQualifyGames: () => {},
-    modals: {
-      addDivision: { isOpen: false, open: () => {}, close: () => {} },
-      removeDivision: { isOpen: false, open: () => {}, close: () => {} },
-      confirmRemoveDivision: { isOpen: false, open: () => {}, close: () => {} },
-      editMinQualify: { isOpen: false, open: () => {}, close: () => {} },
-    },
-    newDivisionName: '',
-    setNewDivisionName: () => {},
-    selectedDivisionToRemove: null,
-    setSelectedDivisionToRemove: () => {},
-    minQualifyInput: {},
-    setMinQualifyInput: () => {},
-    pendingMinSave: false,
-    setPendingMinSave: () => {},
-  };
+  const standingsLogic = useStandingsLogic(viewMode, MIN_QUALIFY_GAMES);
 
   // === Players-related state via custom hook ===
-  // const playersLogic = usePlayersLogic(viewMode);
-  const playersLogic = {
-    players: [],
-    allDivisionPlayers: [],
-    setPlayers: () => {},
-    setAllDivisionPlayers: () => {},
-    modals: {
-      addPlayer: { isOpen: false, open: () => {}, close: () => {} },
-      selectPlayerToRemove: { isOpen: false, open: () => {}, close: () => {} },
-      confirmRemovePlayer: { isOpen: false, open: () => {}, close: () => {} },
-    },
-    newPlayerName: '',
-    setNewPlayerName: () => {},
-    newPlayerGender: 'mixed',
-    setNewPlayerGender: () => {},
-  };
+  const playersLogic = usePlayersLogic(viewMode);
 
   // === Matches-related state via custom hook ===
-  // const matchesLogic = useMatchesLogic(viewMode);
-  const matchesLogic = {
-    numCourts: 2,
-    court1Matches: [],
-    court2Matches: [],
-    court3Matches: [],
-    court4Matches: [],
-    court5Matches: [],
-    court6Matches: [],
-    court1Scores: [],
-    court2Scores: [],
-    court3Scores: [],
-    court4Scores: [],
-    court5Scores: [],
-    court6Scores: [],
-    modals: {
-      addMatch: { isOpen: false, open: () => {}, close: () => {} },
-      editMatch: { isOpen: false, open: () => {}, close: () => {} },
-    },
-  };
+  const matchesLogic = useMatchesLogic(viewMode);
 
   // === Seasons-related state via custom hook ===
-  // const seasonLogic = useSeasonLogic();
-  const seasonLogic = {
-    currentSeason: null,
-    previousMatches: [],
-    seasonSummariesList: [],
-    modals: {
-      recalculate: { isOpen: false, open: () => {}, close: () => {} },
-      reset: { isOpen: false, open: () => {}, close: () => {} },
-      endSeasonChoice: { isOpen: false, open: () => {}, close: () => {} },
-    },
-  };
+  const seasonLogic = useSeasonLogic();
 
   // === Toast notifications ===
-  // const toast = useToast();
-  const toast = {
-    toasts: [],
-    success: () => {},
-    error: () => {},
-    info: () => {},
-    warning: () => {},
-    removeToast: () => {},
-  };
+  const toast = useToast();
 
   // === Player Statistics ===
-  // const playerStats = usePlayerStats(selectedPlayerId, playersLogic.players, seasonLogic.previousMatches);
-  const playerStats = { wins: 0, losses: 0, draws: 0, winRate: 0 };
+  const playerStats = usePlayerStats(selectedPlayerId, playersLogic.players, seasonLogic.previousMatches);
 
   // === Bulk Operations ===
-  // const bulkOps = useBulkOperations();
-  const bulkOps = {};
+  const bulkOps = useBulkOperations();
 
   // === Substitution Logic ===
-  // const substitutions = useSubstitutionLogic();
-  const substitutions = {};
+  const substitutions = useSubstitutionLogic();
 
   // === Tournament Logic ===
-  // TEMPORARILY DISABLED FOR DEBUG
-  // const tournament = useTournamentLogic();
-  const tournament = {
-    currentBracket: null,
-    initializeTournament: () => {},
-    resetTournament: () => {},
-    recordMatchResult: () => {},
-    advanceToNextRound: () => {},
-    getPendingMatches: () => [],
-    getCompletedMatches: () => [],
-    setShowTournamentModal: () => {},
-    setSelectedMatch: () => {},
-    setShowMatchResultModal: () => {},
-    showTournamentModal: false,
-    selectedMatch: null,
-    showMatchResultModal: false,
-  };
+  const tournament = useTournamentLogic();
   // Provides: bracket state, tournament initialization, match result recording
 
   // ===== BACKWARD COMPATIBILITY: Create aliases from hooks to old variable names =====
