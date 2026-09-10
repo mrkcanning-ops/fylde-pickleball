@@ -500,9 +500,21 @@ export default function BracketVisualization({
       roundsUpdated = true;
       console.log('[handleAdvanceRound] Updating rounds array:', round.stageName);
       
+      // Get the current round's displayed match IDs
+      const currentRoundMatchIds = new Set(
+        Object.values(currentRoundMatches)
+          .filter(m => m && round.matchups?.some(match => match.id === m.id))
+          .map(m => m.id)
+      );
+      
       return {
         ...round,
         matchups: round.matchups?.map(match => {
+          // Only mark matches that are currently displayed
+          if (!currentRoundMatchIds.has(match.id)) {
+            return match;
+          }
+          
           let winner = matchWinners[match.id];
           
           // In testing mode, if no winner selected, default to team1
@@ -541,9 +553,21 @@ export default function BracketVisualization({
         // This is the current round - update its matches
         console.log('[handleAdvanceRound] Updating knockoutRounds array:', round.stageName);
         
+        // Get the current round's displayed match IDs
+        const currentRoundMatchIds = new Set(
+          Object.values(currentRoundMatches)
+            .filter(m => m && round.matchups?.some(match => match.id === m.id))
+            .map(m => m.id)
+        );
+        
         return {
           ...round,
           matchups: round.matchups?.map(match => {
+            // Only mark matches that are currently displayed
+            if (!currentRoundMatchIds.has(match.id)) {
+              return match;
+            }
+            
             let winner = matchWinners[match.id];
             
             // In testing mode, if no winner selected, default to team1
