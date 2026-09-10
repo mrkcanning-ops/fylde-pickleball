@@ -876,15 +876,12 @@ export default function BracketVisualization({
                 // Otherwise, advance the round
                 handleAdvanceRound();
                 
-                // Check if this was the final round
-                if (isOnFinalRound()) {
-                  // After Final and 3rd Place are done, mark tournament as complete
-                  setTimeout(() => {
-                    if (isTournamentComplete()) {
-                      setTournamentComplete(true);
-                    }
-                  }, 100);
-                }
+                // After advancing, check if tournament is now complete (for final round)
+                setTimeout(() => {
+                  if (isTournamentComplete()) {
+                    setTournamentComplete(true);
+                  }
+                }, 100);
               }}
               disabled={isOnFinalRound() ? !testingMode && !allCurrentKnockoutRoundComplete() : (bracket.stage === 'knockout' ? !allCurrentKnockoutRoundComplete() : !allCurrentScoresEntered())}
               className={`w-full mt-6 py-3 px-4 rounded-lg font-bold transition ${
