@@ -17,6 +17,7 @@ export default function BracketVisualization({
   console.log('[BracketVisualization] Rendering bracket:', bracket?.format, bracket?.gameType, 'rounds:', bracket?.rounds?.length);
   const [showCourtSchedule, setShowCourtSchedule] = useState(true);
   const [showRoundsDetail, setShowRoundsDetail] = useState(false);
+  const [showGroupAssignments, setShowGroupAssignments] = useState(true);
   const [matchScores, setMatchScores] = useState({}); // Track scores: { matchId: { team1: score, team2: score } }
   const [matchWinners, setMatchWinners] = useState({}); // Track detected winners: { matchId: winnerId or 'draw' }
 
@@ -261,77 +262,87 @@ export default function BracketVisualization({
         </div>
       </div>
 
-      {/* Group Assignments Display (for group-knockout) */}
+      {/* Group Assignments Display (for group-knockout) - COLLAPSIBLE */}
       {bracket.format === 'group-knockout' && bracket.stage === 'group' && bracket.numGroups && bracket.rounds && (
-        <div className="mb-4 md:mb-6 bg-gray-700 bg-opacity-50 rounded-xl p-3 md:p-6 border-2 border-blue-500">
-          <h4 className="font-bold text-base md:text-lg text-blue-400 mb-4 md:mb-6 flex items-center gap-3">
-            👥 Group Assignments
-          </h4>
-          <div className="grid gap-3 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {bracket.rounds?.map((round, idx) => (
-              round.bracketType === 'group' && (
-                <div key={idx} className="bg-gray-800 bg-opacity-80 rounded-lg p-3 md:p-5 border-2 border-green-500 hover:border-green-400 hover:shadow-lg transition-all">
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 md:mb-4 gap-2">
-                    <div className="font-bold text-base md:text-lg text-green-400">
-                      {round.stageName}
+        <div className="mb-4 md:mb-6">
+          <button
+            onClick={() => setShowGroupAssignments(!showGroupAssignments)}
+            className="w-full flex items-center justify-between bg-blue-900 bg-opacity-30 border border-blue-600 rounded-lg p-3 hover:bg-opacity-40 transition"
+          >
+            <h4 className="font-semibold text-blue-400 text-sm">
+              👥 Group Assignments {showGroupAssignments ? '▼' : '▶'}
+            </h4>
+          </button>
+
+          {showGroupAssignments && (
+            <div className="mt-4 bg-gray-700 bg-opacity-50 rounded-xl p-3 md:p-6 border-2 border-blue-500">
+              <div className="grid gap-3 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {bracket.rounds?.map((round, idx) => (
+                  round.bracketType === 'group' && (
+                    <div key={idx} className="bg-gray-800 bg-opacity-80 rounded-lg p-3 md:p-5 border-2 border-green-500 hover:border-green-400 hover:shadow-lg transition-all">
+                      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 md:mb-4 gap-2">
+                        <div className="font-bold text-base md:text-lg text-green-400">
+                          {round.stageName}
+                        </div>
+                        <div className="text-xs md:text-sm font-semibold text-gray-400 bg-gray-900 rounded-full px-2 md:px-3 py-1">
+                          {round.players?.length || 0} players
+                        </div>
+                      </div>
+                      <div className="space-y-1 md:space-y-2">
+                        {bracket.gameType === 'doubles' && round.matchups
+                          ? (() => {
+                              // For doubles, extract unique teams from matchups
+                              const teams = [];
+                              const seenTeamPairs = new Set();
+                              
+                              round.matchups?.forEach((match) => {
+                                // Extract team1
+                                if (match.team1 && match.team1.length > 0) {
+                                  const team1Names = match.team1.map(p => p?.id).sort().join('|');
+                                  if (!seenTeamPairs.has(team1Names)) {
+                                    teams.push({ players: match.team1 });
+                                    seenTeamPairs.add(team1Names);
+                                  }
+                                }
+                                
+                                // Extract team2
+                                if (match.team2 && match.team2.length > 0) {
+                                  const team2Names = match.team2.map(p => p?.id).sort().join('|');
+                                  if (!seenTeamPairs.has(team2Names)) {
+                                    teams.push({ players: match.team2 });
+                                    seenTeamPairs.add(team2Names);
+                                  }
+                                }
+                              });
+                              
+                              return teams.map((team, idx) => (
+                                <div key={`team-${idx}`} className="text-xs md:text-sm text-gray-200 flex items-start md:items-center gap-2 md:gap-3 hover:bg-gray-700 p-1 md:p-2 rounded transition-colors">
+                                  <span className="text-purple-400 font-bold text-base md:text-lg flex-shrink-0">•</span>
+                                  <span className="flex-1 font-medium break-words">
+                                    {team.players?.map(p => p?.name).join(' & ')}
+                                  </span>
+                                </div>
+                              ));
+                            })()
+                          : // For singles or random doubles, show individual players
+                            round.players?.map((player) => (
+                              <div key={player.id} className="text-xs md:text-sm text-gray-200 flex items-start md:items-center gap-2 md:gap-3 hover:bg-gray-700 p-1 md:p-2 rounded transition-colors">
+                                <span className="text-green-400 font-bold text-base md:text-lg flex-shrink-0">•</span>
+                                <span className="flex-1 font-medium break-words">{player.name}</span>
+                                {player.gender && (
+                                  <span className="text-xs text-gray-400 bg-gray-900 rounded px-1.5 md:px-2 py-0.5 md:py-1 flex-shrink-0">
+                                    {player.gender === 'male' ? '♂ M' : '♀ F'}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                      </div>
                     </div>
-                    <div className="text-xs md:text-sm font-semibold text-gray-400 bg-gray-900 rounded-full px-2 md:px-3 py-1">
-                      {round.players?.length || 0} players
-                    </div>
-                  </div>
-                  <div className="space-y-1 md:space-y-2">
-                    {bracket.gameType === 'doubles' && round.matchups
-                      ? (() => {
-                          // For doubles, extract unique teams from matchups
-                          const teams = [];
-                          const seenTeamPairs = new Set();
-                          
-                          round.matchups?.forEach((match) => {
-                            // Extract team1
-                            if (match.team1 && match.team1.length > 0) {
-                              const team1Names = match.team1.map(p => p?.id).sort().join('|');
-                              if (!seenTeamPairs.has(team1Names)) {
-                                teams.push({ players: match.team1 });
-                                seenTeamPairs.add(team1Names);
-                              }
-                            }
-                            
-                            // Extract team2
-                            if (match.team2 && match.team2.length > 0) {
-                              const team2Names = match.team2.map(p => p?.id).sort().join('|');
-                              if (!seenTeamPairs.has(team2Names)) {
-                                teams.push({ players: match.team2 });
-                                seenTeamPairs.add(team2Names);
-                              }
-                            }
-                          });
-                          
-                          return teams.map((team, idx) => (
-                            <div key={`team-${idx}`} className="text-xs md:text-sm text-gray-200 flex items-start md:items-center gap-2 md:gap-3 hover:bg-gray-700 p-1 md:p-2 rounded transition-colors">
-                              <span className="text-purple-400 font-bold text-base md:text-lg flex-shrink-0">•</span>
-                              <span className="flex-1 font-medium break-words">
-                                {team.players?.map(p => p?.name).join(' & ')}
-                              </span>
-                            </div>
-                          ));
-                        })()
-                      : // For singles or random doubles, show individual players
-                        round.players?.map((player) => (
-                          <div key={player.id} className="text-xs md:text-sm text-gray-200 flex items-start md:items-center gap-2 md:gap-3 hover:bg-gray-700 p-1 md:p-2 rounded transition-colors">
-                            <span className="text-green-400 font-bold text-base md:text-lg flex-shrink-0">•</span>
-                            <span className="flex-1 font-medium break-words">{player.name}</span>
-                            {player.gender && (
-                              <span className="text-xs text-gray-400 bg-gray-900 rounded px-1.5 md:px-2 py-0.5 md:py-1 flex-shrink-0">
-                                {player.gender === 'male' ? '♂ M' : '♀ F'}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                  </div>
-                </div>
-              )
-            ))}
-          </div>
+                  )
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
