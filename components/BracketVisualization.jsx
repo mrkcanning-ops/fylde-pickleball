@@ -225,6 +225,119 @@ export default function BracketVisualization({
   const currentRoundMatches = getCurrentRoundMatches();
   const anyPendingMatches = Object.values(currentRoundMatches).some(m => m !== null);
 
+  // Check if all group stage matches are complete
+  const allGroupMatchesComplete = bracket.stage === 'group' && 
+    bracket.rounds?.every(round => 
+      round.matchups?.every(match => match.played)
+    );
+
+  // Handle advancing to knockout stage explicitly
+  const handleAdvanceToKnockout = () => {
+    console.log('[handleAdvanceToKnockout] Advancing to knockout stage');
+    // Mark any remaining unscored matches as played with null winner (shouldn't be any)
+    const updatedBracket = { ...bracket };
+    onAdvanceRound?.(updatedBracket);
+  };
+
+  // Calculate group standings
+  const getGroupStandings = () => {
+    if (!bracket.rounds) return null;
+
+    const standings = [];
+    bracket.rounds.forEach((round) => {
+      const groupStandings = {};
+      
+      // Initialize standings for all players/teams in the group
+      round.players?.forEach((player) => {
+        groupStandings[player.id] = {
+          player,
+          wins: 0,
+          draws: 0,
+          losses: 0,
+          pointsFor: 0,
+          pointsAgainst: 0,
+        };
+      });
+
+      // Calculate stats from matches
+      round.matchups?.forEach((match) => {
+        if (!match.played || !match.winner) return;
+
+        // For doubles, update all players in the teams
+        if (bracket.gameType === 'doubles') {
+          match.team1?.forEach(p => {
+            if (!groupStandings[p.id]) {
+              groupStandings[p.id] = {
+                player: p,
+                wins: 0,
+                draws: 0,
+                losses: 0,
+                pointsFor: 0,
+                pointsAgainst: 0,
+              };
+            }
+          });
+          match.team2?.forEach(p => {
+            if (!groupStandings[p.id]) {
+              groupStandings[p.id] = {
+                player: p,
+                wins: 0,
+                draws: 0,
+                losses: 0,
+                pointsFor: 0,
+                pointsAgainst: 0,
+              };
+            }
+          });
+
+          if (match.winner?.draw) {
+            match.team1?.forEach(p => {
+              groupStandings[p.id].draws++;
+              groupStandings[p.id].pointsFor++;
+            });
+            match.team2?.forEach(p => {
+              groupStandings[p.id].draws++;
+              groupStandings[p.id].pointsFor++;
+            });
+          } else {
+            match.team1?.forEach(p => {
+              if (match.winner?.some(w => w.id === p.id)) {
+                groupStandings[p.id].wins++;
+                groupStandings[p.id].pointsFor += 3;
+              } else {
+                groupStandings[p.id].losses++;
+              }
+            });
+            match.team2?.forEach(p => {
+              if (match.winner?.some(w => w.id === p.id)) {
+                groupStandings[p.id].wins++;
+                groupStandings[p.id].pointsFor += 3;
+              } else {
+                groupStandings[p.id].losses++;
+              }
+            });
+          }
+        }
+      });
+
+      const sorted = Object.values(groupStandings).sort((a, b) => {
+        const aPts = a.wins * 3 + a.draws;
+        const bPts = b.wins * 3 + b.draws;
+        return bPts - aPts;
+      });
+
+      standings.push({
+        groupName: round.stageName,
+        standings: sorted,
+        top2: sorted.slice(0, 2),
+      });
+    });
+
+    return standings;
+  };
+
+  const groupStandings = getGroupStandings();
+
   // Handle advancing to next round - first mark current matches as played
   const handleAdvanceRound = () => {
     console.log('[handleAdvanceRound] Called, allCurrentScoresEntered:', allCurrentScoresEntered());
@@ -536,6 +649,62 @@ export default function BracketVisualization({
         <div className="bg-green-900 bg-opacity-30 border border-green-500 rounded-lg p-4 mb-6">
           <div className="text-green-400 font-bold mb-2">✓ Group stage complete!</div>
           <div className="text-sm text-green-300">All matches have been recorded.</div>
+        </div>
+      )}
+
+      {/* Group Standings - Show when all group matches complete */}
+      {allGroupMatchesComplete && groupStandings && (
+        <div className="bg-purple-900 bg-opacity-20 border border-purple-500 rounded-lg p-6 mb-6">
+          <h4 className="font-bold text-purple-400 mb-6 flex items-center gap-2">
+            📊 Group Stage Standings (Top 2 Advance to Knockout)
+          </h4>
+
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
+            {groupStandings.map((group, idx) => (
+              <div key={idx} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <h5 className="font-semibold text-cyan-400 mb-4">{group.groupName}</h5>
+                <div className="space-y-2">
+                  {group.standings.map((standing, sIdx) => {
+                    const isTop2 = sIdx < 2;
+                    const points = standing.wins * 3 + standing.draws;
+                    return (
+                      <div
+                        key={standing.player.id}
+                        className={`p-3 rounded transition-all ${
+                          isTop2
+                            ? 'bg-green-900 bg-opacity-50 border-2 border-green-500 shadow-lg'
+                            : 'bg-gray-700 border border-gray-600'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-white break-words text-sm">
+                              {sIdx < 2 && <span className="text-yellow-400">★ </span>}
+                              {standing.player.name}
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              {standing.wins}W-{standing.draws}D-{standing.losses}L
+                            </div>
+                          </div>
+                          <div className="text-right font-bold text-white whitespace-nowrap">
+                            {points} pts
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Advance to Knockout Button */}
+          <button
+            onClick={handleAdvanceToKnockout}
+            className="w-full mt-6 py-4 px-4 rounded-lg font-bold text-white bg-purple-600 hover:bg-purple-500 transition text-lg"
+          >
+            🚀 Advance to Knockout Stage
+          </button>
         </div>
       )}
 
