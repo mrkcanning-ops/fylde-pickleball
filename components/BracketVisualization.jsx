@@ -845,7 +845,7 @@ export default function BracketVisualization({
             📊 Group Stage Standings (Top 2 Advance to Knockout)
           </h4>
 
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
+          <div className="grid gap-6 grid-cols-1">
             {groupStandings.map((group, idx) => (
               <div key={idx} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <h5 className="font-semibold text-cyan-400 mb-4">{group.groupName}</h5>
