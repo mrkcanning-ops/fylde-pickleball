@@ -104,6 +104,8 @@ export default function BracketVisualization({
 
   /**
    * Get next unplayed match for each court
+   * In group stage, only show matches from the same group round on all courts
+   * In knockout, show first unplayed match per court
    * Returns one match per court, ensuring no player appears on multiple courts
    */
   const getCurrentRoundMatches = () => {
@@ -120,10 +122,58 @@ export default function BracketVisualization({
       return courtMatches; // No rounds to process
     }
 
-    let allRounds = [...(bracket.rounds || [])];
-    if (bracket.knockoutRounds) {
-      allRounds = [...allRounds, ...bracket.knockoutRounds];
+    // For group stage, only show matches from the first unplayed group round
+    if (bracket.stage === 'group' && bracket.rounds) {
+      console.log('[getCurrentRoundMatches] Group stage - looking for first unplayed group round');
+      
+      // Find first group round with unplayed matches
+      const currentGroupRound = bracket.rounds.find(round =>
+        round.matchups?.some(match => !match.played)
+      );
+
+      if (currentGroupRound) {
+        console.log('[getCurrentRoundMatches] Found unplayed group round:', currentGroupRound.stageName);
+        
+        // Fill courts only from this round
+        let courtNum = 1;
+        (currentGroupRound.matchups || []).forEach((match) => {
+          // Skip invalid/played matches
+          if (!match || typeof match !== 'object' || match.played || !match.team2) return;
+          
+          // Check for player conflicts with already-assigned matches
+          const matchPlayerIds = new Set();
+          if (match.team1) {
+            match.team1.forEach(p => {
+              if (p && p.id) matchPlayerIds.add(p.id);
+            });
+          }
+          if (match.team2) {
+            match.team2.forEach(p => {
+              if (p && p.id) matchPlayerIds.add(p.id);
+            });
+          }
+          
+          // Skip this match if any player is already assigned to another court
+          const hasConflict = Array.from(matchPlayerIds).some(playerId => 
+            usedPlayers.has(playerId)
+          );
+          
+          if (hasConflict) return;
+          
+          // Assign to next available court
+          if (courtNum <= (bracket.courtsCount || 1)) {
+            courtMatches[courtNum] = { ...match, roundName: currentGroupRound.stageName };
+            matchPlayerIds.forEach(playerId => usedPlayers.add(playerId));
+            courtNum++;
+          }
+        });
+      }
+      
+      return courtMatches;
     }
+
+    // For knockout stage, show first unplayed knockout matches across courts
+    let allRounds = [...(bracket.knockoutRounds || [])];
 
     // Find first unplayed match for each court, ensuring no player conflicts
     allRounds.forEach((round) => {
