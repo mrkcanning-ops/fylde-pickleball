@@ -20,6 +20,7 @@ export default function BracketVisualization({
   const [showGroupAssignments, setShowGroupAssignments] = useState(true);
   const [matchScores, setMatchScores] = useState({}); // Track scores: { matchId: { team1: score, team2: score } }
   const [matchWinners, setMatchWinners] = useState({}); // Track detected winners: { matchId: winnerId or 'draw' }
+  const [testingMode, setTestingMode] = useState(false); // Testing mode: auto-generate results to skip manual score entry
 
   // Helper function to format team names for display
   const formatTeamName = (team) => {
@@ -54,15 +55,18 @@ export default function BracketVisualization({
   };
 
   // Check if all current round matches have scores entered (for group stage display)
+  // In testing mode, allow advancing without scores (auto-generate team1 as winner)
   const allCurrentScoresEntered = () => {
     return Object.values(currentRoundMatches).every(match => {
       if (!match) return true; // No match = complete
+      if (testingMode) return true; // Testing mode: always allow advance
       return matchScores[match.id] && matchScores[match.id].team1 !== '' && matchScores[match.id].team2 !== '';
     });
   };
 
   // Check if all matches in the current knockout round are COMPLETE (have winners)
   // In knockout, we need ALL matches played before advancing, not just the currently displayed ones
+  // In testing mode, allow advancing without marking winners (auto-generated in handleAdvanceRound)
   const allCurrentKnockoutRoundComplete = () => {
     if (bracket.stage !== 'knockout' || !bracket.knockoutRounds || bracket.knockoutRounds.length === 0) {
       return false;
@@ -71,6 +75,12 @@ export default function BracketVisualization({
     const lastKnockoutRound = bracket.knockoutRounds[bracket.knockoutRounds.length - 1];
     if (!lastKnockoutRound || !lastKnockoutRound.matchups) {
       return false;
+    }
+
+    // In testing mode, always allow (auto-generate winners in handleAdvanceRound)
+    if (testingMode) {
+      console.log('[allCurrentKnockoutRoundComplete] Testing mode: allowing advance');
+      return true;
     }
     
     console.log('[allCurrentKnockoutRoundComplete] Checking round:', lastKnockoutRound.stageName, 'Matches:', lastKnockoutRound.matchups.length);
@@ -490,7 +500,14 @@ export default function BracketVisualization({
       return {
         ...round,
         matchups: round.matchups?.map(match => {
-          const winner = matchWinners[match.id];
+          let winner = matchWinners[match.id];
+          
+          // In testing mode, if no winner selected, default to team1
+          if (testingMode && !winner) {
+            winner = 'team1';
+            console.log('[handleAdvanceRound] Testing mode: defaulting match', match.id, 'to team1 win');
+          }
+          
           if (winner) {
             console.log('[handleAdvanceRound] Match', match.id, 'winner:', winner);
             // Determine which team won
@@ -524,7 +541,14 @@ export default function BracketVisualization({
         return {
           ...round,
           matchups: round.matchups?.map(match => {
-            const winner = matchWinners[match.id];
+            let winner = matchWinners[match.id];
+            
+            // In testing mode, if no winner selected, default to team1
+            if (testingMode && !winner) {
+              winner = 'team1';
+              console.log('[handleAdvanceRound] Testing mode: defaulting match', match.id, 'to team1 win');
+            }
+            
             if (winner) {
               console.log('[handleAdvanceRound] Match', match.id, 'winner:', winner);
               // Determine which team won
@@ -572,6 +596,20 @@ export default function BracketVisualization({
           <div className="text-xs text-gray-400">Courts</div>
           <div className="text-2xl font-bold text-white">{bracket.courtsCount || 1}</div>
         </div>
+      </div>
+
+      {/* Testing Mode Toggle */}
+      <div className="flex items-center gap-3 bg-yellow-900 bg-opacity-20 border border-yellow-600 rounded-lg p-4 mb-6">
+        <input
+          type="checkbox"
+          id="testingMode"
+          checked={testingMode}
+          onChange={(e) => setTestingMode(e.target.checked)}
+          className="w-4 h-4 cursor-pointer"
+        />
+        <label htmlFor="testingMode" className="cursor-pointer flex-1 text-yellow-400 font-semibold">
+          🧪 Testing Mode: Skip score entry (auto-generate team1 as winner)
+        </label>
       </div>
 
       {/* Group Assignments Display (for group-knockout) - COLLAPSIBLE */}
