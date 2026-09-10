@@ -886,14 +886,14 @@ export default function BracketVisualization({
                   }, 100);
                 }
               }}
-              disabled={isTournamentComplete() ? false : (bracket.stage === 'knockout' ? !allCurrentKnockoutRoundComplete() : !allCurrentScoresEntered())}
+              disabled={isOnFinalRound() ? !testingMode && !allCurrentKnockoutRoundComplete() : (bracket.stage === 'knockout' ? !allCurrentKnockoutRoundComplete() : !allCurrentScoresEntered())}
               className={`w-full mt-6 py-3 px-4 rounded-lg font-bold transition ${
-                isTournamentComplete() || (bracket.stage === 'knockout' ? allCurrentKnockoutRoundComplete() : allCurrentScoresEntered())
+                (isOnFinalRound() && testingMode) || isTournamentComplete() || (bracket.stage === 'knockout' ? allCurrentKnockoutRoundComplete() : allCurrentScoresEntered())
                   ? 'bg-green-600 hover:bg-green-500 text-white cursor-pointer'
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {isTournamentComplete()
+              {isOnFinalRound() || isTournamentComplete()
                 ? '🏆 End Tournament'
                 : bracket.stage === 'knockout' 
                 ? allCurrentKnockoutRoundComplete() ? '→ Next Round' : `Complete all ${bracket.knockoutRounds?.[bracket.knockoutRounds.length - 1]?.matchups?.length || 0} matches to continue`
