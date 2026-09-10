@@ -251,83 +251,98 @@ export default function BracketVisualization({
 
     const standings = [];
     groupRoundsData.forEach((round) => {
-      const groupStandings = {};
-      
-      // Initialize standings for all players/teams in the group
-      round.players?.forEach((player) => {
-        groupStandings[player.id] = {
-          player,
-          wins: 0,
-          draws: 0,
-          losses: 0,
-          pointsFor: 0,
-          pointsAgainst: 0,
-        };
-      });
+      let groupStandings = {};
 
-      // Calculate stats from matches
-      round.matchups?.forEach((match) => {
-        if (!match.played || !match.winner) return;
+      if (bracket.gameType === 'doubles') {
+        // For doubles, track TEAMS, not individual players
+        // Extract unique teams from matchups
+        const teams = [];
+        const seenTeamPairs = new Set();
 
-        // For doubles, update all players in the teams
-        if (bracket.gameType === 'doubles') {
-          match.team1?.forEach(p => {
-            if (!groupStandings[p.id]) {
-              groupStandings[p.id] = {
-                player: p,
-                wins: 0,
-                draws: 0,
-                losses: 0,
-                pointsFor: 0,
-                pointsAgainst: 0,
-              };
+        round.matchups?.forEach((match) => {
+          // Extract team1
+          if (match.team1 && match.team1.length > 0) {
+            const team1Names = match.team1.map(p => p?.id).sort().join('|');
+            if (!seenTeamPairs.has(team1Names)) {
+              teams.push(match.team1);
+              seenTeamPairs.add(team1Names);
             }
-          });
-          match.team2?.forEach(p => {
-            if (!groupStandings[p.id]) {
-              groupStandings[p.id] = {
-                player: p,
-                wins: 0,
-                draws: 0,
-                losses: 0,
-                pointsFor: 0,
-                pointsAgainst: 0,
-              };
+          }
+
+          // Extract team2
+          if (match.team2 && match.team2.length > 0) {
+            const team2Names = match.team2.map(p => p?.id).sort().join('|');
+            if (!seenTeamPairs.has(team2Names)) {
+              teams.push(match.team2);
+              seenTeamPairs.add(team2Names);
             }
-          });
+          }
+        });
+
+        // Initialize standings for each team
+        teams.forEach((team) => {
+          const teamKey = team.map(p => p?.id).sort().join('|');
+          groupStandings[teamKey] = {
+            team,
+            teamNames: team.map(p => p?.name).join(' & '),
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            pointsFor: 0,
+            pointsAgainst: 0,
+          };
+        });
+
+        // Calculate team stats from matches
+        round.matchups?.forEach((match) => {
+          if (!match.played || !match.winner) return;
+
+          const team1Key = match.team1.map(p => p?.id).sort().join('|');
+          const team2Key = match.team2.map(p => p?.id).sort().join('|');
 
           if (match.winner?.draw) {
-            match.team1?.forEach(p => {
-              groupStandings[p.id].draws++;
-              groupStandings[p.id].pointsFor++;
-            });
-            match.team2?.forEach(p => {
-              groupStandings[p.id].draws++;
-              groupStandings[p.id].pointsFor++;
-            });
+            groupStandings[team1Key].draws++;
+            groupStandings[team1Key].pointsFor++;
+            groupStandings[team2Key].draws++;
+            groupStandings[team2Key].pointsFor++;
           } else {
-            match.team1?.forEach(p => {
-              if (match.winner?.some(w => w.id === p.id)) {
-                groupStandings[p.id].wins++;
-                groupStandings[p.id].pointsFor += 3;
-              } else {
-                groupStandings[p.id].losses++;
-              }
-            });
-            match.team2?.forEach(p => {
-              if (match.winner?.some(w => w.id === p.id)) {
-                groupStandings[p.id].wins++;
-                groupStandings[p.id].pointsFor += 3;
-              } else {
-                groupStandings[p.id].losses++;
-              }
-            });
+            // Check if team1 won
+            const team1Won = match.winner?.some(w => 
+              match.team1.some(t => t.id === w.id)
+            );
+
+            if (team1Won) {
+              groupStandings[team1Key].wins++;
+              groupStandings[team1Key].pointsFor += 3;
+              groupStandings[team2Key].losses++;
+            } else {
+              groupStandings[team2Key].wins++;
+              groupStandings[team2Key].pointsFor += 3;
+              groupStandings[team1Key].losses++;
+            }
           }
-        } else {
-          // For singles
+        });
+      } else {
+        // For singles, track individual players
+        // Initialize standings for all players in the group
+        round.players?.forEach((player) => {
+          groupStandings[player.id] = {
+            player,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            pointsFor: 0,
+            pointsAgainst: 0,
+          };
+        });
+
+        // Calculate stats from matches
+        round.matchups?.forEach((match) => {
+          if (!match.played || !match.winner) return;
+
           const p1 = match.team1?.[0];
           const p2 = match.team2?.[0];
-          
+
           if (p1 && !groupStandings[p1.id]) {
             groupStandings[p1.id] = {
               player: p1,
@@ -373,8 +388,8 @@ export default function BracketVisualization({
               }
             }
           }
-        }
-      });
+        });
+      }
 
       const sorted = Object.values(groupStandings).sort((a, b) => {
         const aPts = a.wins * 3 + a.draws;
@@ -723,9 +738,18 @@ export default function BracketVisualization({
                   {group.standings.map((standing, sIdx) => {
                     const isTop2 = sIdx < 2;
                     const points = standing.wins * 3 + standing.draws;
+                    
+                    // For doubles: show team names together; for singles: show individual name
+                    const displayName = bracket.gameType === 'doubles' 
+                      ? standing.teamNames 
+                      : standing.player.name;
+                    const uniqueKey = bracket.gameType === 'doubles'
+                      ? standing.teamNames
+                      : standing.player.id;
+                    
                     return (
                       <div
-                        key={standing.player.id}
+                        key={uniqueKey}
                         className={`p-3 rounded transition-all ${
                           isTop2
                             ? 'bg-green-900 bg-opacity-50 border-2 border-green-500 shadow-lg'
@@ -736,7 +760,7 @@ export default function BracketVisualization({
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold text-white break-words text-sm">
                               {sIdx < 2 && <span className="text-yellow-400">★ </span>}
-                              {standing.player.name}
+                              {displayName}
                             </div>
                             <div className="text-xs text-gray-400 mt-1">
                               {standing.wins}W-{standing.draws}D-{standing.losses}L
