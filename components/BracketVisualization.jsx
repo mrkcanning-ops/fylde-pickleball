@@ -190,12 +190,13 @@ export default function BracketVisualization({
     console.log('[handleAdvanceRound] All scores entered, preparing bracket update');
     console.log('[handleAdvanceRound] matchWinners:', matchWinners);
     console.log('[handleAdvanceRound] currentRoundMatches:', currentRoundMatches);
+    console.log('[handleAdvanceRound] Bracket stage:', bracket.stage);
 
     // Prepare bracket update with winners marked
     const updatedBracket = { ...bracket };
     let roundsUpdated = false;
 
-    // Find the current round and mark all matches as played with winners
+    // Handle group rounds (always)
     updatedBracket.rounds = bracket.rounds?.map(round => {
       // Check if any match in this round is in currentRoundMatches
       const roundHasPendingMatches = Object.values(currentRoundMatches).some(m => 
@@ -208,7 +209,7 @@ export default function BracketVisualization({
 
       // This is the current round - update its matches
       roundsUpdated = true;
-      console.log('[handleAdvanceRound] Updating round:', round.stageName);
+      console.log('[handleAdvanceRound] Updating rounds array:', round.stageName);
       
       return {
         ...round,
@@ -228,6 +229,41 @@ export default function BracketVisualization({
         }) || [],
       };
     }) || [];
+
+    // Handle knockout rounds (when in knockout stage)
+    if (bracket.stage === 'knockout' && bracket.knockoutRounds) {
+      updatedBracket.knockoutRounds = bracket.knockoutRounds?.map(round => {
+        // Check if any match in this round is in currentRoundMatches
+        const roundHasPendingMatches = Object.values(currentRoundMatches).some(m => 
+          m && round.matchups?.some(match => match.id === m.id)
+        );
+
+        if (!roundHasPendingMatches) {
+          return round;
+        }
+
+        // This is the current round - update its matches
+        console.log('[handleAdvanceRound] Updating knockoutRounds array:', round.stageName);
+        
+        return {
+          ...round,
+          matchups: round.matchups?.map(match => {
+            const winner = matchWinners[match.id];
+            if (winner) {
+              console.log('[handleAdvanceRound] Match', match.id, 'winner:', winner);
+              // Determine which team won
+              const winningTeam = winner === 'team1' ? match.team1 : winner === 'team2' ? match.team2 : null;
+              return {
+                ...match,
+                played: true,
+                winner: winningTeam || (winner === 'draw' ? { draw: true } : null),
+              };
+            }
+            return match;
+          }) || [],
+        };
+      }) || [];
+    }
 
     console.log('[handleAdvanceRound] Updated bracket:', updatedBracket);
     console.log('[handleAdvanceRound] Calling onAdvanceRound callback');
