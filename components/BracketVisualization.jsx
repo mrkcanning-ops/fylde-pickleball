@@ -659,8 +659,8 @@ export default function BracketVisualization({
       )}
 
       {/* Current Round Matches - Inline Score Entry */}
-      {/* Hide this section completely when showing group standings (all group matches complete) */}
-      {!allGroupMatchesComplete && (
+      {/* Hide ONLY when showing group standings (all group matches complete AND still in group stage) */}
+      {!(allGroupMatchesComplete && bracket.stage === 'group') && (
       <div className="mb-6">
         <div className="bg-cyan-900 bg-opacity-30 border border-cyan-500 rounded-lg p-4 mb-4">
           <h4 className="font-semibold text-cyan-400 flex items-center gap-2 mb-4">
@@ -773,8 +773,8 @@ export default function BracketVisualization({
         </div>
       )}
 
-      {/* Group Standings - Show when all group matches complete */}
-      {allGroupMatchesComplete && groupStandings && (
+      {/* Group Standings - Show ONLY during group stage when all group matches complete */}
+      {allGroupMatchesComplete && groupStandings && bracket.stage === 'group' && (
         <div className="bg-purple-900 bg-opacity-20 border border-purple-500 rounded-lg p-6 mb-6">
           <h4 className="font-bold text-purple-400 mb-6 flex items-center gap-2">
             📊 Group Stage Standings (Top 2 Advance to Knockout)
