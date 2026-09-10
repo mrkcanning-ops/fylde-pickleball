@@ -5155,6 +5155,20 @@ const handleTouchEnd = (e) => {
                       console.error('[app/page.onAdvanceRound] Error calling advanceToNextRound:', error);
                     }
                   }}
+                  onTransitionToKnockout={() => {
+                    console.log('[app/page.onTransitionToKnockout] Callback triggered');
+                    try {
+                      if (typeof tournament.transitionToKnockout === 'function') {
+                        console.log('[app/page.onTransitionToKnockout] Calling transitionToKnockout');
+                        const result = tournament.transitionToKnockout();
+                        console.log('[app/page.onTransitionToKnockout] Result:', result);
+                      } else {
+                        console.error('[app/page.onTransitionToKnockout] transitionToKnockout is not a function!');
+                      }
+                    } catch (error) {
+                      console.error('[app/page.onTransitionToKnockout] Error calling transitionToKnockout:', error);
+                    }
+                  }}
                 />
               </>
             ) : (

@@ -13,6 +13,7 @@ export default function BracketVisualization({
   onSelectMatch = null,
   onRecordResult = null,
   onAdvanceRound = null,
+  onTransitionToKnockout = null,
 }) {
   console.log('[BracketVisualization] Rendering bracket:', bracket?.format, bracket?.gameType, 'rounds:', bracket?.rounds?.length);
   const [showCourtSchedule, setShowCourtSchedule] = useState(true);
@@ -282,10 +283,9 @@ export default function BracketVisualization({
       console.log(`[handleAdvanceToKnockout] Round ${idx} (${round.stageName}): ${totalCount} matches, ${unplayedCount} unplayed`);
     });
     
-    // Pass the bracket WITHOUT changing stage - let the hook handle the transition
-    // The hook will detect all group rounds are complete and transition to knockout
-    console.log('[handleAdvanceToKnockout] Calling onAdvanceRound with current bracket');
-    onAdvanceRound?.(bracket);
+    // Call the hook's transitionToKnockout function
+    console.log('[handleAdvanceToKnockout] Calling onTransitionToKnockout');
+    onTransitionToKnockout?.();
   };
 
   // Calculate group standings
