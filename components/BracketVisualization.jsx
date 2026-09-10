@@ -1062,102 +1062,100 @@ export default function BracketVisualization({
                   return (
                     <>
                       {/* ROUND LABELS */}
-                      <text x="50" y="25" className="bracket-round-label">QUARTERFINALS</text>
-                      <text x="450" y="25" className="bracket-round-label">SEMIFINALS</text>
-                      <text x="800" y="25" className="bracket-round-label">FINAL</text>
-                      <text x="1200" y="25" className="bracket-round-label">CHAMPION</text>
-                      <text x="1350" y="450" className="bracket-round-label">3RD PLACE</text>
+                      <text x="70" y="25" className="bracket-round-label">QUARTERFINALS</text>
+                      <text x="350" y="25" className="bracket-round-label">SEMIFINALS</text>
+                      <text x="650" y="25" className="bracket-round-label">FINAL</text>
+                      <text x="950" y="25" className="bracket-round-label">CHAMPION</text>
+                      <text x="70" y="500" className="bracket-round-label">3RD PLACE</text>
 
-                      {/* ===== LEFT SIDE: QF 1 & 2 → SF 1 ===== */}
-                      {/* QF 1 - Team 1 (Winner) */}
+                      {/* ===== LEFT SIDE: Groups A & B (QF 1 & 2) → SF 1 ===== */}
+                      {/* QF 1 (Group A top) - Team 1 */}
                       <TeamBox x={20} y={50} team={qfMatches[0]?.team1} isWinner={isTeamWinner(qfMatches[0]?.team1, qfMatches[0])} isEmpty={!qfMatches[0]?.team1} />
-                      {/* QF 1 - Team 2 (Loser) */}
+                      {/* QF 1 (Group A top) - Team 2 */}
                       <TeamBox x={20} y={80} team={qfMatches[0]?.team2} isWinner={isTeamWinner(qfMatches[0]?.team2, qfMatches[0])} isEmpty={!qfMatches[0]?.team2} />
 
-                      {/* QF 2 - Team 1 (Winner) */}
+                      {/* QF 2 (Group B) - Team 1 */}
                       <TeamBox x={20} y={150} team={qfMatches[1]?.team1} isWinner={isTeamWinner(qfMatches[1]?.team1, qfMatches[1])} isEmpty={!qfMatches[1]?.team1} />
-                      {/* QF 2 - Team 2 (Loser) */}
+                      {/* QF 2 (Group B) - Team 2 */}
                       <TeamBox x={20} y={180} team={qfMatches[1]?.team2} isWinner={isTeamWinner(qfMatches[1]?.team2, qfMatches[1])} isEmpty={!qfMatches[1]?.team2} />
 
-                      {/* QF 3 - Team 1 (Winner) */}
-                      <TeamBox x={20} y={280} team={qfMatches[2]?.team1} isWinner={isTeamWinner(qfMatches[2]?.team1, qfMatches[2])} isEmpty={!qfMatches[2]?.team1} />
-                      {/* QF 3 - Team 2 (Loser) */}
-                      <TeamBox x={20} y={310} team={qfMatches[2]?.team2} isWinner={isTeamWinner(qfMatches[2]?.team2, qfMatches[2])} isEmpty={!qfMatches[2]?.team2} />
-
-                      {/* QF 4 - Team 1 (Winner) */}
-                      <TeamBox x={20} y={380} team={qfMatches[3]?.team1} isWinner={isTeamWinner(qfMatches[3]?.team1, qfMatches[3])} isEmpty={!qfMatches[3]?.team1} />
-                      {/* QF 4 - Team 2 (Loser) */}
-                      <TeamBox x={20} y={410} team={qfMatches[3]?.team2} isWinner={isTeamWinner(qfMatches[3]?.team2, qfMatches[3])} isEmpty={!qfMatches[3]?.team2} />
-
-                      {/* Connection lines from QF to SF (left side) */}
+                      {/* Lines from QF 1 & 2 to SF 1 */}
                       {qfMatches[0] && (
-                        <ConnectLine x1={160} y1={65} x2={350} y2={115} />
+                        <ConnectLine x1={160} y1={65} x2={300} y2={120} />
                       )}
                       {qfMatches[1] && (
-                        <ConnectLine x1={160} y1={165} x2={350} y2={115} />
+                        <ConnectLine x1={160} y1={165} x2={300} y2={120} />
                       )}
 
-                      {/* ===== SEMIFINALS ===== */}
-                      {/* SF 1 - Team 1 (from QF 1 or QF 2 winner) */}
-                      <TeamBox x={350} y={100} team={sfMatches[0]?.team1} isWinner={isTeamWinner(sfMatches[0]?.team1, sfMatches[0])} isEmpty={!sfMatches[0]?.team1} />
-                      {/* SF 1 - Team 2 (from QF 1 or QF 2 winner) */}
-                      <TeamBox x={350} y={130} team={sfMatches[0]?.team2} isWinner={isTeamWinner(sfMatches[0]?.team2, sfMatches[0])} isEmpty={!sfMatches[0]?.team2} />
+                      {/* SF 1 (Winners from Groups A & B) */}
+                      <TeamBox x={300} y={105} team={sfMatches[0]?.team1} isWinner={isTeamWinner(sfMatches[0]?.team1, sfMatches[0])} isEmpty={!sfMatches[0]?.team1} />
+                      <TeamBox x={300} y={135} team={sfMatches[0]?.team2} isWinner={isTeamWinner(sfMatches[0]?.team2, sfMatches[0])} isEmpty={!sfMatches[0]?.team2} />
 
-                      {/* SF 2 - Team 1 (from QF 3 or QF 4 winner) */}
-                      <TeamBox x={350} y={300} team={sfMatches[1]?.team1} isWinner={isTeamWinner(sfMatches[1]?.team1, sfMatches[1])} isEmpty={!sfMatches[1]?.team1} />
-                      {/* SF 2 - Team 2 (from QF 3 or QF 4 winner) */}
-                      <TeamBox x={350} y={330} team={sfMatches[1]?.team2} isWinner={isTeamWinner(sfMatches[1]?.team2, sfMatches[1])} isEmpty={!sfMatches[1]?.team2} />
+                      {/* Line from SF 1 to Final */}
+                      {sfMatches[0] && (
+                        <ConnectLine x1={440} y1={120} x2={580} y2={180} />
+                      )}
 
-                      {/* Connection lines from QF to SF (right side) */}
+                      {/* ===== RIGHT SIDE: Groups C & D (QF 3 & 4) → SF 2 ===== */}
+                      {/* QF 3 (Group C) - Team 1 */}
+                      <TeamBox x={1340} y={50} team={qfMatches[2]?.team1} isWinner={isTeamWinner(qfMatches[2]?.team1, qfMatches[2])} isEmpty={!qfMatches[2]?.team1} />
+                      {/* QF 3 (Group C) - Team 2 */}
+                      <TeamBox x={1340} y={80} team={qfMatches[2]?.team2} isWinner={isTeamWinner(qfMatches[2]?.team2, qfMatches[2])} isEmpty={!qfMatches[2]?.team2} />
+
+                      {/* QF 4 (Group D bottom) - Team 1 */}
+                      <TeamBox x={1340} y={150} team={qfMatches[3]?.team1} isWinner={isTeamWinner(qfMatches[3]?.team1, qfMatches[3])} isEmpty={!qfMatches[3]?.team1} />
+                      {/* QF 4 (Group D bottom) - Team 2 */}
+                      <TeamBox x={1340} y={180} team={qfMatches[3]?.team2} isWinner={isTeamWinner(qfMatches[3]?.team2, qfMatches[3])} isEmpty={!qfMatches[3]?.team2} />
+
+                      {/* Lines from QF 3 & 4 to SF 2 */}
                       {qfMatches[2] && (
-                        <ConnectLine x1={160} y1={295} x2={350} y2={315} />
+                        <ConnectLine x1={1340} y1={65} x2={1060} y2={120} />
                       )}
                       {qfMatches[3] && (
-                        <ConnectLine x1={160} y1={395} x2={350} y2={315} />
+                        <ConnectLine x1={1340} y1={165} x2={1060} y2={120} />
                       )}
 
-                      {/* Connection lines from SF to Final */}
-                      {sfMatches[0] && (
-                        <ConnectLine x1={490} y1={115} x2={700} y2={200} />
-                      )}
+                      {/* SF 2 (Winners from Groups C & D) */}
+                      <TeamBox x={1060} y={105} team={sfMatches[1]?.team1} isWinner={isTeamWinner(sfMatches[1]?.team1, sfMatches[1])} isEmpty={!sfMatches[1]?.team1} />
+                      <TeamBox x={1060} y={135} team={sfMatches[1]?.team2} isWinner={isTeamWinner(sfMatches[1]?.team2, sfMatches[1])} isEmpty={!sfMatches[1]?.team2} />
+
+                      {/* Line from SF 2 to Final */}
                       {sfMatches[1] && (
-                        <ConnectLine x1={490} y1={315} x2={700} y2={240} />
+                        <ConnectLine x1={1060} y1={120} x2={720} y2={180} />
                       )}
 
-                      {/* ===== FINAL ===== */}
-                      {/* Final - Team 1 (from SF 1 winner) */}
-                      <TeamBox x={700} y={185} team={finalMatch?.team1} isWinner={isTeamWinner(finalMatch?.team1, finalMatch)} isEmpty={!finalMatch?.team1} />
-                      {/* Final - Team 2 (from SF 2 winner) */}
-                      <TeamBox x={700} y={215} team={finalMatch?.team2} isWinner={isTeamWinner(finalMatch?.team2, finalMatch)} isEmpty={!finalMatch?.team2} />
+                      {/* ===== CENTER: Final & Champion ===== */}
+                      {/* Final - Team 1 (Winner from SF 1) */}
+                      <TeamBox x={580} y={165} team={finalMatch?.team1} isWinner={isTeamWinner(finalMatch?.team1, finalMatch)} isEmpty={!finalMatch?.team1} />
+                      {/* Final - Team 2 (Winner from SF 2) */}
+                      <TeamBox x={580} y={195} team={finalMatch?.team2} isWinner={isTeamWinner(finalMatch?.team2, finalMatch)} isEmpty={!finalMatch?.team2} />
 
-                      {/* ===== CHAMPION ===== */}
-                      {/* Champion box */}
-                      <TeamBox x={1100} y={195} team={finalMatch?.winner} isWinner={true} isEmpty={!finalMatch?.winner} />
+                      {/* Champion */}
+                      <TeamBox x={900} y={170} team={finalMatch?.winner} isWinner={true} isEmpty={!finalMatch?.winner} />
 
-                      {/* Connection from Final to Champion */}
+                      {/* Line from Final to Champion */}
                       {finalMatch?.winner && (
-                        <ConnectLine x1={840} y1={200} x2={1100} y2={206} />
+                        <ConnectLine x1={720} y1={180} x2={900} y2={181} />
                       )}
 
-                      {/* ===== 3RD PLACE PLAYOFF ===== */}
+                      {/* ===== 3RD PLACE PLAYOFF (Bottom left) ===== */}
                       {/* 3rd Place - Team 1 (SF 1 loser) */}
-                      <TeamBox x={1300} y={400} team={thirdPlaceMatch?.team1} isWinner={isTeamWinner(thirdPlaceMatch?.team1, thirdPlaceMatch)} isEmpty={!thirdPlaceMatch?.team1} />
+                      <TeamBox x={20} y={500} team={thirdPlaceMatch?.team1} isWinner={isTeamWinner(thirdPlaceMatch?.team1, thirdPlaceMatch)} isEmpty={!thirdPlaceMatch?.team1} />
                       {/* 3rd Place - Team 2 (SF 2 loser) */}
-                      <TeamBox x={1300} y={430} team={thirdPlaceMatch?.team2} isWinner={isTeamWinner(thirdPlaceMatch?.team2, thirdPlaceMatch)} isEmpty={!thirdPlaceMatch?.team2} />
+                      <TeamBox x={20} y={530} team={thirdPlaceMatch?.team2} isWinner={isTeamWinner(thirdPlaceMatch?.team2, thirdPlaceMatch)} isEmpty={!thirdPlaceMatch?.team2} />
 
-                      {/* Connection from SF losers to 3rd Place */}
+                      {/* Dashed lines from SF losers to 3rd Place */}
                       {sfMatches[0]?.team2 && (
-                        <ConnectLine x1={490} y1={130} x2={1300} y2={410} dashed={true} />
+                        <ConnectLine x1={300} y1={135} x2={90} y2={510} dashed={true} />
                       )}
                       {sfMatches[1]?.team2 && (
-                        <ConnectLine x1={490} y1={330} x2={1300} y2={425} dashed={true} />
+                        <ConnectLine x1={1060} y1={135} x2={150} y2={525} dashed={true} />
                       )}
 
                       {/* 3rd Place Winner */}
                       {thirdPlaceMatch?.winner && (
                         <g>
-                          <text x="1420" y="485" className="bracket-round-label">3rd Place Winner:</text>
-                          <TeamBox x={1300} y={495} team={thirdPlaceMatch.winner} isWinner={true} isEmpty={!thirdPlaceMatch.winner} />
+                          <TeamBox x={200} y={500} team={thirdPlaceMatch.winner} isWinner={true} isEmpty={!thirdPlaceMatch.winner} />
                         </g>
                       )}
                     </>
