@@ -1129,177 +1129,164 @@ export default function BracketVisualization({
         <div className="mb-6">
           <div className="bg-blue-900 bg-opacity-20 border border-blue-500 rounded-lg p-6">
             <h4 className="font-bold text-blue-400 mb-6 flex items-center gap-2">
-              🌳 Tournament Bracket Tree
+              � World Cup Style Bracket
             </h4>
 
-            <div className="overflow-x-auto">
-              <svg
-                width={Math.max(1200, 200 + (bracket.knockoutRounds.length * 250))}
-                height={Math.max(600, bracket.knockoutRounds[0]?.matchups?.length * 120 || 100)}
-                className="min-w-full bg-gray-900 bg-opacity-30 rounded border border-blue-400"
-              >
-                {/* Draw bracket structure */}
-                {bracket.knockoutRounds.map((round, roundIdx) => {
-                  const roundX = 100 + roundIdx * 250;
-                  const matchups = round.matchups || [];
-                  const totalHeight = matchups.length * 120;
-                  const startY = 50;
+            <div className="overflow-auto">
+              <svg width="1400" height="900" className="min-w-full bg-gray-900 bg-opacity-30 rounded border border-blue-400">
+                <defs>
+                  <style>{`
+                    .bracket-team { font-size: 11px; font-weight: bold; fill: white; }
+                    .bracket-round-label { font-size: 13px; font-weight: bold; fill: #60a5fa; }
+                    .bracket-line { stroke: #60a5fa; stroke-width: 2; fill: none; }
+                  `}</style>
+                </defs>
+
+                {(() => {
+                  // Find quarterfinals, semifinals, final, and 3rd place rounds
+                  const qfRound = bracket.knockoutRounds.find(r => r.stageName === 'Quarterfinals');
+                  const sfRound = bracket.knockoutRounds.find(r => r.stageName === 'Semifinals');
+                  const finalRound = bracket.knockoutRounds.find(r => r.stageName === 'Final');
+                  const thirdPlaceRound = bracket.knockoutRounds.find(r => r.stageName === '3rd Place Playoff');
+
+                  const matchBoxHeight = 40;
+                  const matchBoxWidth = 160;
+                  const gapBetweenTeams = 8;
+
+                  // Helper to draw a match box
+                  const MatchBox = ({ x, y, match, isWinner1 }) => {
+                    if (!match || !match.team1) return null;
+
+                    const isTeam1Winner = match.played && match.winner
+                      ? bracket.gameType === 'doubles'
+                        ? match.winner.some(p => match.team1?.some(t => t?.id === p?.id))
+                        : match.winner?.[0]?.id === match.team1?.[0]?.id
+                      : false;
+
+                    const isTeam2Winner = match.played && match.winner
+                      ? bracket.gameType === 'doubles'
+                        ? match.winner.some(p => match.team2?.some(t => t?.id === p?.id))
+                        : match.winner?.[0]?.id === match.team2?.[0]?.id
+                      : false;
+
+                    return (
+                      <g key={`${x}-${y}`}>
+                        {/* Team 1 */}
+                        <rect
+                          x={x} y={y} width={matchBoxWidth} height={matchBoxHeight / 2 - gapBetweenTeams / 2}
+                          fill={isTeam1Winner ? '#166534' : '#1f2937'}
+                          stroke={isTeam1Winner ? '#22c55e' : '#6b7280'}
+                          strokeWidth="1.5"
+                          rx="3"
+                        />
+                        <text x={x + 6} y={y + 18} className="bracket-team">
+                          {formatTeamName(match.team1).substring(0, 18)}
+                        </text>
+                        {isTeam1Winner && <text x={x + matchBoxWidth - 8} y={y + 18} className="bracket-team" fill="#fbbf24">★</text>}
+
+                        {/* Team 2 */}
+                        <rect
+                          x={x} y={y + matchBoxHeight / 2 + gapBetweenTeams / 2} width={matchBoxWidth} height={matchBoxHeight / 2 - gapBetweenTeams / 2}
+                          fill={isTeam2Winner ? '#166534' : '#1f2937'}
+                          stroke={isTeam2Winner ? '#22c55e' : '#6b7280'}
+                          strokeWidth="1.5"
+                          rx="3"
+                        />
+                        <text x={x + 6} y={y + matchBoxHeight + 6} className="bracket-team">
+                          {formatTeamName(match.team2).substring(0, 18)}
+                        </text>
+                        {isTeam2Winner && <text x={x + matchBoxWidth - 8} y={y + matchBoxHeight + 6} className="bracket-team" fill="#fbbf24">★</text>}
+                      </g>
+                    );
+                  };
+
+                  // Helper to draw connecting lines
+                  const ConnectLine = ({ x1, y1, x2, y2 }) => (
+                    <path d={`M ${x1} ${y1} L ${x1 + 20} ${y1} L ${x1 + 20} ${y2} L ${x2} ${y2}`} className="bracket-line" />
+                  );
 
                   return (
-                    <g key={`round-${roundIdx}`}>
-                      {/* Draw matches for this round */}
-                      {matchups.map((match, matchIdx) => {
-                        const matchY = startY + matchIdx * 120;
-                        const boxWidth = 180;
-                        const boxHeight = 50;
-                        const boxY = matchY;
+                    <>
+                      {/* QUARTERFINALS */}
+                      <text x="20" y="30" className="bracket-round-label">QUARTERFINALS</text>
 
-                        // Determine colors based on result
-                        const team1Won = match.played && match.winner
-                          ? bracket.gameType === 'doubles'
-                            ? match.winner.some(p => match.team1?.some(t => t?.id === p?.id))
-                            : match.winner?.[0]?.id === match.team1?.[0]?.id
-                          : false;
+                      {/* LEFT SIDE QF (Groups A & B) */}
+                      {qfRound?.matchups.slice(0, 2).map((match, idx) => (
+                        <g key={`qf-left-${idx}`}>
+                          <MatchBox x={20} y={60 + idx * 130} match={match} />
+                          {/* Line to SF */}
+                          <ConnectLine x1={20 + matchBoxWidth} y1={60 + idx * 130 + matchBoxHeight / 2} x2={340} y2={100 + idx * 130} />
+                        </g>
+                      ))}
 
-                        const team2Won = match.played && match.winner
-                          ? bracket.gameType === 'doubles'
-                            ? match.winner.some(p => match.team2?.some(t => t?.id === p?.id))
-                            : match.winner?.[0]?.id === match.team2?.[0]?.id
-                          : false;
+                      {/* RIGHT SIDE QF (Groups C & D) */}
+                      {qfRound?.matchups.slice(2, 4).map((match, idx) => (
+                        <g key={`qf-right-${idx}`}>
+                          <MatchBox x={1220} y={60 + idx * 130} match={match} />
+                          {/* Line to SF */}
+                          <ConnectLine x1={1220} y1={60 + idx * 130 + matchBoxHeight / 2} x2={1040} y2={100 + idx * 130} />
+                        </g>
+                      ))}
 
-                        return (
-                          <g key={`match-${matchIdx}`}>
-                            {/* Team 1 Box */}
-                            <rect
-                              x={roundX}
-                              y={boxY}
-                              width={boxWidth}
-                              height={boxHeight / 2 - 2}
-                              fill={team1Won ? '#166534' : '#374151'}
-                              stroke={team1Won ? '#22c55e' : '#9ca3af'}
-                              strokeWidth="2"
-                            />
-                            <text
-                              x={roundX + 5}
-                              y={boxY + 18}
-                              fill="white"
-                              fontSize="12"
-                              fontWeight="bold"
-                              textAnchor="start"
-                            >
-                              {formatTeamName(match.team1).substring(0, 20)}
-                              {formatTeamName(match.team1).length > 20 ? '...' : ''}
-                            </text>
-                            {team1Won && (
-                              <text
-                                x={roundX + boxWidth - 10}
-                                y={boxY + 18}
-                                fill="#fbbf24"
-                                fontSize="14"
-                                fontWeight="bold"
-                                textAnchor="end"
-                              >
-                                ★
-                              </text>
-                            )}
+                      {/* SEMIFINALS */}
+                      <text x="500" y="30" className="bracket-round-label">SEMIFINALS</text>
 
-                            {/* Team 2 Box */}
-                            <rect
-                              x={roundX}
-                              y={boxY + boxHeight / 2 + 2}
-                              width={boxWidth}
-                              height={boxHeight / 2 - 2}
-                              fill={team2Won ? '#166534' : '#374151'}
-                              stroke={team2Won ? '#22c55e' : '#9ca3af'}
-                              strokeWidth="2"
-                            />
-                            <text
-                              x={roundX + 5}
-                              y={boxY + boxHeight / 2 + 18}
-                              fill="white"
-                              fontSize="12"
-                              fontWeight="bold"
-                              textAnchor="start"
-                            >
-                              {formatTeamName(match.team2).substring(0, 20)}
-                              {formatTeamName(match.team2).length > 20 ? '...' : ''}
-                            </text>
-                            {team2Won && (
-                              <text
-                                x={roundX + boxWidth - 10}
-                                y={boxY + boxHeight / 2 + 18}
-                                fill="#fbbf24"
-                                fontSize="14"
-                                fontWeight="bold"
-                                textAnchor="end"
-                              >
-                                ★
-                              </text>
-                            )}
+                      {/* LEFT SF */}
+                      {sfRound?.matchups[0] && (
+                        <g key="sf-left">
+                          <MatchBox x={340} y={80} match={sfRound.matchups[0]} />
+                          {/* Line to Final */}
+                          <ConnectLine x1={340 + matchBoxWidth} y1={80 + matchBoxHeight / 2} x2={600} y2={320} />
+                        </g>
+                      )}
 
-                            {/* Connection lines to next round */}
-                            {roundIdx < bracket.knockoutRounds.length - 1 && match.winner && (
-                              <g stroke="#60a5fa" strokeWidth="2">
-                                {/* Vertical line to middle */}
-                                <line
-                                  x1={roundX + boxWidth}
-                                  y1={boxY + boxHeight / 2}
-                                  x2={roundX + boxWidth + 30}
-                                  y2={boxY + boxHeight / 2}
-                                />
-                                {/* Horizontal line to next match */}
-                                <line
-                                  x1={roundX + boxWidth + 30}
-                                  y1={boxY + boxHeight / 2}
-                                  x2={roundX + boxWidth + 30}
-                                  y2={boxY + boxHeight / 2 + 60}
-                                />
-                              </g>
-                            )}
-                          </g>
-                        );
-                      })}
+                      {/* RIGHT SF */}
+                      {sfRound?.matchups[1] && (
+                        <g key="sf-right">
+                          <MatchBox x={1040} y={80} match={sfRound.matchups[1]} />
+                          {/* Line to Final */}
+                          <ConnectLine x1={1040} y1={80 + matchBoxHeight / 2} x2={760} y2={320} />
+                        </g>
+                      )}
 
-                      {/* Round label */}
-                      <text
-                        x={roundX + 90}
-                        y="30"
-                        fill="#3b82f6"
-                        fontSize="14"
-                        fontWeight="bold"
-                        textAnchor="middle"
-                      >
-                        {round.stageName}
+                      {/* FINAL */}
+                      <text x="640" y="290" className="bracket-round-label">FINAL</text>
+                      {finalRound?.matchups[0] && (
+                        <MatchBox x={600} y={320} match={finalRound.matchups[0]} />
+                      )}
+
+                      {/* 3RD PLACE PLAYOFF */}
+                      <text x="1050" y="730" className="bracket-round-label">3RD PLACE PLAYOFF</text>
+                      {thirdPlaceRound?.matchups[0] && (
+                        <MatchBox x={980} y={750} match={thirdPlaceRound.matchups[0]} />
+                      )}
+
+                      {/* Decorative Title */}
+                      <text x="700" y="850" style={{ fontSize: '24px', fontWeight: 'bold', fill: '#fbbf24', textAnchor: 'middle' }}>
+                        🏆 Tournament Bracket 🏆
                       </text>
-                    </g>
+                    </>
                   );
-                })}
+                })()}
               </svg>
             </div>
 
             {/* Legend */}
-            <div className="mt-4 pt-4 border-t border-blue-500 grid grid-cols-2 gap-4 text-xs text-gray-300">
+            <div className="mt-6 pt-4 border-t border-blue-500 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-gray-300">
               <div className="flex items-center gap-2">
                 <span className="text-yellow-400 font-bold">★</span>
-                <span>Round Winner</span>
+                <span>Match Winner</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-green-700"></div>
+                <div className="w-3 h-3 rounded bg-green-700"></div>
                 <span>Won Match</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gray-600"></div>
+                <div className="w-3 h-3 rounded bg-gray-700"></div>
                 <span>Lost Match</span>
               </div>
               <div className="flex items-center gap-2">
-                <line
-                  x1="0"
-                  y1="8"
-                  x2="16"
-                  y2="8"
-                  stroke="#60a5fa"
-                  strokeWidth="2"
-                />
+                <div className="w-8 h-px bg-blue-400"></div>
                 <span>Advancement</span>
               </div>
             </div>
