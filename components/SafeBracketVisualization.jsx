@@ -10,6 +10,7 @@ export default function SafeBracketVisualization({
   bracket = null,
   onSelectMatch = null,
   onRecordResult = null,
+  onAdvanceRound = null,
 }) {
   console.log('[SafeBracketVisualization] Rendering with bracket:', bracket ? 'EXISTS' : 'NULL', bracket?.format, bracket?.gameType);
   
@@ -41,6 +42,7 @@ export default function SafeBracketVisualization({
         bracket={bracket}
         onSelectMatch={onSelectMatch}
         onRecordResult={onRecordResult}
+        onAdvanceRound={onAdvanceRound}
       />
     );
   } catch (error) {
