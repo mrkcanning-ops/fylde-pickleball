@@ -226,8 +226,10 @@ export default function BracketVisualization({
   const anyPendingMatches = Object.values(currentRoundMatches).some(m => m !== null);
 
   // Check if all group stage matches are complete
-  const allGroupMatchesComplete = bracket.stage === 'group' && 
-    bracket.rounds?.every(round => 
+  // This should show even after transitioning to knockout, as long as all group rounds are done
+  const groupRounds = bracket.rounds?.filter(r => r.bracketType === 'group') || [];
+  const allGroupMatchesComplete = groupRounds.length > 0 && 
+    groupRounds.every(round => 
       round.matchups?.every(match => match.played)
     );
 
@@ -243,8 +245,12 @@ export default function BracketVisualization({
   const getGroupStandings = () => {
     if (!bracket.rounds) return null;
 
+    // Filter only group stage rounds
+    const groupRoundsData = bracket.rounds.filter(r => r.bracketType === 'group');
+    if (groupRoundsData.length === 0) return null;
+
     const standings = [];
-    bracket.rounds.forEach((round) => {
+    groupRoundsData.forEach((round) => {
       const groupStandings = {};
       
       // Initialize standings for all players/teams in the group
@@ -316,6 +322,56 @@ export default function BracketVisualization({
                 groupStandings[p.id].losses++;
               }
             });
+          }
+        } else {
+          // For singles
+          const p1 = match.team1?.[0];
+          const p2 = match.team2?.[0];
+          
+          if (p1 && !groupStandings[p1.id]) {
+            groupStandings[p1.id] = {
+              player: p1,
+              wins: 0,
+              draws: 0,
+              losses: 0,
+              pointsFor: 0,
+              pointsAgainst: 0,
+            };
+          }
+          if (p2 && !groupStandings[p2.id]) {
+            groupStandings[p2.id] = {
+              player: p2,
+              wins: 0,
+              draws: 0,
+              losses: 0,
+              pointsFor: 0,
+              pointsAgainst: 0,
+            };
+          }
+
+          if (match.winner?.draw) {
+            if (p1) groupStandings[p1.id].draws++;
+            if (p2) groupStandings[p2.id].draws++;
+            if (p1) groupStandings[p1.id].pointsFor++;
+            if (p2) groupStandings[p2.id].pointsFor++;
+          } else {
+            const winnerId = match.winner?.[0]?.id;
+            if (p1) {
+              if (p1.id === winnerId) {
+                groupStandings[p1.id].wins++;
+                groupStandings[p1.id].pointsFor += 3;
+              } else {
+                groupStandings[p1.id].losses++;
+              }
+            }
+            if (p2) {
+              if (p2.id === winnerId) {
+                groupStandings[p2.id].wins++;
+                groupStandings[p2.id].pointsFor += 3;
+              } else {
+                groupStandings[p2.id].losses++;
+              }
+            }
           }
         }
       });
