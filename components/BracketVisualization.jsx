@@ -649,8 +649,8 @@ export default function BracketVisualization({
       )}
 
       {/* Current Round Matches - Inline Score Entry */}
-      {/* Only show score entry if NOT showing group standings (i.e., not when all group matches complete) */}
-      {!(allGroupMatchesComplete && bracket.stage === 'group') && (
+      {/* Only show score entry if there are pending matches AND NOT showing group standings */}
+      {anyPendingMatches && !(allGroupMatchesComplete && bracket.stage === 'group') && (
       <div className="mb-6">
         <div className="bg-cyan-900 bg-opacity-30 border border-cyan-500 rounded-lg p-4 mb-4">
           <h4 className="font-semibold text-cyan-400 flex items-center gap-2 mb-4">
