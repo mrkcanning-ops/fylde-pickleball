@@ -838,8 +838,8 @@ export default function BracketVisualization({
         </div>
       )}
 
-      {/* Group Standings - Show when all group matches complete (with or without having transitioned to knockout) */}
-      {allGroupMatchesComplete && groupStandings && (
+      {/* Group Standings - Show when all group matches complete but knockout not yet started */}
+      {allGroupMatchesComplete && groupStandings && (!bracket.knockoutRounds || bracket.knockoutRounds.length === 0) && (
         <div className="bg-purple-900 bg-opacity-20 border border-purple-500 rounded-lg p-6 mb-6">
           <h4 className="font-bold text-purple-400 mb-6 flex items-center gap-2">
             📊 Group Stage Standings (Top 2 Advance to Knockout)
