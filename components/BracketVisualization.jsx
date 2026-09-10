@@ -236,10 +236,10 @@ export default function BracketVisualization({
   // Handle advancing to knockout stage explicitly
   const handleAdvanceToKnockout = () => {
     console.log('[handleAdvanceToKnockout] Advancing to knockout stage');
-    // Transition bracket from group stage to knockout stage
-    const updatedBracket = { ...bracket, stage: 'knockout' };
-    console.log('[handleAdvanceToKnockout] Updated stage to knockout:', updatedBracket.stage);
-    onAdvanceRound?.(updatedBracket);
+    // Pass the bracket WITHOUT changing stage - let the hook handle the transition
+    // The hook will detect all group rounds are complete and transition to knockout
+    console.log('[handleAdvanceToKnockout] Calling onAdvanceRound with current bracket');
+    onAdvanceRound?.(bracket);
   };
 
   // Calculate group standings
