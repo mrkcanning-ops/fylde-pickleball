@@ -909,6 +909,153 @@ export default function BracketVisualization({
         </div>
       )}
 
+      {/* Knockout Bracket Visualization - Show when in knockout stage */}
+      {bracket.knockoutRounds && bracket.knockoutRounds.length > 0 && (
+        <div className="mb-6">
+          <div className="bg-red-900 bg-opacity-20 border border-red-500 rounded-lg p-6">
+            <h4 className="font-bold text-red-400 mb-6 flex items-center gap-2">
+              🏆 Knockout Bracket
+            </h4>
+
+            <div className="overflow-x-auto">
+              <div className="min-w-max flex gap-8 pb-6">
+                {/* Generate columns for each round */}
+                {bracket.knockoutRounds.map((round, roundIdx) => {
+                  const matchups = round.matchups || [];
+                  const isCurrentRound = roundIdx < bracket.knockoutRounds.length && 
+                    matchups.some(m => !m.played);
+                  
+                  return (
+                    <div key={roundIdx} className="flex-shrink-0">
+                      {/* Round Header */}
+                      <div className="text-center mb-6">
+                        <h5 className="font-bold text-lg text-red-400 mb-2">
+                          {round.stageName}
+                        </h5>
+                        <div className="text-xs text-gray-400">
+                          {matchups.length} match{matchups.length !== 1 ? 'es' : ''}
+                        </div>
+                      </div>
+
+                      {/* Matchups in this round */}
+                      <div className="space-y-8">
+                        {matchups.map((match, matchIdx) => (
+                          <div key={match.id} className="w-56">
+                            {/* Match Container */}
+                            <div className="bg-gray-800 rounded-lg border-2 border-red-500 overflow-hidden">
+                              {/* Team 1 */}
+                              <div
+                                className={`px-4 py-3 border-b border-gray-700 cursor-pointer transition ${
+                                  match.played && match.winner
+                                    ? bracket.gameType === 'doubles'
+                                      ? match.winner.some(p => match.team1?.some(t => t?.id === p?.id))
+                                        ? 'bg-green-900 bg-opacity-60'
+                                        : 'bg-gray-700'
+                                      : match.winner?.[0]?.id === match.team1?.[0]?.id
+                                      ? 'bg-green-900 bg-opacity-60'
+                                      : 'bg-gray-700'
+                                    : 'bg-gray-700 hover:bg-gray-650'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-sm font-semibold text-white truncate flex-1">
+                                    {formatTeamName(match.team1)}
+                                  </span>
+                                  {match.played && match.winner && (
+                                    bracket.gameType === 'doubles'
+                                      ? match.winner.some(p => match.team1?.some(t => t?.id === p?.id)) && (
+                                        <span className="text-yellow-400 font-bold text-lg flex-shrink-0">★</span>
+                                      )
+                                      : match.winner?.[0]?.id === match.team1?.[0]?.id && (
+                                        <span className="text-yellow-400 font-bold text-lg flex-shrink-0">★</span>
+                                      )
+                                  )}
+                                </div>
+                                {match.played && (
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    Score: {matchScores[match.id]?.team1 || '—'}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Team 2 */}
+                              <div
+                                className={`px-4 py-3 cursor-pointer transition ${
+                                  match.played && match.winner
+                                    ? bracket.gameType === 'doubles'
+                                      ? match.winner.some(p => match.team2?.some(t => t?.id === p?.id))
+                                        ? 'bg-green-900 bg-opacity-60'
+                                        : 'bg-gray-700'
+                                      : match.winner?.[0]?.id === match.team2?.[0]?.id
+                                      ? 'bg-green-900 bg-opacity-60'
+                                      : 'bg-gray-700'
+                                    : 'bg-gray-700 hover:bg-gray-650'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-sm font-semibold text-white truncate flex-1">
+                                    {formatTeamName(match.team2)}
+                                  </span>
+                                  {match.played && match.winner && (
+                                    bracket.gameType === 'doubles'
+                                      ? match.winner.some(p => match.team2?.some(t => t?.id === p?.id)) && (
+                                        <span className="text-yellow-400 font-bold text-lg flex-shrink-0">★</span>
+                                      )
+                                      : match.winner?.[0]?.id === match.team2?.[0]?.id && (
+                                        <span className="text-yellow-400 font-bold text-lg flex-shrink-0">★</span>
+                                      )
+                                  )}
+                                </div>
+                                {match.played && (
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    Score: {matchScores[match.id]?.team2 || '—'}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Status Badge */}
+                            {match.played ? (
+                              <div className="mt-2 text-center">
+                                <span className="inline-block text-xs bg-green-600 text-white px-3 py-1 rounded-full">
+                                  ✓ Complete
+                                </span>
+                              </div>
+                            ) : isCurrentRound ? (
+                              <div className="mt-2 text-center">
+                                <span className="inline-block text-xs bg-yellow-600 text-white px-3 py-1 rounded-full animate-pulse">
+                                  ⏳ Upcoming
+                                </span>
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bracket Legend */}
+            <div className="mt-6 pt-6 border-t border-red-500 grid grid-cols-2 gap-4 text-xs text-gray-300">
+              <div className="flex items-center gap-2">
+                <span className="text-yellow-400 font-bold">★</span>
+                <span>Match Winner</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-green-900 bg-opacity-60"></div>
+                <span>Won Match</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-gray-700"></div>
+                <span>Lost Match</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Rounds Detail - Collapsible */}
       <div className="mb-6">
         <button
