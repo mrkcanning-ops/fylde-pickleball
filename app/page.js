@@ -73,6 +73,7 @@ export default function HomePage() {
   const [serverError, setServerError] = useState(null);
   const [showNqModalFor, setShowNqModalFor] = useState(null);
   const [openDates, setOpenDates] = useState([]);
+  const [tournamentCompleted, setTournamentCompleted] = useState(false);
 
   // Quick hydration marker: allow client UI to render after mount
   const [isClient, setIsClient] = useState(false);
@@ -5136,6 +5137,7 @@ const handleTouchEnd = (e) => {
               <>
                 <SafeBracketVisualization
                   bracket={tournament.currentBracket}
+                  tournamentCompleted={tournamentCompleted}
                   onSelectMatch={(match) => {
                     tournament.setSelectedMatch(match);
                     tournament.setShowMatchResultModal(true);
@@ -5148,6 +5150,12 @@ const handleTouchEnd = (e) => {
                         console.log('[app/page.onAdvanceRound] Calling advanceToNextRound');
                         const result = tournament.advanceToNextRound(updatedBracket);
                         console.log('[app/page.onAdvanceRound] Result:', result);
+                        
+                        // Check if tournament is complete
+                        if (result?.stage === 'complete') {
+                          console.log('[app/page.onAdvanceRound] Tournament is complete!');
+                          setTournamentCompleted(true);
+                        }
                       } else {
                         console.error('[app/page.onAdvanceRound] advanceToNextRound is not a function!');
                       }

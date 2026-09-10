@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * BracketVisualization
@@ -14,6 +14,8 @@ export default function BracketVisualization({
   onRecordResult = null,
   onAdvanceRound = null,
   onTransitionToKnockout = null,
+  onTournamentComplete = null,
+  tournamentCompleted = false,
 }) {
   console.log('[BracketVisualization] Rendering bracket:', bracket?.format, bracket?.gameType, 'rounds:', bracket?.rounds?.length);
   const [showCourtSchedule, setShowCourtSchedule] = useState(true);
@@ -23,6 +25,13 @@ export default function BracketVisualization({
   const [matchWinners, setMatchWinners] = useState({}); // Track detected winners: { matchId: winnerId or 'draw' }
   const [testingMode, setTestingMode] = useState(false); // Testing mode: auto-generate results to skip manual score entry
   const [tournamentComplete, setTournamentComplete] = useState(false); // Track if tournament is finished
+
+  // Watch for tournament completion from parent
+  useEffect(() => {
+    if (tournamentCompleted) {
+      setTournamentComplete(true);
+    }
+  }, [tournamentCompleted]);
 
   // Helper function to format team names for display
   const formatTeamName = (team) => {
@@ -873,15 +882,11 @@ export default function BracketVisualization({
                   return;
                 }
                 
-                // Otherwise, advance the round
+                // Otherwise, advance the round and trigger completion callback when done
                 handleAdvanceRound();
                 
-                // After advancing, check if tournament is now complete (for final round)
-                setTimeout(() => {
-                  if (isTournamentComplete()) {
-                    setTournamentComplete(true);
-                  }
-                }, 100);
+                // Call the tournament completion callback (parent will detect stage: 'complete')
+                onTournamentComplete?.();
               }}
               disabled={isOnFinalRound() ? !testingMode && !allCurrentKnockoutRoundComplete() : (bracket.stage === 'knockout' ? !allCurrentKnockoutRoundComplete() : !allCurrentScoresEntered())}
               className={`w-full mt-6 py-3 px-4 rounded-lg font-bold transition ${
