@@ -104,8 +104,8 @@ export default function BracketVisualization({
 
   /**
    * Get next unplayed match for each court
-   * In group stage, only show matches from the same group round on all courts
-   * In knockout, show first unplayed match per court
+   * In group stage: find first unplayed match from EACH GROUP on different courts (fair progression)
+   * In knockout: show first unplayed match per court
    * Returns one match per court, ensuring no player appears on multiple courts
    */
   const getCurrentRoundMatches = () => {
@@ -122,52 +122,49 @@ export default function BracketVisualization({
       return courtMatches; // No rounds to process
     }
 
-    // For group stage, only show matches from the first unplayed group round
+    // For group stage, show one unplayed match from each group on different courts (fair progression)
     if (bracket.stage === 'group' && bracket.rounds) {
-      console.log('[getCurrentRoundMatches] Group stage - looking for first unplayed group round');
+      console.log('[getCurrentRoundMatches] Group stage - finding first unplayed match from each group');
       
-      // Find first group round with unplayed matches
-      const currentGroupRound = bracket.rounds.find(round =>
-        round.matchups?.some(match => !match.played)
-      );
+      let courtNum = 1;
+      const maxCourts = bracket.courtsCount || 1;
 
-      if (currentGroupRound) {
-        console.log('[getCurrentRoundMatches] Found unplayed group round:', currentGroupRound.stageName);
+      // For each group round, find first unplayed match
+      bracket.rounds.forEach((round) => {
+        if (!round || !Array.isArray(round.matchups) || courtNum > maxCourts) return;
         
-        // Fill courts only from this round
-        let courtNum = 1;
-        (currentGroupRound.matchups || []).forEach((match) => {
-          // Skip invalid/played matches
-          if (!match || typeof match !== 'object' || match.played || !match.team2) return;
-          
-          // Check for player conflicts with already-assigned matches
+        // Find first unplayed match in this group
+        const unplayedMatch = round.matchups.find(match =>
+          match && !match.played && match.team2
+        );
+
+        if (unplayedMatch) {
+          // Check for player conflicts
           const matchPlayerIds = new Set();
-          if (match.team1) {
-            match.team1.forEach(p => {
+          if (unplayedMatch.team1) {
+            unplayedMatch.team1.forEach(p => {
               if (p && p.id) matchPlayerIds.add(p.id);
             });
           }
-          if (match.team2) {
-            match.team2.forEach(p => {
+          if (unplayedMatch.team2) {
+            unplayedMatch.team2.forEach(p => {
               if (p && p.id) matchPlayerIds.add(p.id);
             });
           }
           
-          // Skip this match if any player is already assigned to another court
+          // Check for conflicts
           const hasConflict = Array.from(matchPlayerIds).some(playerId => 
             usedPlayers.has(playerId)
           );
           
-          if (hasConflict) return;
-          
-          // Assign to next available court
-          if (courtNum <= (bracket.courtsCount || 1)) {
-            courtMatches[courtNum] = { ...match, roundName: currentGroupRound.stageName };
+          if (!hasConflict) {
+            courtMatches[courtNum] = { ...unplayedMatch, roundName: round.stageName };
             matchPlayerIds.forEach(playerId => usedPlayers.add(playerId));
+            console.log(`[getCurrentRoundMatches] Court ${courtNum}: ${round.stageName}`);
             courtNum++;
           }
-        });
-      }
+        }
+      });
       
       return courtMatches;
     }
