@@ -202,8 +202,9 @@ export default function BracketVisualization({
       return courtMatches;
     }
 
-    // For knockout stage, show first unplayed knockout matches across courts
+    // For knockout stage, show ALL unplayed knockout matches across courts (one per court)
     let allRounds = [...(bracket.knockoutRounds || [])];
+    let nextCourtNum = 1;
 
     // Find first unplayed match for each court, ensuring no player conflicts
     allRounds.forEach((round) => {
@@ -213,10 +214,8 @@ export default function BracketVisualization({
         // Defensive: skip invalid matches
         if (!match || typeof match !== 'object') return;
         
-        const courtNum = match.court || 1;
-        
-        // Skip if this court already has a match
-        if (courtMatches[courtNum]) return;
+        // Skip if this court is already filled
+        if (nextCourtNum > (bracket.courtsCount || 1)) return;
         
         // Skip if match is already played
         if (match.played) return;
@@ -244,11 +243,15 @@ export default function BracketVisualization({
         
         if (hasConflict) return;
         
-        // No conflicts - assign this match to the court
+        // No conflicts - assign this match to the next available court
+        const courtNum = nextCourtNum;
         courtMatches[courtNum] = { ...match, roundName: round.stageName };
         
         // Mark all players as used
         matchPlayerIds.forEach(playerId => usedPlayers.add(playerId));
+        
+        // Move to next court for next match
+        nextCourtNum++;
       });
     });
 
