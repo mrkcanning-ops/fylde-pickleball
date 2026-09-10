@@ -1025,18 +1025,6 @@ export default function BracketVisualization({
         )}
       </div>
 
-      {/* Seeding Info */}
-      <div className="mt-8 bg-gray-900 rounded-lg p-4">
-        <h4 className="font-semibold text-gray-300 mb-3 text-sm">🎯 Seeding</h4>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-          {(bracket.seededPlayers || []).map((player, idx) => (
-            <div key={player.id} className="bg-gray-800 rounded p-2 text-xs">
-              <div className="text-gray-400">#{idx + 1}</div>
-              <div className="text-white font-semibold truncate">{player.name}</div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
