@@ -1127,8 +1127,8 @@ export default function BracketVisualization({
         </div>
       )}
 
-      {/* Tree-Style Bracket Visualization - Show when in knockout stage */}
-      {bracket.knockoutRounds && bracket.knockoutRounds.length > 0 && (
+      {/* World Cup Style Bracket - Always visible, fills as tournament progresses */}
+      {bracket.stage === 'knockout' && bracket.knockoutRounds && bracket.knockoutRounds.length > 0 && (
         <div className="mb-6">
           <div className="bg-blue-900 bg-opacity-20 border border-blue-500 rounded-lg p-6">
             <h4 className="font-bold text-blue-400 mb-6 flex items-center gap-2">
@@ -1136,138 +1136,172 @@ export default function BracketVisualization({
             </h4>
 
             <div className="overflow-auto">
-              <svg width="1400" height="900" className="min-w-full bg-gray-900 bg-opacity-30 rounded border border-blue-400">
+              <svg width="1600" height="950" className="min-w-full bg-gray-900 bg-opacity-30 rounded border border-blue-400">
                 <defs>
                   <style>{`
-                    .bracket-team { font-size: 11px; font-weight: bold; fill: white; }
-                    .bracket-round-label { font-size: 13px; font-weight: bold; fill: #60a5fa; }
+                    .bracket-team-box { font-size: 10px; font-weight: bold; }
+                    .bracket-round-label { font-size: 14px; font-weight: bold; fill: #60a5fa; }
                     .bracket-line { stroke: #60a5fa; stroke-width: 2; fill: none; }
+                    .bracket-dashed { stroke: #60a5fa; stroke-width: 1; stroke-dasharray: 4,4; fill: none; }
                   `}</style>
                 </defs>
 
                 {(() => {
-                  // Find quarterfinals, semifinals, final, and 3rd place rounds
                   const qfRound = bracket.knockoutRounds.find(r => r.stageName === 'Quarterfinals');
                   const sfRound = bracket.knockoutRounds.find(r => r.stageName === 'Semifinals');
                   const finalRound = bracket.knockoutRounds.find(r => r.stageName === 'Final');
                   const thirdPlaceRound = bracket.knockoutRounds.find(r => r.stageName === '3rd Place Playoff');
 
-                  const matchBoxHeight = 40;
-                  const matchBoxWidth = 160;
-                  const gapBetweenTeams = 8;
+                  // Helper to check if a team won a match
+                  const isTeamWinner = (team, match) => {
+                    if (!match?.played || !match?.winner) return false;
+                    if (bracket.gameType === 'doubles') {
+                      return match.winner.some(p => team?.some(t => t?.id === p?.id));
+                    } else {
+                      return match.winner?.[0]?.id === team?.[0]?.id;
+                    }
+                  };
 
-                  // Helper to draw a match box
-                  const MatchBox = ({ x, y, match, isWinner1 }) => {
-                    if (!match || !match.team1) return null;
-
-                    const isTeam1Winner = match.played && match.winner
-                      ? bracket.gameType === 'doubles'
-                        ? match.winner.some(p => match.team1?.some(t => t?.id === p?.id))
-                        : match.winner?.[0]?.id === match.team1?.[0]?.id
-                      : false;
-
-                    const isTeam2Winner = match.played && match.winner
-                      ? bracket.gameType === 'doubles'
-                        ? match.winner.some(p => match.team2?.some(t => t?.id === p?.id))
-                        : match.winner?.[0]?.id === match.team2?.[0]?.id
-                      : false;
+                  // Helper to draw a team box (winner or loser)
+                  const TeamBox = ({ x, y, team, isWinner, isEmpty = false }) => {
+                    const boxWidth = 140;
+                    const boxHeight = 22;
+                    const fillColor = isEmpty ? '#374151' : isWinner ? '#166534' : '#4b5563';
+                    const strokeColor = isEmpty ? '#6b7280' : isWinner ? '#22c55e' : '#9ca3af';
 
                     return (
-                      <g key={`${x}-${y}`}>
-                        {/* Team 1 */}
-                        <rect
-                          x={x} y={y} width={matchBoxWidth} height={matchBoxHeight / 2 - gapBetweenTeams / 2}
-                          fill={isTeam1Winner ? '#166534' : '#1f2937'}
-                          stroke={isTeam1Winner ? '#22c55e' : '#6b7280'}
-                          strokeWidth="1.5"
-                          rx="3"
-                        />
-                        <text x={x + 6} y={y + 18} className="bracket-team">
-                          {formatTeamName(match.team1).substring(0, 18)}
+                      <g key={`${x}-${y}-${team?.name || 'empty'}`}>
+                        <rect x={x} y={y} width={boxWidth} height={boxHeight} fill={fillColor} stroke={strokeColor} strokeWidth="1.5" rx="2" />
+                        <text
+                          x={x + 5}
+                          y={y + 16}
+                          className="bracket-team-box"
+                          fill={isEmpty ? '#9ca3af' : '#ffffff'}
+                        >
+                          {isEmpty ? '—' : formatTeamName(team).substring(0, 18)}
                         </text>
-                        {isTeam1Winner && <text x={x + matchBoxWidth - 8} y={y + 18} className="bracket-team" fill="#fbbf24">★</text>}
-
-                        {/* Team 2 */}
-                        <rect
-                          x={x} y={y + matchBoxHeight / 2 + gapBetweenTeams / 2} width={matchBoxWidth} height={matchBoxHeight / 2 - gapBetweenTeams / 2}
-                          fill={isTeam2Winner ? '#166534' : '#1f2937'}
-                          stroke={isTeam2Winner ? '#22c55e' : '#6b7280'}
-                          strokeWidth="1.5"
-                          rx="3"
-                        />
-                        <text x={x + 6} y={y + matchBoxHeight + 6} className="bracket-team">
-                          {formatTeamName(match.team2).substring(0, 18)}
-                        </text>
-                        {isTeam2Winner && <text x={x + matchBoxWidth - 8} y={y + matchBoxHeight + 6} className="bracket-team" fill="#fbbf24">★</text>}
+                        {isWinner && !isEmpty && (
+                          <text x={x + boxWidth - 8} y={y + 16} className="bracket-team-box" fill="#fbbf24">★</text>
+                        )}
                       </g>
                     );
                   };
 
-                  // Helper to draw connecting lines
-                  const ConnectLine = ({ x1, y1, x2, y2 }) => (
-                    <path d={`M ${x1} ${y1} L ${x1 + 20} ${y1} L ${x1 + 20} ${y2} L ${x2} ${y2}`} className="bracket-line" />
+                  // Helper to draw a connection line
+                  const ConnectLine = ({ x1, y1, x2, y2, dashed = false }) => (
+                    <path
+                      d={`M ${x1} ${y1} Q ${(x1 + x2) / 2} ${(y1 + y2) / 2}, ${x2} ${y2}`}
+                      className={dashed ? 'bracket-dashed' : 'bracket-line'}
+                    />
                   );
+
+                  // Get QF matchups (all 4)
+                  const qfMatches = qfRound?.matchups || [];
+                  const sfMatches = sfRound?.matchups || [];
+                  const finalMatch = finalRound?.matchups?.[0];
+                  const thirdPlaceMatch = thirdPlaceRound?.matchups?.[0];
 
                   return (
                     <>
-                      {/* QUARTERFINALS */}
-                      <text x="20" y="30" className="bracket-round-label">QUARTERFINALS</text>
+                      {/* ROUND LABELS */}
+                      <text x="50" y="25" className="bracket-round-label">QUARTERFINALS</text>
+                      <text x="450" y="25" className="bracket-round-label">SEMIFINALS</text>
+                      <text x="800" y="25" className="bracket-round-label">FINAL</text>
+                      <text x="1200" y="25" className="bracket-round-label">CHAMPION</text>
+                      <text x="1350" y="450" className="bracket-round-label">3RD PLACE</text>
 
-                      {/* LEFT SIDE QF (Groups A & B) */}
-                      {qfRound?.matchups.slice(0, 2).map((match, idx) => (
-                        <g key={`qf-left-${idx}`}>
-                          <MatchBox x={20} y={60 + idx * 130} match={match} />
-                          {/* Line to SF */}
-                          <ConnectLine x1={20 + matchBoxWidth} y1={60 + idx * 130 + matchBoxHeight / 2} x2={340} y2={100 + idx * 130} />
-                        </g>
-                      ))}
+                      {/* ===== LEFT SIDE: QF 1 & 2 → SF 1 ===== */}
+                      {/* QF 1 - Team 1 (Winner) */}
+                      <TeamBox x={20} y={50} team={qfMatches[0]?.team1} isWinner={isTeamWinner(qfMatches[0]?.team1, qfMatches[0])} isEmpty={!qfMatches[0]?.team1} />
+                      {/* QF 1 - Team 2 (Loser) */}
+                      <TeamBox x={20} y={80} team={qfMatches[0]?.team2} isWinner={isTeamWinner(qfMatches[0]?.team2, qfMatches[0])} isEmpty={!qfMatches[0]?.team2} />
 
-                      {/* RIGHT SIDE QF (Groups C & D) */}
-                      {qfRound?.matchups.slice(2, 4).map((match, idx) => (
-                        <g key={`qf-right-${idx}`}>
-                          <MatchBox x={1220} y={60 + idx * 130} match={match} />
-                          {/* Line to SF */}
-                          <ConnectLine x1={1220} y1={60 + idx * 130 + matchBoxHeight / 2} x2={1040} y2={100 + idx * 130} />
-                        </g>
-                      ))}
+                      {/* QF 2 - Team 1 (Winner) */}
+                      <TeamBox x={20} y={150} team={qfMatches[1]?.team1} isWinner={isTeamWinner(qfMatches[1]?.team1, qfMatches[1])} isEmpty={!qfMatches[1]?.team1} />
+                      {/* QF 2 - Team 2 (Loser) */}
+                      <TeamBox x={20} y={180} team={qfMatches[1]?.team2} isWinner={isTeamWinner(qfMatches[1]?.team2, qfMatches[1])} isEmpty={!qfMatches[1]?.team2} />
 
-                      {/* SEMIFINALS */}
-                      <text x="500" y="30" className="bracket-round-label">SEMIFINALS</text>
+                      {/* QF 3 - Team 1 (Winner) */}
+                      <TeamBox x={20} y={280} team={qfMatches[2]?.team1} isWinner={isTeamWinner(qfMatches[2]?.team1, qfMatches[2])} isEmpty={!qfMatches[2]?.team1} />
+                      {/* QF 3 - Team 2 (Loser) */}
+                      <TeamBox x={20} y={310} team={qfMatches[2]?.team2} isWinner={isTeamWinner(qfMatches[2]?.team2, qfMatches[2])} isEmpty={!qfMatches[2]?.team2} />
 
-                      {/* LEFT SF */}
-                      {sfRound?.matchups[0] && (
-                        <g key="sf-left">
-                          <MatchBox x={340} y={80} match={sfRound.matchups[0]} />
-                          {/* Line to Final */}
-                          <ConnectLine x1={340 + matchBoxWidth} y1={80 + matchBoxHeight / 2} x2={600} y2={320} />
-                        </g>
+                      {/* QF 4 - Team 1 (Winner) */}
+                      <TeamBox x={20} y={380} team={qfMatches[3]?.team1} isWinner={isTeamWinner(qfMatches[3]?.team1, qfMatches[3])} isEmpty={!qfMatches[3]?.team1} />
+                      {/* QF 4 - Team 2 (Loser) */}
+                      <TeamBox x={20} y={410} team={qfMatches[3]?.team2} isWinner={isTeamWinner(qfMatches[3]?.team2, qfMatches[3])} isEmpty={!qfMatches[3]?.team2} />
+
+                      {/* Connection lines from QF to SF (left side) */}
+                      {qfMatches[0] && (
+                        <ConnectLine x1={160} y1={65} x2={350} y2={115} />
+                      )}
+                      {qfMatches[1] && (
+                        <ConnectLine x1={160} y1={165} x2={350} y2={115} />
                       )}
 
-                      {/* RIGHT SF */}
-                      {sfRound?.matchups[1] && (
-                        <g key="sf-right">
-                          <MatchBox x={1040} y={80} match={sfRound.matchups[1]} />
-                          {/* Line to Final */}
-                          <ConnectLine x1={1040} y1={80 + matchBoxHeight / 2} x2={760} y2={320} />
+                      {/* ===== SEMIFINALS ===== */}
+                      {/* SF 1 - Team 1 (from QF 1 or QF 2 winner) */}
+                      <TeamBox x={350} y={100} team={sfMatches[0]?.team1} isWinner={isTeamWinner(sfMatches[0]?.team1, sfMatches[0])} isEmpty={!sfMatches[0]?.team1} />
+                      {/* SF 1 - Team 2 (from QF 1 or QF 2 winner) */}
+                      <TeamBox x={350} y={130} team={sfMatches[0]?.team2} isWinner={isTeamWinner(sfMatches[0]?.team2, sfMatches[0])} isEmpty={!sfMatches[0]?.team2} />
+
+                      {/* SF 2 - Team 1 (from QF 3 or QF 4 winner) */}
+                      <TeamBox x={350} y={300} team={sfMatches[1]?.team1} isWinner={isTeamWinner(sfMatches[1]?.team1, sfMatches[1])} isEmpty={!sfMatches[1]?.team1} />
+                      {/* SF 2 - Team 2 (from QF 3 or QF 4 winner) */}
+                      <TeamBox x={350} y={330} team={sfMatches[1]?.team2} isWinner={isTeamWinner(sfMatches[1]?.team2, sfMatches[1])} isEmpty={!sfMatches[1]?.team2} />
+
+                      {/* Connection lines from QF to SF (right side) */}
+                      {qfMatches[2] && (
+                        <ConnectLine x1={160} y1={295} x2={350} y2={315} />
+                      )}
+                      {qfMatches[3] && (
+                        <ConnectLine x1={160} y1={395} x2={350} y2={315} />
+                      )}
+
+                      {/* Connection lines from SF to Final */}
+                      {sfMatches[0] && (
+                        <ConnectLine x1={490} y1={115} x2={700} y2={200} />
+                      )}
+                      {sfMatches[1] && (
+                        <ConnectLine x1={490} y1={315} x2={700} y2={240} />
+                      )}
+
+                      {/* ===== FINAL ===== */}
+                      {/* Final - Team 1 (from SF 1 winner) */}
+                      <TeamBox x={700} y={185} team={finalMatch?.team1} isWinner={isTeamWinner(finalMatch?.team1, finalMatch)} isEmpty={!finalMatch?.team1} />
+                      {/* Final - Team 2 (from SF 2 winner) */}
+                      <TeamBox x={700} y={215} team={finalMatch?.team2} isWinner={isTeamWinner(finalMatch?.team2, finalMatch)} isEmpty={!finalMatch?.team2} />
+
+                      {/* ===== CHAMPION ===== */}
+                      {/* Champion box */}
+                      <TeamBox x={1100} y={195} team={finalMatch?.winner} isWinner={true} isEmpty={!finalMatch?.winner} />
+
+                      {/* Connection from Final to Champion */}
+                      {finalMatch?.winner && (
+                        <ConnectLine x1={840} y1={200} x2={1100} y2={206} />
+                      )}
+
+                      {/* ===== 3RD PLACE PLAYOFF ===== */}
+                      {/* 3rd Place - Team 1 (SF 1 loser) */}
+                      <TeamBox x={1300} y={400} team={thirdPlaceMatch?.team1} isWinner={isTeamWinner(thirdPlaceMatch?.team1, thirdPlaceMatch)} isEmpty={!thirdPlaceMatch?.team1} />
+                      {/* 3rd Place - Team 2 (SF 2 loser) */}
+                      <TeamBox x={1300} y={430} team={thirdPlaceMatch?.team2} isWinner={isTeamWinner(thirdPlaceMatch?.team2, thirdPlaceMatch)} isEmpty={!thirdPlaceMatch?.team2} />
+
+                      {/* Connection from SF losers to 3rd Place */}
+                      {sfMatches[0]?.team2 && (
+                        <ConnectLine x1={490} y1={130} x2={1300} y2={410} dashed={true} />
+                      )}
+                      {sfMatches[1]?.team2 && (
+                        <ConnectLine x1={490} y1={330} x2={1300} y2={425} dashed={true} />
+                      )}
+
+                      {/* 3rd Place Winner */}
+                      {thirdPlaceMatch?.winner && (
+                        <g>
+                          <text x="1420" y="485" className="bracket-round-label">3rd Place Winner:</text>
+                          <TeamBox x={1300} y={495} team={thirdPlaceMatch.winner} isWinner={true} isEmpty={!thirdPlaceMatch.winner} />
                         </g>
                       )}
-
-                      {/* FINAL */}
-                      <text x="640" y="290" className="bracket-round-label">FINAL</text>
-                      {finalRound?.matchups[0] && (
-                        <MatchBox x={600} y={320} match={finalRound.matchups[0]} />
-                      )}
-
-                      {/* 3RD PLACE PLAYOFF */}
-                      <text x="1050" y="730" className="bracket-round-label">3RD PLACE PLAYOFF</text>
-                      {thirdPlaceRound?.matchups[0] && (
-                        <MatchBox x={980} y={750} match={thirdPlaceRound.matchups[0]} />
-                      )}
-
-                      {/* Decorative Title */}
-                      <text x="700" y="850" style={{ fontSize: '24px', fontWeight: 'bold', fill: '#fbbf24', textAnchor: 'middle' }}>
-                        🏆 Tournament Bracket 🏆
-                      </text>
                     </>
                   );
                 })()}
@@ -1282,15 +1316,15 @@ export default function BracketVisualization({
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded bg-green-700"></div>
-                <span>Won Match</span>
+                <span>Winner (Advances)</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-gray-700"></div>
-                <span>Lost Match</span>
+                <div className="w-3 h-3 rounded bg-gray-600"></div>
+                <span>Loser (Eliminated)</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-px bg-blue-400"></div>
-                <span>Advancement</span>
+                <span>Progression</span>
               </div>
             </div>
           </div>
