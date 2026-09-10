@@ -838,8 +838,8 @@ export default function BracketVisualization({
         </div>
       )}
 
-      {/* Group Standings - Show ONLY during group stage when all group matches complete */}
-      {allGroupMatchesComplete && groupStandings && bracket.stage === 'group' && (
+      {/* Group Standings - Show when all group matches complete (with or without having transitioned to knockout) */}
+      {allGroupMatchesComplete && groupStandings && (
         <div className="bg-purple-900 bg-opacity-20 border border-purple-500 rounded-lg p-6 mb-6">
           <h4 className="font-bold text-purple-400 mb-6 flex items-center gap-2">
             📊 Group Stage Standings (Top 2 Advance to Knockout)
@@ -893,13 +893,19 @@ export default function BracketVisualization({
             ))}
           </div>
 
-          {/* Advance to Knockout Button */}
-          <button
-            onClick={handleAdvanceToKnockout}
-            className="w-full mt-6 py-4 px-4 rounded-lg font-bold text-white bg-purple-600 hover:bg-purple-500 transition text-lg"
-          >
-            🚀 Advance to Knockout Stage
-          </button>
+          {/* Advance to Knockout Button - Only show if knockout not yet generated */}
+          {!bracket.knockoutRounds || bracket.knockoutRounds.length === 0 ? (
+            <button
+              onClick={handleAdvanceToKnockout}
+              className="w-full mt-6 py-4 px-4 rounded-lg font-bold text-white bg-purple-600 hover:bg-purple-500 transition text-lg"
+            >
+              🚀 Advance to Knockout Stage
+            </button>
+          ) : (
+            <div className="w-full mt-6 py-4 px-4 rounded-lg font-bold text-white bg-gray-600 text-center">
+              ✓ Knockout stage in progress
+            </div>
+          )}
         </div>
       )}
 
