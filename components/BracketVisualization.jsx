@@ -22,6 +22,7 @@ export default function BracketVisualization({
   const [matchScores, setMatchScores] = useState({}); // Track scores: { matchId: { team1: score, team2: score } }
   const [matchWinners, setMatchWinners] = useState({}); // Track detected winners: { matchId: winnerId or 'draw' }
   const [testingMode, setTestingMode] = useState(false); // Testing mode: auto-generate results to skip manual score entry
+  const [tournamentComplete, setTournamentComplete] = useState(false); // Track if tournament is finished
 
   // Helper function to format team names for display
   const formatTeamName = (team) => {
@@ -135,6 +136,58 @@ export default function BracketVisualization({
       </div>
     );
   }
+
+  /**
+   * Check if tournament is complete (final and 3rd place playoff both finished)
+   */
+  const isTournamentComplete = () => {
+    if (!bracket.knockoutRounds || bracket.knockoutRounds.length < 2) return false;
+    
+    // Find Final and 3rd Place Playoff rounds
+    const finalRound = bracket.knockoutRounds.find(r => r.stageName === 'Final');
+    const thirdPlaceRound = bracket.knockoutRounds.find(r => r.stageName === '3rd Place Playoff');
+    
+    const finalDone = finalRound?.matchups?.[0]?.played;
+    const thirdPlaceDone = thirdPlaceRound?.matchups?.[0]?.played;
+    
+    return finalDone && thirdPlaceDone;
+  };
+
+  /**
+   * Get tournament results (1st, 2nd, 3rd place)
+   */
+  const getTournamentResults = () => {
+    if (!bracket.knockoutRounds) return { first: null, second: null, third: null };
+    
+    const finalRound = bracket.knockoutRounds.find(r => r.stageName === 'Final');
+    const thirdPlaceRound = bracket.knockoutRounds.find(r => r.stageName === '3rd Place Playoff');
+    
+    const finalMatch = finalRound?.matchups?.[0];
+    const thirdPlaceMatch = thirdPlaceRound?.matchups?.[0];
+    
+    return {
+      first: finalMatch?.winner || null,
+      second: finalMatch ? (finalMatch.winner?.id === finalMatch.team1?.[0]?.id || 
+                           finalMatch.winner?.some?.(p => finalMatch.team1?.some(t => t?.id === p?.id))
+                           ? finalMatch.team2 : finalMatch.team1) : null,
+      third: thirdPlaceMatch?.winner || null,
+    };
+  };
+
+  /**
+   * Check if we're on the final round (last unplayed round before tournament complete)
+   */
+  const isOnFinalRound = () => {
+    if (!bracket.knockoutRounds || bracket.knockoutRounds.length < 2) return false;
+    
+    const finalRound = bracket.knockoutRounds.find(r => r.stageName === 'Final');
+    const thirdPlaceRound = bracket.knockoutRounds.find(r => r.stageName === '3rd Place Playoff');
+    
+    const finalUnplayed = finalRound && finalRound.matchups?.some(m => !m.played);
+    const thirdPlaceUnplayed = thirdPlaceRound && thirdPlaceRound.matchups?.some(m => !m.played);
+    
+    return finalUnplayed || thirdPlaceUnplayed;
+  };
 
   /**
    * Get next unplayed match for each court
@@ -811,9 +864,22 @@ export default function BracketVisualization({
           </div>
 
           {/* Next Round Button */}
-          {anyPendingMatches && (
+          {anyPendingMatches && !tournamentComplete && (
             <button
-              onClick={handleAdvanceRound}
+              onClick={() => {
+                // Check if this is the final round completion
+                if (isOnFinalRound()) {
+                  handleAdvanceRound();
+                  // After Final and 3rd Place are done, mark tournament as complete
+                  setTimeout(() => {
+                    if (isTournamentComplete()) {
+                      setTournamentComplete(true);
+                    }
+                  }, 100);
+                } else {
+                  handleAdvanceRound();
+                }
+              }}
               disabled={bracket.stage === 'knockout' ? !allCurrentKnockoutRoundComplete() : !allCurrentScoresEntered()}
               className={`w-full mt-6 py-3 px-4 rounded-lg font-bold transition ${
                 (bracket.stage === 'knockout' ? allCurrentKnockoutRoundComplete() : allCurrentScoresEntered())
@@ -821,7 +887,9 @@ export default function BracketVisualization({
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {bracket.stage === 'knockout' 
+              {isOnFinalRound() && isTournamentComplete()
+                ? '🏆 End Tournament'
+                : bracket.stage === 'knockout' 
                 ? allCurrentKnockoutRoundComplete() ? '→ Next Round' : `Complete all ${bracket.knockoutRounds?.[bracket.knockoutRounds.length - 1]?.matchups?.length || 0} matches to continue`
                 : allCurrentScoresEntered() ? '→ Next Round' : 'Enter all scores to continue'}
             </button>
@@ -1355,6 +1423,88 @@ export default function BracketVisualization({
         )}
       </div>
 
+      {/* Tournament Completion - Celebration Page */}
+      {tournamentComplete && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-b from-yellow-900 to-gray-900 rounded-2xl p-8 max-w-2xl w-full border-4 border-yellow-400 shadow-2xl">
+            {/* Fireworks animation effect */}
+            <div className="text-center mb-8 animate-pulse">
+              <div className="text-8xl mb-4">🎉🏆🎉</div>
+              <h1 className="text-5xl font-bold text-yellow-300 mb-2">Tournament Complete!</h1>
+              <div className="text-2xl text-yellow-200">Congratulations to all participants</div>
+            </div>
+
+            {(() => {
+              const results = getTournamentResults();
+              return (
+                <div className="space-y-8 mb-8">
+                  {/* 1st Place */}
+                  {results.first && (
+                    <div className="bg-yellow-400 bg-opacity-20 rounded-xl p-6 border-3 border-yellow-400">
+                      <div className="flex items-center justify-center gap-4 mb-3">
+                        <span className="text-5xl">🥇</span>
+                        <div className="text-center">
+                          <div className="text-sm text-yellow-300 font-semibold">1ST PLACE - CHAMPION</div>
+                          <div className="text-2xl font-bold text-white mt-1">
+                            {formatTeamName(results.first)}
+                          </div>
+                        </div>
+                        <span className="text-5xl">🏆</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2nd Place */}
+                  {results.second && (
+                    <div className="bg-gray-400 bg-opacity-20 rounded-xl p-6 border-2 border-gray-400">
+                      <div className="flex items-center justify-center gap-4">
+                        <span className="text-4xl">🥈</span>
+                        <div className="text-center">
+                          <div className="text-sm text-gray-300 font-semibold">2ND PLACE - RUNNER-UP</div>
+                          <div className="text-xl font-bold text-white mt-1">
+                            {formatTeamName(results.second)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3rd Place */}
+                  {results.third && (
+                    <div className="bg-orange-600 bg-opacity-20 rounded-xl p-6 border-2 border-orange-500">
+                      <div className="flex items-center justify-center gap-4">
+                        <span className="text-4xl">🥉</span>
+                        <div className="text-center">
+                          <div className="text-sm text-orange-300 font-semibold">3RD PLACE</div>
+                          <div className="text-xl font-bold text-white mt-1">
+                            {formatTeamName(results.third)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3 mt-8">
+              <button
+                onClick={() => setTournamentComplete(false)}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg transition text-lg"
+              >
+                📊 View Full Bracket
+              </button>
+              <button
+                onClick={() => window.location.href = '/'}
+                className="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg transition text-lg"
+              >
+                🏠 Return to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
