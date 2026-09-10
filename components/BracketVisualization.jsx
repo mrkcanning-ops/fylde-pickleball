@@ -1056,6 +1056,189 @@ export default function BracketVisualization({
         </div>
       )}
 
+      {/* Tree-Style Bracket Visualization - Show when in knockout stage */}
+      {bracket.knockoutRounds && bracket.knockoutRounds.length > 0 && (
+        <div className="mb-6">
+          <div className="bg-blue-900 bg-opacity-20 border border-blue-500 rounded-lg p-6">
+            <h4 className="font-bold text-blue-400 mb-6 flex items-center gap-2">
+              🌳 Tournament Bracket Tree
+            </h4>
+
+            <div className="overflow-x-auto">
+              <svg
+                width={Math.max(1200, 200 + (bracket.knockoutRounds.length * 250))}
+                height={Math.max(600, bracket.knockoutRounds[0]?.matchups?.length * 120 || 100)}
+                className="min-w-full bg-gray-900 bg-opacity-30 rounded border border-blue-400"
+              >
+                {/* Draw bracket structure */}
+                {bracket.knockoutRounds.map((round, roundIdx) => {
+                  const roundX = 100 + roundIdx * 250;
+                  const matchups = round.matchups || [];
+                  const totalHeight = matchups.length * 120;
+                  const startY = 50;
+
+                  return (
+                    <g key={`round-${roundIdx}`}>
+                      {/* Draw matches for this round */}
+                      {matchups.map((match, matchIdx) => {
+                        const matchY = startY + matchIdx * 120;
+                        const boxWidth = 180;
+                        const boxHeight = 50;
+                        const boxY = matchY;
+
+                        // Determine colors based on result
+                        const team1Won = match.played && match.winner
+                          ? bracket.gameType === 'doubles'
+                            ? match.winner.some(p => match.team1?.some(t => t?.id === p?.id))
+                            : match.winner?.[0]?.id === match.team1?.[0]?.id
+                          : false;
+
+                        const team2Won = match.played && match.winner
+                          ? bracket.gameType === 'doubles'
+                            ? match.winner.some(p => match.team2?.some(t => t?.id === p?.id))
+                            : match.winner?.[0]?.id === match.team2?.[0]?.id
+                          : false;
+
+                        return (
+                          <g key={`match-${matchIdx}`}>
+                            {/* Team 1 Box */}
+                            <rect
+                              x={roundX}
+                              y={boxY}
+                              width={boxWidth}
+                              height={boxHeight / 2 - 2}
+                              fill={team1Won ? '#166534' : '#374151'}
+                              stroke={team1Won ? '#22c55e' : '#9ca3af'}
+                              strokeWidth="2"
+                            />
+                            <text
+                              x={roundX + 5}
+                              y={boxY + 18}
+                              fill="white"
+                              fontSize="12"
+                              fontWeight="bold"
+                              textAnchor="start"
+                            >
+                              {formatTeamName(match.team1).substring(0, 20)}
+                              {formatTeamName(match.team1).length > 20 ? '...' : ''}
+                            </text>
+                            {team1Won && (
+                              <text
+                                x={roundX + boxWidth - 10}
+                                y={boxY + 18}
+                                fill="#fbbf24"
+                                fontSize="14"
+                                fontWeight="bold"
+                                textAnchor="end"
+                              >
+                                ★
+                              </text>
+                            )}
+
+                            {/* Team 2 Box */}
+                            <rect
+                              x={roundX}
+                              y={boxY + boxHeight / 2 + 2}
+                              width={boxWidth}
+                              height={boxHeight / 2 - 2}
+                              fill={team2Won ? '#166534' : '#374151'}
+                              stroke={team2Won ? '#22c55e' : '#9ca3af'}
+                              strokeWidth="2"
+                            />
+                            <text
+                              x={roundX + 5}
+                              y={boxY + boxHeight / 2 + 18}
+                              fill="white"
+                              fontSize="12"
+                              fontWeight="bold"
+                              textAnchor="start"
+                            >
+                              {formatTeamName(match.team2).substring(0, 20)}
+                              {formatTeamName(match.team2).length > 20 ? '...' : ''}
+                            </text>
+                            {team2Won && (
+                              <text
+                                x={roundX + boxWidth - 10}
+                                y={boxY + boxHeight / 2 + 18}
+                                fill="#fbbf24"
+                                fontSize="14"
+                                fontWeight="bold"
+                                textAnchor="end"
+                              >
+                                ★
+                              </text>
+                            )}
+
+                            {/* Connection lines to next round */}
+                            {roundIdx < bracket.knockoutRounds.length - 1 && match.winner && (
+                              <g stroke="#60a5fa" strokeWidth="2">
+                                {/* Vertical line to middle */}
+                                <line
+                                  x1={roundX + boxWidth}
+                                  y1={boxY + boxHeight / 2}
+                                  x2={roundX + boxWidth + 30}
+                                  y2={boxY + boxHeight / 2}
+                                />
+                                {/* Horizontal line to next match */}
+                                <line
+                                  x1={roundX + boxWidth + 30}
+                                  y1={boxY + boxHeight / 2}
+                                  x2={roundX + boxWidth + 30}
+                                  y2={boxY + boxHeight / 2 + 60}
+                                />
+                              </g>
+                            )}
+                          </g>
+                        );
+                      })}
+
+                      {/* Round label */}
+                      <text
+                        x={roundX + 90}
+                        y="30"
+                        fill="#3b82f6"
+                        fontSize="14"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                      >
+                        {round.stageName}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 pt-4 border-t border-blue-500 grid grid-cols-2 gap-4 text-xs text-gray-300">
+              <div className="flex items-center gap-2">
+                <span className="text-yellow-400 font-bold">★</span>
+                <span>Round Winner</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-green-700"></div>
+                <span>Won Match</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-gray-600"></div>
+                <span>Lost Match</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <line
+                  x1="0"
+                  y1="8"
+                  x2="16"
+                  y2="8"
+                  stroke="#60a5fa"
+                  strokeWidth="2"
+                />
+                <span>Advancement</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Rounds Detail - Collapsible */}
       <div className="mb-6">
         <button
