@@ -864,30 +864,36 @@ export default function BracketVisualization({
           </div>
 
           {/* Next Round Button */}
-          {anyPendingMatches && !tournamentComplete && (
+          {(anyPendingMatches || isTournamentComplete()) && !tournamentComplete && (
             <button
               onClick={() => {
-                // Check if this is the final round completion
+                // If tournament is already complete, just show the celebration
+                if (isTournamentComplete()) {
+                  setTournamentComplete(true);
+                  return;
+                }
+                
+                // Otherwise, advance the round
+                handleAdvanceRound();
+                
+                // Check if this was the final round
                 if (isOnFinalRound()) {
-                  handleAdvanceRound();
                   // After Final and 3rd Place are done, mark tournament as complete
                   setTimeout(() => {
                     if (isTournamentComplete()) {
                       setTournamentComplete(true);
                     }
                   }, 100);
-                } else {
-                  handleAdvanceRound();
                 }
               }}
-              disabled={bracket.stage === 'knockout' ? !allCurrentKnockoutRoundComplete() : !allCurrentScoresEntered()}
+              disabled={isTournamentComplete() ? false : (bracket.stage === 'knockout' ? !allCurrentKnockoutRoundComplete() : !allCurrentScoresEntered())}
               className={`w-full mt-6 py-3 px-4 rounded-lg font-bold transition ${
-                (bracket.stage === 'knockout' ? allCurrentKnockoutRoundComplete() : allCurrentScoresEntered())
+                isTournamentComplete() || (bracket.stage === 'knockout' ? allCurrentKnockoutRoundComplete() : allCurrentScoresEntered())
                   ? 'bg-green-600 hover:bg-green-500 text-white cursor-pointer'
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {isOnFinalRound() && isTournamentComplete()
+              {isTournamentComplete()
                 ? '🏆 End Tournament'
                 : bracket.stage === 'knockout' 
                 ? allCurrentKnockoutRoundComplete() ? '→ Next Round' : `Complete all ${bracket.knockoutRounds?.[bracket.knockoutRounds.length - 1]?.matchups?.length || 0} matches to continue`
