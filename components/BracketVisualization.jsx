@@ -53,12 +53,35 @@ export default function BracketVisualization({
     }
   };
 
-  // Check if all current round matches have scores entered
+  // Check if all current round matches have scores entered (for group stage display)
   const allCurrentScoresEntered = () => {
     return Object.values(currentRoundMatches).every(match => {
       if (!match) return true; // No match = complete
       return matchScores[match.id] && matchScores[match.id].team1 !== '' && matchScores[match.id].team2 !== '';
     });
+  };
+
+  // Check if all matches in the current knockout round are COMPLETE (have winners)
+  // In knockout, we need ALL matches played before advancing, not just the currently displayed ones
+  const allCurrentKnockoutRoundComplete = () => {
+    if (bracket.stage !== 'knockout' || !bracket.knockoutRounds || bracket.knockoutRounds.length === 0) {
+      return false;
+    }
+    
+    const lastKnockoutRound = bracket.knockoutRounds[bracket.knockoutRounds.length - 1];
+    if (!lastKnockoutRound || !lastKnockoutRound.matchups) {
+      return false;
+    }
+    
+    console.log('[allCurrentKnockoutRoundComplete] Checking round:', lastKnockoutRound.stageName, 'Matches:', lastKnockoutRound.matchups.length);
+    const allPlayed = lastKnockoutRound.matchups.every(match => {
+      const isComplete = match.played && match.winner;
+      console.log('[allCurrentKnockoutRoundComplete] Match', match.id, 'played:', match.played, 'winner:', !!match.winner);
+      return isComplete;
+    });
+    
+    console.log('[allCurrentKnockoutRoundComplete] Result:', allPlayed);
+    return allPlayed;
   };
 
   if (!bracket) {
@@ -412,14 +435,25 @@ export default function BracketVisualization({
 
   // Handle advancing to next round - first mark current matches as played
   const handleAdvanceRound = () => {
-    console.log('[handleAdvanceRound] Called, allCurrentScoresEntered:', allCurrentScoresEntered());
+    console.log('[handleAdvanceRound] Called');
     
-    if (!allCurrentScoresEntered()) {
-      console.warn('[handleAdvanceRound] Cannot advance: not all scores entered');
-      return;
+    // In knockout stage, verify all matches are complete
+    if (bracket.stage === 'knockout') {
+      console.log('[handleAdvanceRound] Knockout stage - verifying all matches complete');
+      if (!allCurrentKnockoutRoundComplete()) {
+        console.warn('[handleAdvanceRound] Cannot advance: not all knockout matches complete');
+        return;
+      }
+    } else {
+      // In group stage, verify all scores are entered
+      console.log('[handleAdvanceRound] Group stage - verifying all scores entered');
+      if (!allCurrentScoresEntered()) {
+        console.warn('[handleAdvanceRound] Cannot advance: not all scores entered');
+        return;
+      }
     }
 
-    console.log('[handleAdvanceRound] All scores entered, preparing bracket update');
+    console.log('[handleAdvanceRound] All conditions met, preparing bracket update');
     console.log('[handleAdvanceRound] matchWinners:', matchWinners);
     console.log('[handleAdvanceRound] currentRoundMatches:', currentRoundMatches);
     console.log('[handleAdvanceRound] Bracket stage:', bracket.stage);
@@ -705,14 +739,16 @@ export default function BracketVisualization({
           {anyPendingMatches && (
             <button
               onClick={handleAdvanceRound}
-              disabled={!allCurrentScoresEntered()}
+              disabled={bracket.stage === 'knockout' ? !allCurrentKnockoutRoundComplete() : !allCurrentScoresEntered()}
               className={`w-full mt-6 py-3 px-4 rounded-lg font-bold transition ${
-                allCurrentScoresEntered()
+                (bracket.stage === 'knockout' ? allCurrentKnockoutRoundComplete() : allCurrentScoresEntered())
                   ? 'bg-green-600 hover:bg-green-500 text-white cursor-pointer'
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {allCurrentScoresEntered() ? '→ Next Round' : 'Enter all scores to continue'}
+              {bracket.stage === 'knockout' 
+                ? allCurrentKnockoutRoundComplete() ? '→ Next Round' : `Complete all ${bracket.knockoutRounds?.[bracket.knockoutRounds.length - 1]?.matchups?.length || 0} matches to continue`
+                : allCurrentScoresEntered() ? '→ Next Round' : 'Enter all scores to continue'}
             </button>
           )}
         </div>
