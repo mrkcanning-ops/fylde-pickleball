@@ -259,6 +259,16 @@ export default function BracketVisualization({
   // Handle advancing to knockout stage explicitly
   const handleAdvanceToKnockout = () => {
     console.log('[handleAdvanceToKnockout] Advancing to knockout stage');
+    console.log('[handleAdvanceToKnockout] Current bracket stage:', bracket.stage);
+    console.log('[handleAdvanceToKnockout] Current bracket rounds:', bracket.rounds?.length);
+    
+    // Log each round's played status
+    bracket.rounds?.forEach((round, idx) => {
+      const unplayedCount = round.matchups?.filter(m => !m.played).length || 0;
+      const totalCount = round.matchups?.length || 0;
+      console.log(`[handleAdvanceToKnockout] Round ${idx} (${round.stageName}): ${totalCount} matches, ${unplayedCount} unplayed`);
+    });
+    
     // Pass the bracket WITHOUT changing stage - let the hook handle the transition
     // The hook will detect all group rounds are complete and transition to knockout
     console.log('[handleAdvanceToKnockout] Calling onAdvanceRound with current bracket');
