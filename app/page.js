@@ -3540,7 +3540,7 @@ const handleTouchEnd = (e) => {
 };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 px-4 py-6 sm:p-8 text-gray-300 font-sans pb-28" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 py-6 sm:px-4 sm:py-8 text-gray-300 font-sans pb-28" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {!hydrated && (
         <div className="p-6 text-center text-gray-300">Loading…</div>
       )}
@@ -5104,7 +5104,7 @@ const handleTouchEnd = (e) => {
 
         {/* Tournament Section */}
         {activeTab === "Matches" && viewMode === "tournament" && (
-          <div className="mt-8 bg-gray-800 border border-gray-700 rounded-lg p-6">
+          <div className="bg-gray-800 border border-gray-700 sm:rounded-lg p-6 sm:p-6 -mx-0 sm:mx-0">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-white flex items-center gap-2">
                 🏆 Tournament Bracket

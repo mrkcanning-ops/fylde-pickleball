@@ -600,7 +600,7 @@ export default function BracketVisualization({
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6 overflow-x-auto space-y-6">
+    <div className="bg-gray-800 sm:rounded-lg p-6 -mx-6 sm:mx-0 overflow-x-auto space-y-6">
       <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
         🏆 {bracket.format === 'group-knockout' ? 'Group Stage + Knockout' : bracket.format === 'double-elimination' ? 'Double' : 'Single'} {bracket.format !== 'group-knockout' && 'Elimination'} ({bracket.gameType === 'doubles' ? 'Doubles' : 'Singles'})
       </h3>
