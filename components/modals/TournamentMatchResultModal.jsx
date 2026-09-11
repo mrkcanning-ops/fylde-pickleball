@@ -17,16 +17,21 @@ export default function TournamentMatchResultModal({
   const [selectedWinner, setSelectedWinner] = useState(null);
   const [matchScore, setMatchScore] = useState({ team1: '', team2: '' });
   const [isDraw, setIsDraw] = useState(false);
+  const [notes, setNotes] = useState('');
 
   // Check if this is a group stage match (draws allowed)
   const isGroupStage = match?.stage?.includes('group');
+  
+  // Check if this is a doubles match
+  const isDoubles = match?.team1?.length > 1 || match?.team2?.length > 1;
 
   // Auto-detect winner based on score
   useEffect(() => {
     if (!match) return; // Guard against null match
     
-    const team1 = match.team1?.[0];
-    const team2 = match.team2?.[0];
+    // Always record the winning side as a team array, including singles.
+    const team1Winner = match.team1;
+    const team2Winner = match.team2;
     
     // Only proceed if both scores are entered
     const score1 = matchScore.team1 !== '' ? parseInt(matchScore.team1, 10) : null;
@@ -35,11 +40,11 @@ export default function TournamentMatchResultModal({
     if (score1 !== null && score2 !== null) {
       if (score1 > score2) {
         // Team 1 has higher score
-        setSelectedWinner(team1);
+        setSelectedWinner(team1Winner);
         setIsDraw(false);
       } else if (score2 > score1) {
         // Team 2 has higher score
-        setSelectedWinner(team2);
+        setSelectedWinner(team2Winner);
         setIsDraw(false);
       } else if (isGroupStage) {
         // Equal scores in group stage = draw
@@ -47,7 +52,7 @@ export default function TournamentMatchResultModal({
         setIsDraw(true);
       }
     }
-  }, [matchScore, match, isGroupStage]);
+  }, [matchScore, match, isGroupStage, isDoubles]);
 
   if (!isOpen) return null;
   if (!match) return null;
@@ -58,8 +63,15 @@ export default function TournamentMatchResultModal({
       return;
     }
 
-    // For draws, pass a special marker object
-    const result = isDraw ? { draw: true } : selectedWinner;
+    const result = {
+      winner: isDraw ? { draw: true } : selectedWinner,
+      ...(matchScore.team1 !== '' && matchScore.team2 !== '' ? {
+        score: {
+          team1: Number(matchScore.team1),
+          team2: Number(matchScore.team2),
+        },
+      } : {}),
+    };
     
     onRecordResult?.(match.id, result);
     
@@ -71,8 +83,21 @@ export default function TournamentMatchResultModal({
     onClose();
   };
 
-  const team1 = match.team1?.[0];
-  const team2 = match.team2?.[0];
+  // Helper to format team name for display
+  const formatTeamName = (team) => {
+    if (!team || team.length === 0) return 'TBD';
+    return team.map(p => p?.name).filter(Boolean).join(' & ') || 'TBD';
+  };
+
+  // Helper to check if two teams are equal (for comparison)
+  const areTeamsEqual = (team1, team2) => {
+    if (!team1 || !team2) return false;
+    if (team1.length !== team2.length) return false;
+    return team1.every(p1 => team2.some(p2 => p2?.id === p1?.id));
+  };
+
+  const team1Display = formatTeamName(match.team1);
+  const team2Display = formatTeamName(match.team2);
 
   return (
     <div
@@ -105,7 +130,7 @@ export default function TournamentMatchResultModal({
               {/* Team 1 */}
               <div className="bg-gray-700 rounded p-2 text-center">
                 <div className="text-sm font-semibold text-white truncate">
-                  {team1?.name || 'TBD'}
+                  {team1Display}
                 </div>
               </div>
 
@@ -114,7 +139,7 @@ export default function TournamentMatchResultModal({
               {/* Team 2 */}
               <div className="bg-gray-700 rounded p-2 text-center">
                 <div className="text-sm font-semibold text-white truncate">
-                  {team2?.name || 'TBD'}
+                  {team2Display}
                 </div>
               </div>
             </div>
@@ -155,29 +180,29 @@ export default function TournamentMatchResultModal({
             <div className="space-y-2">
               <button
                 onClick={() => {
-                  setSelectedWinner(team1);
+                  setSelectedWinner(match.team1);
                   setIsDraw(false);
                 }}
                 className={`w-full p-3 rounded-lg border-2 font-semibold transition ${
-                  selectedWinner?.id === team1?.id && !isDraw
+                  (isDoubles ? areTeamsEqual(selectedWinner, match.team1) : selectedWinner?.id === match.team1?.[0]?.id) && !isDraw
                     ? 'border-green-500 bg-green-900 bg-opacity-30 text-green-300'
                     : 'border-gray-600 bg-gray-700 text-white hover:border-gray-500'
                 }`}
               >
-                🏆 {team1?.name || 'TBD'} Wins
+                🏆 {team1Display} Wins
               </button>
               <button
                 onClick={() => {
-                  setSelectedWinner(team2);
+                  setSelectedWinner(match.team2);
                   setIsDraw(false);
                 }}
                 className={`w-full p-3 rounded-lg border-2 font-semibold transition ${
-                  selectedWinner?.id === team2?.id && !isDraw
+                  (isDoubles ? areTeamsEqual(selectedWinner, match.team2) : selectedWinner?.id === match.team2?.[0]?.id) && !isDraw
                     ? 'border-green-500 bg-green-900 bg-opacity-30 text-green-300'
                     : 'border-gray-600 bg-gray-700 text-white hover:border-gray-500'
                 }`}
               >
-                🏆 {team2?.name || 'TBD'} Wins
+                🏆 {team2Display} Wins
               </button>
               
               {/* Draw button for group stages */}
@@ -207,7 +232,7 @@ export default function TournamentMatchResultModal({
           )}
           {selectedWinner && !isDraw && (
             <div className="bg-green-900 bg-opacity-30 border border-green-600 rounded p-3 text-sm text-green-300">
-              ✓ {selectedWinner.name} will advance to the next round
+              ✓ {formatTeamName(selectedWinner)} will advance to the next round
             </div>
           )}
         </div>

@@ -1,6 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import {
+  calculateGroupStandings,
+  getActiveKnockoutRound,
+  isTournamentComplete as isBracketComplete,
+} from '@/lib/matchGeneratorTournament';
+import DynamicBracket from '@/components/DynamicBracket';
 
 /**
  * BracketVisualization
@@ -17,7 +23,10 @@ export default function BracketVisualization({
   onTournamentComplete = null,
   tournamentCompleted = false,
 }) {
-  console.log('[BracketVisualization] Rendering bracket:', bracket?.format, bracket?.gameType, 'rounds:', bracket?.rounds?.length);
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  if (isDevelopment) {
+    console.log('[BracketVisualization] Rendering bracket:', bracket?.format, bracket?.gameType, 'rounds:', bracket?.rounds?.length);
+  }
   const [showCourtSchedule, setShowCourtSchedule] = useState(true);
   const [showRoundsDetail, setShowRoundsDetail] = useState(false);
   const [showGroupAssignments, setShowGroupAssignments] = useState(true);
@@ -35,19 +44,31 @@ export default function BracketVisualization({
 
   // Helper function to format team names for display
   const formatTeamName = (team) => {
-    if (!team || team.length === 0) return 'TBD';
+    const normalizedTeam = Array.isArray(team) ? team : team ? [team] : [];
+    if (normalizedTeam.length === 0) return 'TBD';
     
     // For all teams (singles or doubles), just join player names
-    return team.map(p => p?.name).filter(Boolean).join(' & ') || 'TBD';
+    return normalizedTeam.map(p => p?.name).filter(Boolean).join(' & ') || 'TBD';
+  };
+
+  // Helper function to compare if two teams are the same
+  const areTeamsSame = (team1, team2) => {
+    const normalizedTeam1 = Array.isArray(team1) ? team1 : team1 ? [team1] : [];
+    const normalizedTeam2 = Array.isArray(team2) ? team2 : team2 ? [team2] : [];
+    if (normalizedTeam1.length !== normalizedTeam2.length) return false;
+    // Check if all players in team1 are in team2 by ID
+    return normalizedTeam1.every(p1 => normalizedTeam2.some(p2 => p2?.id === p1?.id));
   };
 
   // Helper to update match score and auto-detect winner
   const updateMatchScore = (matchId, team, score) => {
-    const newScores = { ...matchScores };
-    if (!newScores[matchId]) {
-      newScores[matchId] = { team1: '', team2: '' };
-    }
-    newScores[matchId][team] = score;
+    const newScores = {
+      ...matchScores,
+      [matchId]: {
+        ...(matchScores[matchId] || { team1: '', team2: '' }),
+        [team]: score,
+      },
+    };
     setMatchScores(newScores);
 
     // Auto-detect winner if both scores are entered
@@ -56,11 +77,11 @@ export default function BracketVisualization({
       const s2 = parseInt(newScores[matchId].team2, 10);
       
       if (s1 > s2) {
-        setMatchWinners({ ...matchWinners, [matchId]: 'team1' });
+        setMatchWinners(previous => ({ ...previous, [matchId]: 'team1' }));
       } else if (s2 > s1) {
-        setMatchWinners({ ...matchWinners, [matchId]: 'team2' });
+        setMatchWinners(previous => ({ ...previous, [matchId]: 'team2' }));
       } else {
-        setMatchWinners({ ...matchWinners, [matchId]: 'draw' });
+        setMatchWinners(previous => ({ ...previous, [matchId]: 'draw' }));
       }
     }
   };
@@ -83,8 +104,8 @@ export default function BracketVisualization({
       return false;
     }
     
-    const lastKnockoutRound = bracket.knockoutRounds[bracket.knockoutRounds.length - 1];
-    if (!lastKnockoutRound || !lastKnockoutRound.matchups) {
+    const activeKnockoutRound = getActiveKnockoutRound(bracket.knockoutRounds);
+    if (!activeKnockoutRound || !activeKnockoutRound.matchups) {
       return false;
     }
 
@@ -94,8 +115,8 @@ export default function BracketVisualization({
       return true;
     }
     
-    console.log('[allCurrentKnockoutRoundComplete] Checking round:', lastKnockoutRound.stageName, 'Matches:', lastKnockoutRound.matchups.length);
-    const allPlayed = lastKnockoutRound.matchups.every(match => {
+    console.log('[allCurrentKnockoutRoundComplete] Checking round:', activeKnockoutRound.stageName, 'Matches:', activeKnockoutRound.matchups.length);
+    const allPlayed = activeKnockoutRound.matchups.every(match => {
       const isComplete = match.played && match.winner;
       console.log('[allCurrentKnockoutRoundComplete] Match', match.id, 'played:', match.played, 'winner:', !!match.winner);
       return isComplete;
@@ -146,21 +167,7 @@ export default function BracketVisualization({
     );
   }
 
-  /**
-   * Check if tournament is complete (final and 3rd place playoff both finished)
-   */
-  const isTournamentComplete = () => {
-    if (!bracket.knockoutRounds || bracket.knockoutRounds.length < 2) return false;
-    
-    // Find Final and 3rd Place Playoff rounds
-    const finalRound = bracket.knockoutRounds.find(r => r.stageName === 'Final');
-    const thirdPlaceRound = bracket.knockoutRounds.find(r => r.stageName === '3rd Place Playoff');
-    
-    const finalDone = finalRound?.matchups?.[0]?.played;
-    const thirdPlaceDone = thirdPlaceRound?.matchups?.[0]?.played;
-    
-    return finalDone && thirdPlaceDone;
-  };
+  const isTournamentComplete = () => isBracketComplete(bracket);
 
   /**
    * Get tournament results (1st, 2nd, 3rd place)
@@ -174,11 +181,16 @@ export default function BracketVisualization({
     const finalMatch = finalRound?.matchups?.[0];
     const thirdPlaceMatch = thirdPlaceRound?.matchups?.[0];
     
+    // Determine the runner-up (2nd place) by checking which team lost the final
+    let second = null;
+    if (finalMatch?.winner && finalMatch?.team1 && finalMatch?.team2) {
+      const winnersAreTeam1 = areTeamsSame(finalMatch.winner, finalMatch.team1);
+      second = winnersAreTeam1 ? finalMatch.team2 : finalMatch.team1;
+    }
+    
     return {
       first: finalMatch?.winner || null,
-      second: finalMatch ? (finalMatch.winner?.id === finalMatch.team1?.[0]?.id || 
-                           finalMatch.winner?.some?.(p => finalMatch.team1?.some(t => t?.id === p?.id))
-                           ? finalMatch.team2 : finalMatch.team1) : null,
+      second: second,
       third: thirdPlaceMatch?.winner || null,
     };
   };
@@ -187,12 +199,12 @@ export default function BracketVisualization({
    * Check if we're on the final round (last unplayed round before tournament complete)
    */
   const isOnFinalRound = () => {
-    if (!bracket.knockoutRounds || bracket.knockoutRounds.length < 2) return false;
+    if (!bracket.knockoutRounds || bracket.knockoutRounds.length === 0) return false;
     
     const finalRound = bracket.knockoutRounds.find(r => r.stageName === 'Final');
     const thirdPlaceRound = bracket.knockoutRounds.find(r => r.stageName === '3rd Place Playoff');
     
-    const finalUnplayed = finalRound && finalRound.matchups?.some(m => !m.played);
+    const finalUnplayed = finalRound?.matchups?.some(m => !m.played);
     const thirdPlaceUnplayed = thirdPlaceRound && thirdPlaceRound.matchups?.some(m => !m.played);
     
     return finalUnplayed || thirdPlaceUnplayed;
@@ -416,7 +428,8 @@ export default function BracketVisualization({
             groupStandings[team2Key].pointsFor++;
           } else {
             // Check if team1 won
-            const team1Won = match.winner?.some(w => 
+            const winnerTeam = Array.isArray(match.winner) ? match.winner : [match.winner];
+            const team1Won = winnerTeam.some(w => 
               match.team1.some(t => t.id === w.id)
             );
 
@@ -479,7 +492,8 @@ export default function BracketVisualization({
             if (p1) groupStandings[p1.id].pointsFor++;
             if (p2) groupStandings[p2.id].pointsFor++;
           } else {
-            const winnerId = match.winner?.[0]?.id;
+            const winnerTeam = Array.isArray(match.winner) ? match.winner : [match.winner];
+            const winnerId = winnerTeam[0]?.id;
             if (p1) {
               if (p1.id === winnerId) {
                 groupStandings[p1.id].wins++;
@@ -516,7 +530,7 @@ export default function BracketVisualization({
     return standings;
   };
 
-  const groupStandings = getGroupStandings();
+  const groupStandings = calculateGroupStandings(bracket) || getGroupStandings();
 
   // Handle advancing to next round - first mark current matches as played
   const handleAdvanceRound = () => {
@@ -589,10 +603,17 @@ export default function BracketVisualization({
             console.log('[handleAdvanceRound] Match', match.id, 'winner:', winner);
             // Determine which team won
             const winningTeam = winner === 'team1' ? match.team1 : winner === 'team2' ? match.team2 : null;
+            const score = matchScores[match.id];
             return {
               ...match,
               played: true,
               winner: winningTeam || (winner === 'draw' ? { draw: true } : null),
+              ...(score ? {
+                score: {
+                  team1: Number(score.team1),
+                  team2: Number(score.team2),
+                },
+              } : {}),
             };
           }
           return match;
@@ -642,10 +663,17 @@ export default function BracketVisualization({
               console.log('[handleAdvanceRound] Match', match.id, 'winner:', winner);
               // Determine which team won
               const winningTeam = winner === 'team1' ? match.team1 : winner === 'team2' ? match.team2 : null;
+              const score = matchScores[match.id];
               return {
                 ...match,
                 played: true,
                 winner: winningTeam || (winner === 'draw' ? { draw: true } : null),
+                ...(score ? {
+                  score: {
+                    team1: Number(score.team1),
+                    team2: Number(score.team2),
+                  },
+                } : {}),
               };
             }
             return match;
@@ -795,7 +823,7 @@ export default function BracketVisualization({
           </h4>
           
           <div className="grid gap-6 grid-cols-1">
-            {Array.from({ length: bracket.courtsCount }, (_, courtIdx) => {
+            {Array.from({ length: bracket.courtsCount || 1 }, (_, courtIdx) => {
               const courtNum = courtIdx + 1;
               const match = currentRoundMatches[courtNum];
               const matchScoreData = matchScores[match?.id];
@@ -994,6 +1022,8 @@ export default function BracketVisualization({
             </h4>
 
             <div className="overflow-auto">
+              <DynamicBracket rounds={bracket.knockoutRounds} />
+              <div className="hidden">
               <svg width="1600" height="950" className="min-w-full bg-gray-900 bg-opacity-30 rounded border border-blue-400">
                 <defs>
                   <style>{`
@@ -1013,11 +1043,7 @@ export default function BracketVisualization({
                   // Helper to check if a team won a match
                   const isTeamWinner = (team, match) => {
                     if (!match?.played || !match?.winner) return false;
-                    if (bracket.gameType === 'doubles') {
-                      return match.winner.some(p => team?.some(t => t?.id === p?.id));
-                    } else {
-                      return match.winner?.[0]?.id === team?.[0]?.id;
-                    }
+                    return areTeamsSame(match.winner, team);
                   };
 
                   // Helper to draw a team box (winner or loser)
@@ -1162,6 +1188,7 @@ export default function BracketVisualization({
                   );
                 })()}
               </svg>
+              </div>
             </div>
 
             {/* Legend */}
@@ -1200,7 +1227,7 @@ export default function BracketVisualization({
 
         {showRoundsDetail && (
           <div className="mt-4 space-y-6">
-            {bracket.rounds?.map((round, roundIdx) => (
+            {[...(bracket.rounds || []), ...(bracket.knockoutRounds || [])].map((round, roundIdx) => (
               <div key={roundIdx} className="border-l-2 border-blue-500 pl-4">
                 <h4 className="font-semibold text-yellow-400 mb-3 text-sm">
                   {round.stageName}
@@ -1228,11 +1255,7 @@ export default function BracketVisualization({
                   {/* Team 1 */}
                   <div className={`flex items-center justify-between p-2 rounded mb-1 ${
                     match.played && match.winner
-                      ? bracket.gameType === 'doubles'
-                        ? Array.isArray(match.winner) && match.winner.some?.(p => match.team1?.some(t => t?.id === p?.id))
-                          ? 'bg-green-900 bg-opacity-50'
-                          : 'bg-gray-600'
-                        : match.winner?.id === match.team1?.[0]?.id
+                      ? areTeamsSame(match.winner, match.team1)
                         ? 'bg-green-900 bg-opacity-50'
                         : 'bg-gray-600'
                       : 'bg-gray-600'
@@ -1241,13 +1264,9 @@ export default function BracketVisualization({
                       {formatTeamName(match.team1)}
                     </span>
                     {match.played && match.winner && (
-                      bracket.gameType === 'doubles'
-                        ? Array.isArray(match.winner) && match.winner.every(p => match.team1?.some(t => t?.id === p?.id)) && (
-                          <span className="text-yellow-400 font-bold">🏆</span>
-                        )
-                        : match.winner?.id === match.team1?.[0]?.id && (
-                          <span className="text-yellow-400 font-bold">🏆</span>
-                        )
+                      areTeamsSame(match.winner, match.team1) && (
+                        <span className="text-yellow-400 font-bold">🏆</span>
+                      )
                     )}
                   </div>
 
@@ -1259,11 +1278,7 @@ export default function BracketVisualization({
                       {/* Team 2 */}
                       <div className={`flex items-center justify-between p-2 rounded ${
                         match.played && match.winner
-                          ? bracket.gameType === 'doubles'
-                            ? Array.isArray(match.winner) && match.winner.some?.(p => match.team2?.some(t => t?.id === p?.id))
-                              ? 'bg-green-900 bg-opacity-50'
-                              : 'bg-gray-600'
-                            : match.winner?.id === match.team2?.[0]?.id
+                          ? areTeamsSame(match.winner, match.team2)
                             ? 'bg-green-900 bg-opacity-50'
                             : 'bg-gray-600'
                           : 'bg-gray-600'
@@ -1272,13 +1287,9 @@ export default function BracketVisualization({
                           {formatTeamName(match.team2)}
                         </span>
                         {match.played && match.winner && (
-                          bracket.gameType === 'doubles'
-                            ? Array.isArray(match.winner) && match.winner.every(p => match.team2?.some(t => t?.id === p?.id)) && (
-                              <span className="text-yellow-400 font-bold">🏆</span>
-                            )
-                            : match.winner?.id === match.team2?.[0]?.id && (
-                              <span className="text-yellow-400 font-bold">🏆</span>
-                            )
+                          areTeamsSame(match.winner, match.team2) && (
+                            <span className="text-yellow-400 font-bold">🏆</span>
+                          )
                         )}
                       </div>
                     </>
