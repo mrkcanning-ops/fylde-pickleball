@@ -274,14 +274,43 @@ describe('Tournament Knockout Flow', () => {
     });
   });
 
-  test('rejects unsupported six-group configurations instead of creating a dead end', () => {
+  test('creates 4 groups for large player counts cleanly without dead ends', () => {
     const result = generateGroupKnockoutBracket(createTestPlayers(48), 'doubles', {
       doublesPartnerMode: 'random',
       playerPartners: {},
     });
 
-    expect(result.bracket).toBeNull();
-    expect(result.error).toMatch(/supports 2 or 4 groups/);
+    expect(result.error).toBeNull();
+    expect(result.bracket.numGroups).toBe(4);
+    expect(result.bracket.rounds.filter(r => r.bracketType === 'group')).toHaveLength(4);
+  });
+
+  test('singles group-knockout with 6 and 8 players creates 2 groups and advances to Semifinals', () => {
+    const res6 = generateGroupKnockoutBracket(createTestPlayers(6), 'singles');
+    expect(res6.error).toBeNull();
+    expect(res6.bracket.numGroups).toBe(2);
+
+    const res8 = generateGroupKnockoutBracket(createTestPlayers(8), 'singles');
+    expect(res8.error).toBeNull();
+    expect(res8.bracket.numGroups).toBe(2);
+
+    // Complete res8 matches and generate knockout
+    const completed8 = {
+      ...res8.bracket,
+      rounds: res8.bracket.rounds.map(round => ({
+        ...round,
+        matchups: round.matchups.map(match => ({
+          ...match,
+          played: true,
+          winner: match.team1,
+        })),
+      })),
+    };
+
+    const knockout8 = generateKnockoutFromGroups(completed8);
+    expect(knockout8).not.toBeNull();
+    expect(knockout8.stageName).toBe('Semifinals');
+    expect(knockout8.matchups).toHaveLength(2);
   });
 
   test('uses recorded scores as a deterministic group tiebreaker', () => {

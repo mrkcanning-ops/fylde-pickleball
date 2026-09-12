@@ -6657,7 +6657,11 @@ const handleTouchEnd = (e) => {
             playerPartners: config.playerPartners,
           };
           
-          tournament.initializeTournament(tournamentPlayers, format, gameType, courtsCount, doublesConfig);
+          const result = tournament.initializeTournament(tournamentPlayers, format, gameType, courtsCount, doublesConfig);
+          if (result?.error) {
+            toast.error(`❌ Failed to start tournament: ${result.error}`);
+            return;
+          }
           tournament.setShowTournamentModal(false);
           setViewMode('tournament');
           setActiveTab('Matches');

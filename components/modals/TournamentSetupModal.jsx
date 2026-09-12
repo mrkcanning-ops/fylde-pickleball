@@ -17,61 +17,56 @@ function validateTournamentPlayerCount(playerCount, format, gameType) {
   if (format === 'group-knockout') {
     // Group knockout validation
     if (gameType === 'doubles') {
-      // Doubles: 18 minimum (3 groups of 3 pairs), must be even
-      if (playerCount < 18) {
+      // Doubles: minimum 8 players (4 pairs), must be even
+      if (playerCount < 8) {
         return {
           valid: false,
-          error: `Doubles group stage needs minimum 18 players (3 groups of 3 pairs). You have ${playerCount}.`,
-          minPlayers: 18,
+          error: `Doubles group stage needs minimum 8 players (4 pairs). You have ${playerCount}.`,
+          minPlayers: 8,
         };
       }
       if (playerCount % 2 !== 0) {
         return {
           valid: false,
           error: `Doubles group stage requires an even number of players. You have ${playerCount} (try ${playerCount + 1} or ${playerCount - 1}).`,
-          minPlayers: 18,
+          minPlayers: 8,
         };
       }
     } else {
-      // Singles: 12 minimum (4 players per group in 3 groups), must be even
-      if (playerCount < 12) {
+      // Singles: minimum 4 players (2 groups of 2)
+      if (playerCount < 4) {
         return {
           valid: false,
-          error: `Singles group stage needs minimum 12 players (4 per group in 3 groups). You have ${playerCount}.`,
-          minPlayers: 12,
-        };
-      }
-      if (playerCount % 2 !== 0) {
-        return {
-          valid: false,
-          error: `Singles group stage requires an even number of players. You have ${playerCount} (try ${playerCount + 1} or ${playerCount - 1}).`,
-          minPlayers: 12,
+          error: `Singles group stage needs minimum 4 players (2 groups of 2). You have ${playerCount}.`,
+          minPlayers: 4,
         };
       }
     }
   } else {
     // Single/Double elimination validation
     if (gameType === 'doubles') {
-      // Doubles: divisible by 4
-      if (playerCount % 4 !== 0) {
-        const nearest4 = Math.round(playerCount / 4) * 4;
+      // Doubles: minimum 4 players, must be even
+      if (playerCount < 4) {
         return {
           valid: false,
-          error: `Doubles bracket needs player count divisible by 4. You have ${playerCount} (try ${nearest4}).`,
+          error: `Doubles bracket needs at least 4 players (2 pairs). You have ${playerCount}.`,
+          minPlayers: 4,
+        };
+      }
+      if (playerCount % 2 !== 0) {
+        return {
+          valid: false,
+          error: `Doubles bracket requires an even number of players. You have ${playerCount} (try ${playerCount + 1} or ${playerCount - 1}).`,
           minPlayers: 4,
         };
       }
     } else {
-      // Singles: divisible by 4 or 5
-      const divisibleBy4 = playerCount % 4 === 0;
-      const divisibleBy5 = playerCount % 5 === 0;
-      if (!divisibleBy4 && !divisibleBy5) {
-        const nearest4 = Math.round(playerCount / 4) * 4;
-        const nearest5 = Math.round(playerCount / 5) * 5;
+      // Singles: minimum 2 players
+      if (playerCount < 2) {
         return {
           valid: false,
-          error: `Singles bracket needs players divisible by 4 or 5. You have ${playerCount} (try ${nearest4} or ${nearest5}).`,
-          minPlayers: 4,
+          error: `Singles bracket needs at least 2 players. You have ${playerCount}.`,
+          minPlayers: 2,
         };
       }
     }
