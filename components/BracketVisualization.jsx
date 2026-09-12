@@ -97,32 +97,37 @@ export default function BracketVisualization({
   };
 
   // Check if all matches in the current knockout round are COMPLETE (have winners)
-  // In knockout, we need ALL matches played before advancing, not just the currently displayed ones
-  // In testing mode, allow advancing without marking winners (auto-generated in handleAdvanceRound)
+  // In knockout, check if all displayed court matches have winners/scores entered OR if the round is already complete
   const allCurrentKnockoutRoundComplete = () => {
     if (bracket.stage !== 'knockout' || !bracket.knockoutRounds || bracket.knockoutRounds.length === 0) {
       return false;
+    }
+
+    if (testingMode) {
+      return true;
+    }
+
+    // Check if all currently displayed court matches have a winner selected or entered
+    const displayedMatches = Object.values(currentRoundMatches).filter(Boolean);
+    if (displayedMatches.length > 0) {
+      const allDisplayedHaveWinners = displayedMatches.every(m =>
+        m.played || matchWinners[m.id] || (matchScores[m.id]?.team1 !== '' && matchScores[m.id]?.team2 !== '' && matchScores[m.id]?.team1 !== undefined && matchScores[m.id]?.team2 !== undefined)
+      );
+      if (allDisplayedHaveWinners) {
+        return true;
+      }
     }
     
     const activeKnockoutRound = getActiveKnockoutRound(bracket.knockoutRounds);
     if (!activeKnockoutRound || !activeKnockoutRound.matchups) {
       return false;
     }
-
-    // In testing mode, always allow (auto-generate winners in handleAdvanceRound)
-    if (testingMode) {
-      console.log('[allCurrentKnockoutRoundComplete] Testing mode: allowing advance');
-      return true;
-    }
     
-    console.log('[allCurrentKnockoutRoundComplete] Checking round:', activeKnockoutRound.stageName, 'Matches:', activeKnockoutRound.matchups.length);
     const allPlayed = activeKnockoutRound.matchups.every(match => {
       const isComplete = match.played && match.winner;
-      console.log('[allCurrentKnockoutRoundComplete] Match', match.id, 'played:', match.played, 'winner:', !!match.winner);
       return isComplete;
     });
     
-    console.log('[allCurrentKnockoutRoundComplete] Result:', allPlayed);
     return allPlayed;
   };
 
@@ -926,7 +931,7 @@ export default function BracketVisualization({
               {isOnFinalRound() || isTournamentComplete()
                 ? '🏆 End Tournament'
                 : bracket.stage === 'knockout' 
-                ? allCurrentKnockoutRoundComplete() ? '→ Next Round' : `Complete all ${bracket.knockoutRounds?.[bracket.knockoutRounds.length - 1]?.matchups?.length || 0} matches to continue`
+                ? allCurrentKnockoutRoundComplete() ? '→ Next Round' : 'Complete match results to continue'
                 : allCurrentScoresEntered() ? '→ Next Round' : 'Enter all scores to continue'}
             </button>
           )}
